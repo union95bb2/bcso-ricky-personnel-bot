@@ -2,6 +2,8 @@
 
 An internal Discord bot for the Blaine County Sheriff's Office FiveM roleplay server. It produces consistent training and personnel records, safely pings the relevant members, updates rank roles only after Command approval, and logs every completed action in Discord.
 
+Canonical source: [private GitHub repository](https://github.com/union95bb2/bcso-ricky-personnel-bot). Keep deployment changes and reviewed fixes in `main`; never commit `.env` or the local SQLite data directory.
+
 ## What it does
 
 - `/training-log trainer:@member trainee:@member date:Today` opens a guided form with an optional one-click **Today** date prefill and generates a polished training embed.
