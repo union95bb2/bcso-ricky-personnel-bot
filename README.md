@@ -15,6 +15,8 @@ The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVE
 - Only Command can approve the promotion preview. Approval removes any configured prior rank role, adds the configured new rank role, posts the personnel record, announces it, and writes an audit entry.
 - `/award-role member:@member role:@role` records and applies an approved qualification or unit role. The bot will reject every role except those explicitly listed in `AWARDABLE_ROLE_IDS`.
 - `/remove-role member:@member role:@role` uses the same allow-list and preview to remove an approved qualification or unit role. It cannot remove ranks, PAB, moderation, or elevated roles.
+
+If `/award-role` or `/remove-role` says a role is not eligible, the selected role is not in `AWARDABLE_ROLE_IDS` (or is a rank/managed/elevated role). In the demo configuration, `Test FTO` is the harmless allow-listed role. A server administrator can add another non-rank qualification/unit role ID to the protected setting, restart Ricky, and run `/pab-health`; never put PAB, Command, rank, moderation, or Administrator roles in that list.
 - `/department-record member:@member callsign:C-###` is the mobile-first PAB workflow. It selects members and roles in Discord, previews the captured PAB-branded department-record format, routes it to the personnel-record destination, and gives it an audit ID.
 - `/correct-record message-link:` creates a new, immutable correction in the original record's channel. It never edits or deletes the original.
 - `/promotion-check member:@member` captures the human eligibility review in the private PAB queue; it cannot promote anyone.

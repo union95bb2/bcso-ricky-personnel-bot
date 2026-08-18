@@ -54,6 +54,22 @@ function isApprovedAwardRole(role) {
     && !role.permissions.has(PermissionFlagsBits.Administrator);
 }
 
+function awardRoleEligibilityMessage(role, action = "award") {
+  if (!config.awardableRoleIds.size) {
+    return `No qualification or unit roles are configured for PAB ${action}s yet. A server administrator must add the intended role ID to the protected \`AWARDABLE_ROLE_IDS\` setting, restart Ricky, then run \`/pab-health\`.`;
+  }
+  if (!config.awardableRoleIds.has(role.id)) {
+    const configured = [...config.awardableRoleIds].map(id => `<@&${id}>`).join(", ");
+    return `**${role.name}** is not on Ricky's PAB ${action} allow-list. The currently configured role(s) are: ${configured}. Rank, PAB, Command, moderation, and administrator roles cannot be changed with this command.`;
+  }
+  if (Object.values(config.rankRoleIds).includes(role.id)) {
+    return `**${role.name}** is a configured rank role. Rank changes must use \`/promotion\` and Command approval.`;
+  }
+  if (role.managed) return `**${role.name}** is a managed integration role and cannot be changed by Ricky.`;
+  if (role.permissions.has(PermissionFlagsBits.Administrator)) return `**${role.name}** has Administrator permission and is blocked from PAB qualification/unit changes.`;
+  return `**${role.name}** is not eligible for PAB ${action}s. Run \`/pab-health\` to check the allow-list and role hierarchy.`;
+}
+
 function isNotifiableRole(role) {
   return role
     && role.id !== role.guild.id
@@ -306,7 +322,7 @@ async function showRoleAwardModal(interaction) {
   const member = interaction.options.getMember("member");
   const role = interaction.options.getRole("role");
   if (!member || !role) return interaction.reply({ content: "The member and role must be available in this server.", ephemeral: true });
-  if (!isApprovedAwardRole(role)) return interaction.reply({ content: "That role is not eligible for PAB awards. Only configured qualification or unit roles without elevated permissions are permitted.", ephemeral: true });
+  if (!isApprovedAwardRole(role)) return interaction.reply({ content: awardRoleEligibilityMessage(role, "award"), ephemeral: true });
   if (!member.manageable || !role.editable) return interaction.reply({ content: "The bot cannot manage that member or role. Run `/pab-health` and fix the role hierarchy first.", ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`role-award-modal:${member.id}:${role.id}`).setTitle("BCSO role award record");
   modal.addComponents(
@@ -321,7 +337,7 @@ async function showRoleRemovalModal(interaction) {
   const member = interaction.options.getMember("member");
   const role = interaction.options.getRole("role");
   if (!member || !role) return interaction.reply({ content: "The member and role must be available in this server.", ephemeral: true });
-  if (!isApprovedAwardRole(role)) return interaction.reply({ content: "That role is not eligible for PAB removal. Only configured qualification or unit roles without elevated permissions are permitted.", ephemeral: true });
+  if (!isApprovedAwardRole(role)) return interaction.reply({ content: awardRoleEligibilityMessage(role, "removal"), ephemeral: true });
   if (!member.manageable || !role.editable) return interaction.reply({ content: "The bot cannot manage that member or role. Run `/pab-health` and fix the role hierarchy first.", ephemeral: true });
   if (!member.roles.cache.has(role.id)) return interaction.reply({ content: "That member does not currently hold the selected role.", ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`role-removal-modal:${member.id}:${role.id}`).setTitle("BCSO role removal record");
