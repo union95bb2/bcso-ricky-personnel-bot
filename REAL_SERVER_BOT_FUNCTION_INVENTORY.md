@@ -22,6 +22,27 @@ The Discord slash-command picker exposed these application surfaces in the live 
 
 The picker showed bot nicknames and command descriptions, while the bot-command channel showed FiveRoster output such as shift hours, active-shift rankings, division totals, and all-time/month/week statistics.
 
+## Sandbox installation status
+
+This is the install plan for **BCSO Bot Demo | TEST ONLY**. It is deliberately separate from the live BCSO guild. A status of `blocked` means the bot is private, the official owner invite was not verified, or Discord requires a server-admin decision; it does not mean Ricky is broken.
+
+| Integration | Sandbox status (2026-08-18) | Install/source note |
+| --- | --- | --- |
+| FiveRoster | Awaiting final Discord authorization | Official verified app; Discord currently requests `Administrator`. Review that permission before clicking `Authorize`. |
+| Dyno / BCSO Advisor | Not installed | Official public bot; verify least-privilege permissions and use the official Dyno invite only. |
+| Statbot / BCSO Logistics | Not installed | Official public bot; use least-privilege analytics permissions. |
+| FlaviBot / BCSO Musician V2 | Not installed | Public music bot; one instance is enough for sandbox compatibility testing. |
+| FlaviBot 2 / BCSO Musician V2a | Not cloned | This was a second live bot instance; duplicate installation is optional and not required to test Ricky. |
+| LunaBot / BCSO Musician | Not installed | Official owner invite still needs verification. |
+| LunaBot Prime / BCSO DJ | Not cloned | This was a second live bot instance; duplicate installation is optional. |
+| Grow a Tree | Not installed | Public game bot; separate from personnel testing. |
+| counting | Not installed | Public game bot; separate from personnel testing. |
+| NotesBot | Not installed | Public service with an OAuth/dashboard flow; review requested access before authorization. |
+| RoleSync | Blocked pending official owner invite | The live server exposes `/setmainguild` and `/setrole`, but no verified public install source was identified. |
+| StickyBot / BCSO Reminder | Blocked pending owner invite | Visible as a live member, but no public install source was identified. |
+
+Only verified public installs belong in the sandbox. No live-server tokens, private bot source, hidden configuration, member data, or proprietary databases are copied into this repository.
+
 ## What Ricky should be compared against
 
 Ricky is not intended to replace every bot in the server. The useful comparison is the PAB/personnel slice:
