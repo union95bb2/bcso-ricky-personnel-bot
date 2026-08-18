@@ -4,6 +4,8 @@ An internal Discord bot for the Blaine County Sheriff's Office FiveM roleplay se
 
 Canonical source: [private GitHub repository](https://github.com/union95bb2/bcso-ricky-personnel-bot). Keep deployment changes and reviewed fixes in `main`; never commit `.env` or the local SQLite data directory.
 
+The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky without copying third-party credentials or internals.
+
 ## What it does
 
 - `/training-log trainer:@member trainee:@member date:Today` opens a guided form with an optional one-click **Today** date prefill and generates a polished training embed.
