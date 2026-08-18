@@ -1,0 +1,20 @@
+{
+  "name": "bcso-personnel-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BCSO personnel, training, and promotion workflow bot.",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node src/register-commands.js",
+    "preflight": "node src/preflight.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.2.2"
+  }
+}

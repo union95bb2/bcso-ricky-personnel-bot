@@ -1,0 +1,55 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { PabStore } from "../src/store.js";
+
+test("pending approvals are single-use and authorize before consumption", () => {
+  const store = new PabStore(":memory:");
+  const id = store.createPending({ type: "training", createdBy: "pab-1", data: { memberId: "member-1" } });
+  const rejected = store.takePending(id, "other", action => action.createdBy === "other" ? null : "not creator");
+  assert.equal(rejected.error, "not creator");
+  const accepted = store.takePending(id, "pab-1", () => null);
+  assert.equal(accepted.action.type, "training");
+  assert.equal(store.takePending(id, "pab-1").error, "This preview is already being processed. Refresh the PAB queue in a moment.");
+  store.releasePending(id);
+  assert.equal(store.takePending(id, "pab-1").action.type, "training");
+  store.completePending(id);
+  assert.equal(store.takePending(id, "pab-1").error, "This preview expired. Run the command again.");
+  store.close();
+});
+
+test("receipts can be searched by member and PAB record ID", () => {
+  const store = new PabStore(":memory:");
+  store.record({
+    type: "department-record",
+    actorId: "pab-1",
+    memberId: "member-1",
+    recordId: "PAB-ABCDE123",
+    message: { channelId: "channel-1", id: "message-1", url: "https://discord.com/channels/guild/channel-1/message-1" },
+    data: { callsign: "C-100" }
+  });
+  assert.equal(store.findRecords({ memberId: "member-1" }).length, 1);
+  assert.equal(store.findRecords({ recordId: "PAB-ABCDE123" })[0].data.callsign, "C-100");
+  assert.equal(store.summary().completed, 1);
+  store.close();
+});
+
+test("pending approvals and receipts survive a database reopen", () => {
+  const directory = mkdtempSync(join(tmpdir(), "bcso-pab-store-"));
+  const path = join(directory, "pab.sqlite");
+  try {
+    const first = new PabStore(path);
+    const pendingId = first.createPending({ type: "department-record", createdBy: "pab-1", data: { memberId: "member-1" } });
+    first.record({ type: "training", actorId: "pab-1", memberId: "member-1", data: { outcome: "complete" } });
+    first.close();
+
+    const second = new PabStore(path);
+    assert.equal(second.listPending().some(item => item.id === pendingId), true);
+    assert.equal(second.findRecords({ memberId: "member-1" })[0].data.outcome, "complete");
+    second.close();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
