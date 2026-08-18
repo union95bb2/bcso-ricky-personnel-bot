@@ -510,6 +510,7 @@ async function runHealthCheck(interaction) {
   }
   const roleChecks = [];
   const botMember = interaction.guild.members.me;
+  const controllerRole = botMember?.roles.cache.find(role => !role.managed && role.name.toLowerCase().includes("ricky controller"));
   const roleTargets = [
     ["PAB", config.pabRoleId, false], ["Command", config.commandRoleId, false],
     ...rankRoleEntries(config.rankRoleIds).map(item => [`Rank: ${item.rank}`, item.id, true]),
@@ -520,7 +521,7 @@ async function runHealthCheck(interaction) {
     const role = await interaction.guild.roles.fetch(id).catch(() => null);
     if (!role) roleChecks.push(`✗ ${label}: role not found`);
     else if (requiresManagement && role.managed) roleChecks.push(`✗ ${label}: managed integration role`);
-    else if (requiresManagement && botMember.roles.highest.comparePositionTo(role) <= 0) roleChecks.push(`✗ ${label}: move bot role above it`);
+    else if (requiresManagement && botMember.roles.highest.comparePositionTo(role) <= 0) roleChecks.push(`✗ ${label}: move ${controllerRole ? `\`${controllerRole.name}\`` : "the bot's highest role"} above it`);
     else roleChecks.push(`✓ ${label}: ${requiresManagement ? "manageable" : "found"}`);
   }
   return interaction.reply({
