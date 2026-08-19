@@ -20,6 +20,19 @@ test("pending approvals are single-use and authorize before consumption", () => 
   store.close();
 });
 
+test("dashboard summary counts only open approvals", () => {
+  const store = new PabStore(":memory:");
+  const openId = store.createPending({ type: "training", createdBy: "pab-1" });
+  const claimedId = store.createPending({ type: "promotion", createdBy: "pab-1" });
+  const expiredId = store.createPending({ type: "correction", createdBy: "pab-1" }, -1);
+  assert.equal(store.takePending(claimedId, "pab-2").action.type, "promotion");
+  store.purgeExpired();
+  assert.equal(store.summary().pending, 1);
+  assert.equal(store.listPending()[0].id, openId);
+  assert.equal(store.pendingDetails(expiredId).status, "expired");
+  store.close();
+});
+
 test("receipts can be searched by member and PAB record ID", () => {
   const store = new PabStore(":memory:");
   store.record({

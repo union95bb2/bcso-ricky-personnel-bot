@@ -36,7 +36,7 @@ export function memberManagementIssue(member, { botMember, guildOwnerId } = {}) 
   if (!hasPermission(botMember, PermissionFlagsBits.ManageRoles)) return "Ricky is missing the **Manage Roles** server permission.";
   const comparison = compareHighest(botMember, member);
   if (comparison !== null && comparison <= 0) {
-    return `Ricky's highest role (${roleName(botMember.roles.highest)}) must be above the member's highest role (${roleName(member.roles.highest)}).`;
+    return `Ricky's highest role (${roleName(botMember.roles.highest)}) must be above the member's highest role (${roleName(member.roles.highest)}). Move Ricky's actual assigned role above that member role; Discord will then allow rank changes while Ricky's PAB and Command role allow-lists remain protected.`;
   }
   if (member.manageable === false) return "Discord reports that Ricky cannot manage this member; check the member's highest role and protected status.";
   return null;

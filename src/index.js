@@ -711,7 +711,7 @@ function dashboardEmbed() {
     : "No completed records in the local ledger yet.";
   return recordEmbed("Ricky BCSO PAB Control Panel", BLUE, [
     { name: "Completed bot records", value: String(summary.completed), inline: true },
-    { name: "Pending approvals", value: String(summary.pending), inline: true },
+    { name: "Open approvals", value: String(summary.pending), inline: true },
     { name: "Last completed", value: summary.latestAt ? `<t:${Math.floor(summary.latestAt / 1000)}:R>` : "No records yet", inline: true },
     { name: "Open queue", value: pendingText, inline: false },
     { name: "Recent activity", value: recentText, inline: false },

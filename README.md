@@ -144,7 +144,7 @@ The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md)
 - Test first in a private BCSO test server with test roles and test channels.
 - Ensure every current rank role is in `RANK_ROLE_IDS`; otherwise the bot intentionally will not remove it.
 - Confirm that PAB and Command role IDs are correct.
-- Keep Ricky Bot's actual highest assigned role (shown by `/pab-health`) above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and test against a normal member rather than the server owner. Moving an unassigned controller role does not change the bot's hierarchy.
+- Keep Ricky Bot's actual highest assigned role (shown by `/pab-health`) above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and above PAB if PAB members may be promotion/qualification targets. Discord cannot change roles on a member whose highest role is at or above the bot. Moving an unassigned controller role does not change the bot's hierarchy; PAB, Command, Administrator, and moderation roles still remain protected by the bot's allow-lists.
 - Keep `#pab-audit-log` private.
 - Back up important personnel records according to the BCSO server's own rules.
 

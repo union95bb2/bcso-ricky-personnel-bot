@@ -39,6 +39,11 @@ test("member hierarchy diagnostics identify a member above Ricky", () => {
   assert.match(issue, /Sheriff/);
 });
 
+test("member hierarchy permits a PAB member when Ricky is above that role", () => {
+  const issue = memberManagementIssue({ id: "member", roles: { highest: role("PAB", 10) } }, { botMember: bot(20), guildOwnerId: "owner" });
+  assert.equal(issue, null);
+});
+
 test("role hierarchy diagnostics identify missing Manage Roles", () => {
   const issue = roleManagementIssue(role("Deputy", 2), { botMember: bot(5, []) });
   assert.match(issue, /Manage Roles/);

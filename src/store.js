@@ -228,7 +228,10 @@ export class PabStore {
   summary() {
     this.purgeExpired();
     const completed = this.#db.prepare("SELECT COUNT(*) AS count FROM records").get().count;
-    const pending = this.#db.prepare("SELECT COUNT(*) AS count FROM pending_actions").get().count;
+    // The dashboard's queue count must match listPending(). Claimed actions
+    // are already being processed and expired actions are closed; neither is
+    // an open approval waiting for staff.
+    const pending = this.#db.prepare("SELECT COUNT(*) AS count FROM pending_actions WHERE status = 'pending'").get().count;
     const latest = this.#db.prepare("SELECT created_at FROM records ORDER BY created_at DESC LIMIT 1").get();
     return { completed, pending, latestAt: latest?.created_at || null };
   }

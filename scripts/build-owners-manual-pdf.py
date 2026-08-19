@@ -262,13 +262,13 @@ story += [table([
     ["Role", "Purpose", "Bot behavior"],
     ["PAB", "Staff allowed to submit/approve ordinary PAB workflows.", "Checked for command authorization."],
     ["Command", "Staff allowed to approve promotions.", "Required at the promotion approval step."],
-    ["Actual bot/controller role", "The role assigned to Ricky Bot that Discord uses for hierarchy.", "Must be above every rank/award role Ricky Bot must change."],
+    ["Actual bot/controller role", "The role assigned to Ricky Bot that Discord uses for hierarchy.", "Must be above every rank/award role Ricky Bot must change; place it above PAB too when PAB members are targets."],
     ["Rank roles", "Complete BCSO matrix: DST / Deputy Sheriff Trainee, Deputy, Senior Deputy, Corporal, Sergeant, Staff Sergeant, 2nd Lieutenant, 1st Lieutenant, Captain, Major, Commander, Division Chief, Chief Deputy, Assistant Sheriff, UnderSheriff, Sheriff.", "Startup requires every canonical key in RANK_ROLE_IDS; only those roles are removed/replaced by promotion."],
     ["Qualification/unit roles", "FTO, certifications, divisions, awards.", "Only IDs in AWARDABLE_ROLE_IDS may be added/removed."],
     ["Category separators", "Visual labels only.", "Permissions 0; never assign to members or map to bot actions."],
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
 story += [P("Hierarchy rule", "H2Manual")]
-story += [callout("Move the actual assigned Ricky Bot role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. Moving an unassigned controller role does nothing. Ricky Bot can never manage the server owner, and Administrator roles are intentionally refused.", RED)]
+story += [callout("Move the actual assigned Ricky Bot role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. If PAB members may be promotion or qualification targets, move that same assigned role above PAB too; Discord otherwise refuses every role mutation on those members. This does not make PAB, Command, Administrator, or moderation roles editable because Ricky's allow-lists still block them. Moving an unassigned controller role does nothing. Ricky Bot can never manage the server owner.", RED)]
 story += [P("PAB and Command approval roles must be normal mentionable roles (or Ricky Bot must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
 story += [P("Recommended records category", "H2Manual")]
 story += [table([
@@ -373,7 +373,7 @@ trouble_rows = [
     ["Message / symptom", "Cause", "Fix"],
     ["Workflow is not ready yet", "A required ID, map, channel, or allow-list is missing.", "Run /setup-status; fill the protected config; restart; run /pab-health."],
     ["Move Ricky Bot above it", "The actual role assigned to the bot is below a rank/award role.", "Move the assigned Ricky Bot/controller role above every configured managed role. Do not move an unassigned role."],
-    ["Bot cannot manage that member", "Target is the server owner, above Ricky Bot, or protected by Discord hierarchy.", "Use a normal sandbox member and correct hierarchy. Never test role changes on the owner."],
+    ["Bot cannot manage that member", "Target is the server owner, at/above Ricky Bot, or protected by Discord hierarchy.", "Move the actual assigned Ricky Bot role above the target's highest role (including PAB when PAB members are targets), or use a human-admin path. Never test role changes on the owner."],
     ["Role is not eligible", "Role is not in AWARDABLE_ROLE_IDS, or is rank/managed/elevated.", "Use a harmless allow-listed qualification/unit role. Never add PAB, Command, rank, moderator, or Administrator roles."],
     ["Enter time as...", "Input does not match the validated range or selected zone.", "Use the dropdowns or h:mm AM/PM - h:mm AM/PM in the selected timezone."],
     ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again."],
