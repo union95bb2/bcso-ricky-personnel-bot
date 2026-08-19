@@ -60,7 +60,7 @@ Use this baseline first and never remove these IDs in case we need to return to 
   - `#promotion-announcements`
   - `#pab-announcements`
 
-The demo also has a non-managed `Ricky Controller` role assigned to the bot. A server owner must place `Ricky Controller` above the managed `BCSO Personnel Bot` role and above `Deputy`, `Corporal`, and `Test FTO` before testing promotion, award-role, or remove-role. Discord will not let Ricky manage a role that is at or above its highest role; run `/pab-health` after reordering to verify the result.
+The demo includes a non-managed `Ricky Controller` role for a clean hierarchy if the server owner assigns it to Ricky. The role that is actually assigned to the bot is what matters: `/pab-health` reports Ricky's highest assigned role. A server owner must move that actual role above `Deputy`, `Corporal`, and `Test FTO` before testing promotion, award-role, or remove-role. In the current screenshot the highest assigned role is `BCSO Personnel Bot`, so moving an unassigned `Ricky Controller` role would not fix the error. Discord will not let Ricky manage a role that is at or above its highest role; run `/pab-health` after reordering to verify the result.
 
 ## 2) High-impact visual parity additions (completed)
 
@@ -91,7 +91,7 @@ These names are based on the visible live BCSO layout and remain TEST ONLY place
   - `Deputy`
   - `Corporal`
   - `Test FTO`
-- Keep the bot role above `Deputy`, `Corporal`, and any role it may manage in hierarchy checks.
+- Keep the bot's actual assigned highest role above `Deputy`, `Corporal`, and any role it may manage in hierarchy checks. Confirm the name in `/pab-health` rather than assuming it is `Ricky Controller`.
 - In the current demo, `Test FTO` (`1539385272255520900`) is the only role in `AWARDABLE_ROLE_IDS`. Selecting PAB, Command, Deputy, Corporal, or the bot/integration role is intentionally rejected.
 
 ## 4) BCSO bot presence and branding in the server

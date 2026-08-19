@@ -4,7 +4,7 @@ An internal Discord bot for the Blaine County Sheriff's Office FiveM roleplay se
 
 Canonical source: [public GitHub repository](https://github.com/union95bb2/bcso-ricky-personnel-bot). Keep deployment changes and reviewed fixes in `main`; never commit `.env` or the local SQLite data directory.
 
-The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky without copying third-party credentials or internals.
+The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky without copying third-party credentials or internals. The [PAB workflow audit](REAL_SERVER_PAB_WORKFLOW_AUDIT.md) documents the visible request-channel → PAB reformat → correct ping/CC → reviewed record process.
 
 ## What it does
 
@@ -17,7 +17,7 @@ The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVE
 - `/remove-role member:@member role:@role` uses the same allow-list and preview to remove an approved qualification or unit role. It cannot remove ranks, PAB, moderation, or elevated roles.
 
 If `/award-role` or `/remove-role` says a role is not eligible, the selected role is not in `AWARDABLE_ROLE_IDS` (or is a rank/managed/elevated role). In the demo configuration, `Test FTO` is the harmless allow-listed role. A server administrator can add another non-rank qualification/unit role ID to the protected setting, restart Ricky, and run `/pab-health`; never put PAB, Command, rank, moderation, or Administrator roles in that list.
-- `/department-record member:@member callsign:C-###` is the mobile-first PAB workflow. It selects members and roles in Discord, previews the captured PAB-branded department-record format, routes it to the personnel-record destination, and gives it an audit ID.
+- `/department-record member:@member callsign:C-###` is the mobile-first PAB workflow. It selects members and roles in Discord, previews the captured PAB-branded department-record format, routes it to the personnel-record destination, and gives it an audit ID. PAB still enters the factual information from the division record-request channel; Ricky does not scrape or copy source-message content.
 - `/correct-record message-link:` creates a new, immutable correction in the original record's channel. It never edits or deletes the original.
 - `/promotion-check member:@member` captures the human eligibility review in the private PAB queue; it cannot promote anyone.
 - `/personnel-status member:@member status:` records an approved leave, return to duty, transfer, or separation. It is record-only—access and role changes remain a separate Command decision.
@@ -57,7 +57,7 @@ Use forum channels if you want each record to become a separate discussion threa
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), create **Ricky**, then create a bot user.
 2. Under **Installation**, add the `bot` and `applications.commands` scopes. Give it only: View Channels, Send Messages, Embed Links, Read Message History, Attach Files, Manage Roles, and Use Application Commands. Do not grant Administrator.
 3. Turn on the **Server Members Intent** under Bot → Privileged Gateway Intents. Ricky also subscribes to guild message events for the approved activity-source channels; it does not require Message Content Intent because it stores timestamps and IDs, not message text.
-4. Invite the bot to the BCSO server. In the server role list, drag **Ricky Controller** above every rank or qualification role it must change. Keep it below the server owner (bots can never manage the owner) and do not test by assigning the target every copied role. Discord will otherwise reject promotion changes.
+4. Invite the bot to the BCSO server. In the server role list, move the **actual role assigned to Ricky**—the role named in `/pab-health` as Ricky's highest assigned role—above every rank or qualification role it must change. In the demo this is normally `BCSO Personnel Bot`; `Ricky Controller` only matters if it is actually assigned to the bot. Keep the bot role below the server owner (bots can never manage the owner) and do not test by assigning the target every copied role. Discord will otherwise reject promotion changes.
 5. Enable Developer Mode in Discord: User Settings → Advanced → Developer Mode. Right-click each required role/channel/server and choose **Copy ID**.
 6. Copy `.env.example` to `.env`, then fill in the IDs and the rank-role JSON. Keep the bot token only in `.env`; never paste it into Discord or commit it.
 7. Run `npm ci`, `npm run preflight`, `npm run register`, then `npm start`.
@@ -134,7 +134,7 @@ Do not use the Docker command until the server administrator has completed `.env
 - Test first in a private BCSO test server with test roles and test channels.
 - Ensure every current rank role is in `RANK_ROLE_IDS`; otherwise the bot intentionally will not remove it.
 - Confirm that PAB and Command role IDs are correct.
-- Keep Ricky Controller above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and test against a normal member rather than the server owner.
+- Keep Ricky's actual highest assigned role (shown by `/pab-health`) above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and test against a normal member rather than the server owner. Moving an unassigned controller role does not change the bot's hierarchy.
 - Keep `#pab-audit-log` private.
 - Back up important personnel records according to the BCSO server's own rules.
 

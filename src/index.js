@@ -600,6 +600,10 @@ async function runHealthCheck(interaction) {
     }
   }
   const roleChecks = [];
+  const botHighestRole = botMember?.roles?.highest;
+  const hierarchySummary = botHighestRole
+    ? `Ricky's highest assigned role is **${botHighestRole.name}** (position ${botHighestRole.position}). Move this actual assigned role above every configured rank or award role Ricky must manage. Moving an unassigned role will not change Ricky's permissions.`
+    : "Ricky's highest assigned role could not be resolved.";
   const roleTargets = [
     ["PAB", config.pabRoleId, false], ["Command", config.commandRoleId, false],
     ...rankRoleEntries(config.rankRoleIds).map(item => [`Rank: ${item.rank}`, item.id, true]),
@@ -621,7 +625,7 @@ async function runHealthCheck(interaction) {
       { name: "Configuration", value: missing.length ? `Missing: ${missing.join(", ")}` : "All required IDs and allow-lists are present.", inline: false },
       { name: "Bot permissions", value: botPermissions, inline: false },
       { name: "Channels", value: clean(channelChecks.join("\n"), 1024), inline: false },
-      { name: "Role hierarchy", value: clean(roleChecks.join("\n") || "No rank/award roles configured yet.", 1024), inline: false }
+      { name: "Role hierarchy", value: clean(`${hierarchySummary}\n\n${roleChecks.join("\n") || "No rank/award roles configured yet."}`, 1024), inline: false }
     ], "Read-only check — no settings, roles, or messages were changed")]
   });
 }
