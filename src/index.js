@@ -291,12 +291,17 @@ async function showTrainingModal(interaction) {
   if (!trainer || !trainee) return interaction.reply({ content: "Both members must be in this server.", ephemeral: true });
   const timezone = resolveTrainingTimeZone(interaction.options.getString("timezone"), { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
   const dateMode = interaction.options.getString("date") || "manual";
+  const selectedStart = interaction.options.getString("start-time");
+  const selectedEnd = interaction.options.getString("end-time");
+  if (Boolean(selectedStart) !== Boolean(selectedEnd)) return interaction.reply({ content: "Choose both Start time and End time, or leave both blank and enter the range in the form.", ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`training-modal:${trainer.id}:${trainee.id}:${timezone.value}`).setTitle(`BCSO training record — ${timezone.label}`);
   const dateInput = input("date", `Date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  const timeInput = input("time", `Start/end time (${timezone.label})`, TextInputStyle.Short, { placeholder: `4:00 PM - 5:00 PM ${timezone.label}`, maxLength: 80 });
+  if (selectedStart && selectedEnd) timeInput.setValue(`${selectedStart} - ${selectedEnd} ${timezone.label}`);
   if (dateMode === "today") dateInput.setValue(todayInTimeZone(timezone.timeZoneId));
   modal.addComponents(
     new ActionRowBuilder().addComponents(dateInput),
-    new ActionRowBuilder().addComponents(input("time", `Start/end time (${timezone.label})`, TextInputStyle.Short, { placeholder: `4:00 PM - 5:00 PM ${timezone.label}`, maxLength: 80 })),
+    new ActionRowBuilder().addComponents(timeInput),
     new ActionRowBuilder().addComponents(input("training-type", "Training completed", TextInputStyle.Short, { placeholder: "Classroom, practical, and ride-along", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("outcome", "Outcome / recommendation", TextInputStyle.Paragraph, { placeholder: "Academy Complete — good to proceed to Deputy", maxLength: 800 })),
     new ActionRowBuilder().addComponents(input("notes", "Notes", TextInputStyle.Paragraph, { placeholder: "Performance, follow-up needs, and any important detail", maxLength: 1000 }))

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clean, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "../src/format.js";
+import { clean, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone, TRAINING_TIME_CHOICES } from "../src/format.js";
 
 test("clean trims and preserves ordinary text", () => {
   assert.equal(clean("  Academy Complete  "), "Academy Complete");
@@ -38,6 +38,13 @@ test("training timezone choices resolve to stable labels and IANA zones", () => 
   assert.equal(resolveTrainingTimeZone("MST").timeZoneId, "Etc/GMT+7");
   assert.equal(resolveTrainingTimeZone("EST").label, "EST");
   assert.equal(resolveTrainingTimeZone("unknown", { label: "MST", timeZoneId: "Etc/GMT+7" }).label, "MST");
+});
+
+test("training time dropdown choices cover one hourly day", () => {
+  assert.equal(TRAINING_TIME_CHOICES.length, 24);
+  assert.equal(TRAINING_TIME_CHOICES[0].value, "12:00 AM");
+  assert.equal(TRAINING_TIME_CHOICES[16].value, "4:00 PM");
+  assert.equal(TRAINING_TIME_CHOICES[23].value, "11:00 PM");
 });
 
 test("dates normalize to the shared MM/DD/YYYY format", () => {

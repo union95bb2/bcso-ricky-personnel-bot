@@ -8,7 +8,7 @@ The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVE
 
 ## What it does
 
-- `/training-log trainer:@member trainee:@member date:Today timezone:MST` opens a guided form with required slash-command choices for **Today** (or manual date entry) and the timezone. The selected timezone is carried into the form and posted record; staff never type a timezone label.
+- `/training-log trainer:@member trainee:@member date:Today timezone:MST start-time:4:00 PM end-time:5:00 PM` opens a guided form with required slash-command choices for **Today** (or manual date entry) and the timezone. Optional hourly start/end dropdowns prefill the time field; leave both blank for a non-hour time and use the validated form. The selected timezone is carried into the form and posted record; staff never type a timezone label.
 - The submitting PAB member gets a private preview and must approve it before it posts to the training-records channel. Training times are displayed with the selected timezone label (for example, `4:00 PM MST – 5:00 PM MST`).
 - Every date field uses `MM/DD/YYYY`; inactivity review periods use `MM/DD/YYYY - MM/DD/YYYY`. Training times are entered as a range such as `4 PM - 5 PM` or `4:00 PM - 5:00 PM MST` and are normalized to `h:mm AM/PM` in the selected timezone. The bot accepts hyphen or en-dash separators, normalizes minutes and AM/PM casing, and rejects invalid entries before creating a preview.
 - `/promotion member:@member` opens a guided promotion form.

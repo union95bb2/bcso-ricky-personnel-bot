@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
-import { TRAINING_TIME_ZONES } from "./format.js";
+import { TRAINING_TIME_CHOICES, TRAINING_TIME_ZONES } from "./format.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -13,7 +13,11 @@ export const commands = [
         { name: "Enter manually", value: "manual" }
       ))
     .addStringOption(option => option.setName("timezone").setDescription("Timezone used for the form and posted record.").setRequired(true)
-      .addChoices(...TRAINING_TIME_ZONES.map(({ name, value }) => ({ name, value })))),
+      .addChoices(...TRAINING_TIME_ZONES.map(({ name, value }) => ({ name, value }))))
+    .addStringOption(option => option.setName("start-time").setDescription("Optional hourly dropdown prefill for the start time.")
+      .addChoices(...TRAINING_TIME_CHOICES))
+    .addStringOption(option => option.setName("end-time").setDescription("Optional hourly dropdown prefill for the end time.")
+      .addChoices(...TRAINING_TIME_CHOICES)),
   new SlashCommandBuilder()
     .setName("promotion")
     .setDescription("Prepare and approve a BCSO promotion record and role update.")

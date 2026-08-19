@@ -11,6 +11,16 @@ export const TRAINING_TIME_ZONES = [
   { value: "UTC", name: "UTC — Coordinated Universal Time", label: "UTC", timeZoneId: "UTC" }
 ];
 
+// Discord allows up to 25 string choices. Hourly choices cover the normal
+// training workflow; staff can leave these optional choices blank when a
+// non-hour boundary (such as 4:30 PM) is needed and use the validated form.
+export const TRAINING_TIME_CHOICES = Array.from({ length: 24 }, (_, hour) => {
+  const period = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 || 12;
+  const value = `${displayHour}:00 ${period}`;
+  return { name: value, value };
+});
+
 export function resolveTrainingTimeZone(value, fallback = {}) {
   return TRAINING_TIME_ZONES.find(zone => zone.value === value) || {
     value: fallback.label || "MST",
