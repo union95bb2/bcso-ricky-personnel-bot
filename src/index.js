@@ -19,10 +19,19 @@ import { PendingActions } from "./pending-actions.js";
 import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
 import { PabStore } from "./store.js";
 import { ADMIN_COMMANDS, PAB_COMMANDS, WORKFLOW_CHANNELS, WORKFLOW_REQUIREMENTS } from "./workflow-spec.js";
+import { acquireProcessLock } from "./process-lock.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
 const pending = new PendingActions(store);
+let releaseProcessLock;
+try {
+  releaseProcessLock = acquireProcessLock(`${config.dataPath}.lock`);
+} catch (error) {
+  console.error(`Ricky startup blocked: ${error instanceof Error ? error.message : "another instance is already running"}`);
+  store.close();
+  process.exit(1);
+}
 const BLUE = 0x1d4e89;
 const GREEN = 0x2d7d46;
 const DATE_FORMAT_HINT = "MM/DD/YYYY";
@@ -302,6 +311,90 @@ async function fetchChannel(id) {
   if (!channel?.isTextBased()) throw new Error(`Configured channel ${id} is not a text-based channel.`);
   if (channel.guildId !== config.guildId) throw new Error(`Configured channel ${id} is not in the configured BCSO server.`);
   return channel;
+}
+
+/**
+ * Validate the configured guild, permissions, channels, and manageable roles
+ * before the bot announces itself as ready. Runtime command checks remain in
+ * place as a second line of defense when Discord settings change later.
+ */
+async function startupReadinessIssues(readyClient) {
+  const issues = configurationIssues(Object.keys(configLabels));
+  if (issues.length) return issues;
+
+  let guild;
+  try {
+    guild = await readyClient.guilds.fetch(config.guildId);
+  } catch {
+    return [`DISCORD_GUILD_ID ${config.guildId} is not reachable by this bot`];
+  }
+  if (!guild || guild.id !== config.guildId) return ["configured guild could not be resolved"];
+
+  const botMember = await guild.members.fetchMe().catch(() => null);
+  if (!botMember) return ["Ricky is not visible as a member of the configured guild"];
+
+  const requiredBotPermissions = [
+    [PermissionFlagsBits.ViewChannel, "View Channel"],
+    [PermissionFlagsBits.SendMessages, "Send Messages"],
+    [PermissionFlagsBits.EmbedLinks, "Embed Links"],
+    [PermissionFlagsBits.ReadMessageHistory, "Read Message History"],
+    [PermissionFlagsBits.ManageRoles, "Manage Roles"],
+    [PermissionFlagsBits.AttachFiles, "Attach Files"]
+  ];
+  for (const [permission, label] of requiredBotPermissions) {
+    if (!botMember.permissions.has(permission)) issues.push(`Ricky is missing the ${label} server permission`);
+  }
+
+  const destinationChannels = [
+    ["TRAINING_RECORDS_CHANNEL_ID", config.trainingRecordsChannelId],
+    ["PERSONNEL_RECORDS_CHANNEL_ID", config.personnelRecordsChannelId],
+    ["PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID", config.promotionsAnnouncementsChannelId],
+    ["AUDIT_LOG_CHANNEL_ID", config.auditLogChannelId],
+    ["PAB_APPROVALS_CHANNEL_ID", config.pabApprovalsChannelId],
+    ["QUALIFICATIONS_RECORDS_CHANNEL_ID", config.qualificationsRecordsChannelId],
+    ["PAB_ANNOUNCEMENTS_CHANNEL_ID", config.pabAnnouncementsChannelId],
+    ["INACTIVITY_REVIEW_CHANNEL_ID", config.inactivityReviewChannelId]
+  ];
+  for (const [label, id] of destinationChannels) {
+    try {
+      const channel = await fetchChannel(id);
+      const issue = channelPermissionIssue(channel, botMember);
+      if (issue) issues.push(`${label}: ${issue}`);
+    } catch {
+      issues.push(`${label} ${id} is invalid, inaccessible, or outside the configured guild`);
+    }
+  }
+  for (const id of config.activityChannelIds) {
+    try {
+      const channel = await fetchChannel(id);
+      const issue = channelPermissionIssue(channel, botMember, [PermissionFlagsBits.ViewChannel]);
+      if (issue) issues.push(`ACTIVITY_CHANNEL_IDS ${id}: ${issue}`);
+    } catch {
+      issues.push(`ACTIVITY_CHANNEL_IDS ${id} is invalid, inaccessible, or outside the configured guild`);
+    }
+  }
+
+  const pabRole = await guild.roles.fetch(config.pabRoleId).catch(() => null);
+  const commandRole = await guild.roles.fetch(config.commandRoleId).catch(() => null);
+  if (!pabRole) issues.push(`PAB_ROLE_ID ${config.pabRoleId} was not found in the configured guild`);
+  if (!commandRole) issues.push(`COMMAND_ROLE_ID ${config.commandRoleId} was not found in the configured guild`);
+  for (const { rank, id } of rankRoleEntries(config.rankRoleIds)) {
+    const role = await guild.roles.fetch(id).catch(() => null);
+    if (!role) issues.push(`RANK_ROLE_IDS.${rank} ${id} was not found in the configured guild`);
+    else {
+      const issue = roleManagementIssue(role, { botMember });
+      if (issue) issues.push(`RANK_ROLE_IDS.${rank}: ${issue}`);
+    }
+  }
+  for (const id of config.awardableRoleIds) {
+    const role = await guild.roles.fetch(id).catch(() => null);
+    if (!role) issues.push(`AWARDABLE_ROLE_IDS ${id} was not found in the configured guild`);
+    else {
+      const issue = roleManagementIssue(role, { botMember });
+      if (issue) issues.push(`AWARDABLE_ROLE_IDS ${id}: ${issue}`);
+    }
+  }
+  return issues;
 }
 
 async function audit(title, description) {
@@ -954,7 +1047,19 @@ async function approveAnnouncement(interaction, action) {
   return interaction.update({ content: "PAB announcement posted and logged.", embeds: [announcementEmbed(action.data, action.data.title)], components: [] });
 }
 
-client.once(Events.ClientReady, readyClient => console.log(`Ricky online as ${readyClient.user.tag}; durable data store ready. Activity tracking: ${config.activityChannelIds.size ? `${config.activityChannelIds.size} approved channel(s)` : "disabled"}.`));
+client.once(Events.ClientReady, async readyClient => {
+  const issues = await startupReadinessIssues(readyClient);
+  if (issues.length) {
+    console.error("Ricky startup blocked by the production readiness gate:");
+    for (const issue of issues) console.error(`- ${issue}`);
+    console.error("No commands will be served. Fix the protected configuration/Discord settings, then restart Ricky.");
+    readyClient.destroy();
+    store.close();
+    releaseProcessLock?.();
+    process.exit(1);
+  }
+  console.log(`Ricky online as ${readyClient.user.tag}; durable data store ready. Activity tracking: ${config.activityChannelIds.size ? `${config.activityChannelIds.size} approved channel(s)` : "disabled"}. Startup readiness gate passed.`);
+});
 client.on(Events.Error, error => console.error(`Discord client error: ${error instanceof Error ? error.message : "unknown error"}`));
 client.on(Events.MessageCreate, message => {
   if (message.guildId !== config.guildId || !config.activityChannelIds.has(message.channelId) || message.author?.bot) return;
@@ -1076,6 +1181,7 @@ async function shutdown(signal) {
   console.log(`Ricky received ${signal}; closing Discord connection and local data store.`);
   client.destroy();
   store.close();
+  releaseProcessLock?.();
 }
 
 process.once("SIGINT", () => { shutdown("SIGINT").finally(() => process.exit(0)); });
@@ -1084,5 +1190,6 @@ process.once("SIGTERM", () => { shutdown("SIGTERM").finally(() => process.exit(0
 client.login(config.token).catch(error => {
   console.error(`Ricky could not log in: ${error instanceof Error ? error.message : "unknown error"}`);
   store.close();
+  releaseProcessLock?.();
   process.exitCode = 1;
 });

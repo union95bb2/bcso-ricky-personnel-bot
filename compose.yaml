@@ -4,5 +4,11 @@ services:
     container_name: bcso-personnel-bot
     restart: unless-stopped
     env_file: .env
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     volumes:
       - ./data:/app/data

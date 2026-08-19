@@ -76,14 +76,16 @@ RANK_ROLE_IDS={"Deputy":"123456789012345678","Senior Deputy":"234567890123456789
 
 1. Install the bot in a private BCSO sandbox server first.
 2. Set up test channels and harmless test roles.
-3. Run `npm ci`, `npm run preflight`, and `npm run register` from the bot host.
-4. Start the bot with `npm start`.
-5. In Discord, run `/pab-health` as a server administrator. Resolve every failed channel or hierarchy check.
+3. Run `npm ci` and `npm run preflight:deploy` from the bot host. The deploy preflight is a hard no-go gate; it checks credentials without displaying them, validates all IDs/maps, and checks for duplicate local/optional remote containers. Use `npm run preflight:demo` for the sandbox.
+4. Start the bot with `npm start` (or `docker compose up -d --build`). Ricky now performs a live startup readiness gate and exits without serving commands if the guild, channels, permissions, or manageable roles are incomplete.
+5. In Discord, run `/setup-status` and `/pab-health` as a server administrator. Resolve every failed channel or hierarchy check. Do not treat a green command response as a substitute for the startup gate or the single-instance cutover check.
 6. Run one test of each role-changing workflow using test roles: promotion, award-role, and remove-role.
 7. Confirm `/department-record`, `/correct-record`, training, and `/export-audit` produce the desired artifacts.
 8. Only then repeat the configuration in the live BCSO server and register guild commands there.
 
 Registering commands changes the live server's command list; do it during an agreed maintenance window.
+
+See [RELEASE_READINESS.md](RELEASE_READINESS.md) for the full preflight, single-instance, startup-gate, and no-go checklist.
 
 ## Operating commands
 

@@ -60,7 +60,7 @@ Use forum channels if you want each record to become a separate discussion threa
 4. Invite the bot to the BCSO server. In the server role list, move the **actual role assigned to Ricky**—the role named in `/pab-health` as Ricky's highest assigned role—above every rank or qualification role it must change. In the demo this is normally `BCSO Personnel Bot`; `Ricky Controller` only matters if it is actually assigned to the bot. Keep the bot role below the server owner (bots can never manage the owner) and do not test by assigning the target every copied role. Discord will otherwise reject promotion changes.
 5. Enable Developer Mode in Discord: User Settings → Advanced → Developer Mode. Right-click each required role/channel/server and choose **Copy ID**.
 6. Copy `.env.example` to `.env`, then fill in the IDs and the rank-role JSON. Keep the bot token only in `.env`; never paste it into Discord or commit it.
-7. Run `npm ci`, `npm run preflight`, `npm run register`, then `npm start`. For the TEST ONLY guild, use `npm run register:demo` and `npm run start:demo`; those scripts preserve the protected token/client ID while overlaying only the demo guild IDs.
+7. Run `npm ci`, `npm run preflight:deploy`, `npm run register`, then `npm start`. For the TEST ONLY guild, use `npm run preflight:demo`, `npm run register:demo`, and `npm run start:demo`; those scripts preserve the protected token/client ID while overlaying only the demo guild IDs.
 
 Guild commands normally appear in seconds after `npm run register`. Re-run that command after changing the slash-command definitions. `/setup-status` can run with only the core bot credentials; all workflow commands remain blocked until their specific safe configuration is present.
 
@@ -130,6 +130,8 @@ chmod 700 data
 Do not use the Docker command until the server administrator has completed `.env`, reviewed the permissions, and approved the installation.
 
 Run only one active Ricky process per Discord token and configured guild. A token can be invited to multiple sandboxes, but a stale container can still receive globally registered interactions. The bot now ignores interactions whose guild ID does not match its configured `DISCORD_GUILD_ID`; still stop old containers before cutover and confirm `/setup-status` plus `/pab-health` in the target guild. See [`COMMAND_TEST_REPORT.md`](COMMAND_TEST_REPORT.md) for the complete 16-command Discord test and screenshot evidence.
+
+The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md). It covers candidate configuration, duplicate-instance checks, the live startup readiness gate, Discord verification, and explicit no-go conditions.
 
 ## Before going live
 

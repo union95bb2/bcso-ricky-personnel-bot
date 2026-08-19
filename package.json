@@ -10,6 +10,8 @@
     "register:demo": "node scripts/register-demo.mjs",
     "register": "node src/register-commands.js",
     "preflight": "node src/preflight.js",
+    "preflight:demo": "node scripts/preflight-demo.mjs",
+    "preflight:deploy": "node scripts/deploy-preflight.mjs",
     "test": "node --test"
   },
   "engines": {

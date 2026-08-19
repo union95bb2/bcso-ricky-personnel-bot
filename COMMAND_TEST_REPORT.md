@@ -39,7 +39,19 @@ The complete browser screenshot set is in [`artifacts/command-tests/`](artifacts
 
 ## Code and deployment checks
 
-- `npm test`: **33 passed**.
+- `npm test`: **34 passed**.
 - `git diff --check`: passed.
 - `npm run preflight`: intentionally reports missing live `.env` IDs; the protected `.env` is not the demo configuration. Demo readiness was verified through `/setup-status` and `/pab-health`.
 - A guild-bound interaction guard was added so an old deployment configured for another guild ignores this guild’s interactions instead of racing the active instance.
+
+## Post-matrix production-readiness hardening
+
+After the Discord matrix, the release gates were tightened so these conditions fail before production use rather than during command testing:
+
+- `npm run preflight:demo`: **passed** against the protected token/client credentials plus the committed TEST ONLY configuration.
+- `DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy`: **passed**; the deploy gate validated the complete candidate configuration without printing credentials.
+- `npm run start:demo`: **passed** the live startup readiness gate after checking the configured guild, all destination/activity channels, required bot permissions, configured roles, and role hierarchy.
+- A second simultaneous `npm run start:demo`: **refused before Discord login** by the same-volume process lock.
+- `npm test`: **34 passed** after adding the process-lock regression test.
+
+The deployment and cutover procedure is now in [`RELEASE_READINESS.md`](RELEASE_READINESS.md). The stale Pi container was stopped before the matrix and its data volume was preserved; no token or third-party bot code was copied.
