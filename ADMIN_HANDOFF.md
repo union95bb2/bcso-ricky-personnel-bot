@@ -22,6 +22,7 @@ In the Discord Developer Portal, use Guild Install only with the `bot` and `appl
 - Send Messages
 - Embed Links
 - Read Message History
+- Attach Files
 - Manage Roles
 - Use Application Commands
 
@@ -34,7 +35,7 @@ Create or use these roles:
 - `PAB_ROLE_ID`: staff permitted to submit and approve ordinary PAB workflows.
 - `COMMAND_ROLE_ID`: staff permitted to approve promotions.
 
-Place the bot role above every rank role and qualification/unit role listed in `RANK_ROLE_IDS` or `AWARDABLE_ROLE_IDS`. The bot does not need to sit above PAB or Command roles. Never include administrator, moderation, PAB, Command, or rank roles in `AWARDABLE_ROLE_IDS`.
+Place the Ricky Controller role above every rank role and qualification/unit role listed in `RANK_ROLE_IDS` or `AWARDABLE_ROLE_IDS`. Keep it below the server owner; Discord never allows a bot to manage the owner. The bot does not need to sit above PAB or Command roles. Never include administrator, moderation, PAB, Command, or rank roles in `AWARDABLE_ROLE_IDS`.
 
 If Discord marks the bot integration role as managed and it cannot be moved, create a separate non-managed controller role, assign it to the bot, and place that controller role above the rank and qualification roles it must manage.
 

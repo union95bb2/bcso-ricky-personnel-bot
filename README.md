@@ -27,6 +27,7 @@ If `/award-role` or `/remove-role` says a role is not eligible, the selected rol
 - `/pab-dashboard` shows PAB a private queue, recent activity, and operating snapshot.
 - `/find-record` searches durable receipts by member or PAB record ID, while `/export-audit` gives a server administrator a private backup export.
 - `/setup-status` and `/pab-health` give server administrators a safe way to validate environment values, live channel access, and role hierarchy.
+- Ricky preflights each destination channel before opening a workflow and reports the exact missing channel permission instead of waiting for a generic Discord failure. `/pab-health` also checks View Channel, Send Messages, Embed Links, Read Message History, Attach Files, Manage Roles, role hierarchy, managed roles, and Administrator-role guardrails.
 - The bot uses true Discord mentions (`<@user-id>`), so notifications go to the correct person even when their name changes.
 
 Training completion deliberately **does not** automatically promote anyone. The record can recommend a promotion, but the separate Command-approved `/promotion` action is the control point.
@@ -53,9 +54,9 @@ Use forum channels if you want each record to become a separate discussion threa
 ## Setup (first time)
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), create **Ricky**, then create a bot user.
-2. Under **Installation**, add the `bot` and `applications.commands` scopes. Give it only: View Channels, Send Messages, Embed Links, Read Message History, Manage Roles, and Use Application Commands. Do not grant Administrator.
+2. Under **Installation**, add the `bot` and `applications.commands` scopes. Give it only: View Channels, Send Messages, Embed Links, Read Message History, Attach Files, Manage Roles, and Use Application Commands. Do not grant Administrator.
 3. Turn on the **Server Members Intent** under Bot → Privileged Gateway Intents.
-4. Invite the bot to the BCSO server. In the server role list, drag the bot role **above every rank role it must change**. Discord will otherwise reject promotion changes.
+4. Invite the bot to the BCSO server. In the server role list, drag **Ricky Controller** above every rank or qualification role it must change. Keep it below the server owner (bots can never manage the owner) and do not test by assigning the target every copied role. Discord will otherwise reject promotion changes.
 5. Enable Developer Mode in Discord: User Settings → Advanced → Developer Mode. Right-click each required role/channel/server and choose **Copy ID**.
 6. Copy `.env.example` to `.env`, then fill in the IDs and the rank-role JSON. Keep the bot token only in `.env`; never paste it into Discord or commit it.
 7. Run `npm ci`, `npm run preflight`, `npm run register`, then `npm start`.
@@ -129,6 +130,7 @@ Do not use the Docker command until the server administrator has completed `.env
 - Test first in a private BCSO test server with test roles and test channels.
 - Ensure every current rank role is in `RANK_ROLE_IDS`; otherwise the bot intentionally will not remove it.
 - Confirm that PAB and Command role IDs are correct.
+- Keep Ricky Controller above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and test against a normal member rather than the server owner.
 - Keep `#pab-audit-log` private.
 - Back up important personnel records according to the BCSO server's own rules.
 

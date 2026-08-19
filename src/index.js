@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { config, configLabels, configurationIssues, missingConfiguration } from "./config.js";
 import { clean, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
 import { PendingActions } from "./pending-actions.js";
+import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
 import { PabStore } from "./store.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
@@ -70,11 +71,12 @@ function awardRoleEligibilityMessage(role, action = "award") {
   return `**${role.name}** is not eligible for PAB ${action}s. Run \`/pab-health\` to check the allow-list and role hierarchy.`;
 }
 
-function isNotifiableRole(role) {
+function isNotifiableRole(role, botMember = null) {
   return role
     && role.id !== role.guild.id
     && !role.managed
-    && !role.permissions.has(PermissionFlagsBits.Administrator);
+    && !role.permissions.has(PermissionFlagsBits.Administrator)
+    && (role.mentionable || botMember?.permissions.has(PermissionFlagsBits.MentionEveryone));
 }
 
 function unauthorized(interaction) {
@@ -83,6 +85,27 @@ function unauthorized(interaction) {
 
 function unauthorizedAdmin(interaction) {
   return interaction.reply({ content: "Only a server administrator can run live setup diagnostics or export the local PAB ledger.", ephemeral: true });
+}
+
+function memberManagementError(interaction, member) {
+  return memberManagementIssue(member, {
+    botMember: interaction.guild.members.me,
+    guildOwnerId: interaction.guild.ownerId
+  });
+}
+
+function roleManagementError(interaction, role) {
+  return roleManagementIssue(role, { botMember: interaction.guild.members.me });
+}
+
+function discordPermissionError(error) {
+  const code = error?.code || error?.rawError?.code;
+  if (code === 50013) return "Discord denied that action (Missing Permissions). Run `/pab-health` and fix the listed bot or channel permission.";
+  if (code === 50001) return "Ricky cannot access that Discord resource. Check the channel or role visibility and run `/pab-health`.";
+  if (code === 10007) return "The selected member is no longer in this server. Run the command again.";
+  if (code === 10011) return "The selected role no longer exists. Run the command again and choose a current role.";
+  if (code === 10003) return "The selected channel no longer exists. Ask an administrator to update the protected channel IDs.";
+  return null;
 }
 
 const workflowRequirements = {
@@ -100,11 +123,41 @@ const workflowRequirements = {
   "find-record": ["pabRoleId", "commandRoleId"]
 };
 
-function requiresConfiguration(interaction) {
+const workflowChannels = {
+  "training-log": ["trainingRecordsChannelId", "auditLogChannelId"],
+  promotion: ["pabApprovalsChannelId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
+  "award-role": ["qualificationsRecordsChannelId", "auditLogChannelId"],
+  "remove-role": ["qualificationsRecordsChannelId", "auditLogChannelId"],
+  "department-record": ["personnelRecordsChannelId", "auditLogChannelId"],
+  "correct-record": ["auditLogChannelId"],
+  "promotion-check": ["pabApprovalsChannelId", "auditLogChannelId"],
+  "personnel-status": ["personnelRecordsChannelId", "auditLogChannelId"],
+  "inactivity-review": ["inactivityReviewChannelId", "auditLogChannelId"],
+  "pab-announcement": ["pabAnnouncementsChannelId", "auditLogChannelId"]
+};
+
+async function requiresConfiguration(interaction) {
   const issues = configurationIssues(workflowRequirements[interaction.commandName] || []);
-  if (!issues.length) return false;
-  interaction.reply({ content: `This workflow is not ready yet: ${issues.map(issue => `\`${issue}\``).join(", ")}. A server administrator can run \`/setup-status\`.`, ephemeral: true });
-  return true;
+  if (issues.length) {
+    await interaction.reply({ content: `This workflow is not ready yet: ${issues.map(issue => `\`${issue}\``).join(", ")}. A server administrator can run \`/setup-status\`.`, ephemeral: true });
+    return true;
+  }
+  const botMember = interaction.guild.members.me;
+  const channelIssues = [];
+  for (const key of workflowChannels[interaction.commandName] || []) {
+    try {
+      const channel = await fetchChannel(config[key]);
+      const issue = channelPermissionIssue(channel, botMember);
+      if (issue) channelIssues.push(`${configLabels[key]}: ${issue}`);
+    } catch (error) {
+      channelIssues.push(`${configLabels[key] || key}: ${discordPermissionError(error) || "not accessible"}`);
+    }
+  }
+  if (channelIssues.length) {
+    await interaction.reply({ content: `This workflow is not ready because Ricky cannot use the configured destination: ${channelIssues.map(issue => `\`${issue}\``).join(", ")}. A server administrator can run \`/pab-health\`.`, ephemeral: true });
+    return true;
+  }
+  return false;
 }
 
 function input(id, label, style, { placeholder, required = true, maxLength = 1000 } = {}) {
@@ -312,7 +365,8 @@ async function showTrainingModal(interaction) {
 async function showPromotionModal(interaction) {
   const member = interaction.options.getMember("member");
   if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
-  if (!member.manageable) return interaction.reply({ content: "The bot cannot manage that member. Check the bot role hierarchy before preparing a promotion.", ephemeral: true });
+  const managementIssue = memberManagementError(interaction, member);
+  if (managementIssue) return interaction.reply({ content: managementIssue, ephemeral: true });
   const choices = rankRoleEntries(config.rankRoleIds).map(({ rank }) => rank).join(", ") || "Configure RANK_ROLE_IDS first";
   const modal = new ModalBuilder().setCustomId(`promotion-modal:${member.id}`).setTitle("BCSO promotion record");
   modal.addComponents(
@@ -330,7 +384,10 @@ async function showRoleAwardModal(interaction) {
   const role = interaction.options.getRole("role");
   if (!member || !role) return interaction.reply({ content: "The member and role must be available in this server.", ephemeral: true });
   if (!isApprovedAwardRole(role)) return interaction.reply({ content: awardRoleEligibilityMessage(role, "award"), ephemeral: true });
-  if (!member.manageable || !role.editable) return interaction.reply({ content: "The bot cannot manage that member or role. Run `/pab-health` and fix the role hierarchy first.", ephemeral: true });
+  const memberIssue = memberManagementError(interaction, member);
+  if (memberIssue) return interaction.reply({ content: memberIssue, ephemeral: true });
+  const roleIssue = roleManagementError(interaction, role);
+  if (roleIssue) return interaction.reply({ content: roleIssue, ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`role-award-modal:${member.id}:${role.id}`).setTitle("BCSO role award record");
   modal.addComponents(
     new ActionRowBuilder().addComponents(input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
@@ -345,7 +402,10 @@ async function showRoleRemovalModal(interaction) {
   const role = interaction.options.getRole("role");
   if (!member || !role) return interaction.reply({ content: "The member and role must be available in this server.", ephemeral: true });
   if (!isApprovedAwardRole(role)) return interaction.reply({ content: awardRoleEligibilityMessage(role, "removal"), ephemeral: true });
-  if (!member.manageable || !role.editable) return interaction.reply({ content: "The bot cannot manage that member or role. Run `/pab-health` and fix the role hierarchy first.", ephemeral: true });
+  const memberIssue = memberManagementError(interaction, member);
+  if (memberIssue) return interaction.reply({ content: memberIssue, ephemeral: true });
+  const roleIssue = roleManagementError(interaction, role);
+  if (roleIssue) return interaction.reply({ content: roleIssue, ephemeral: true });
   if (!member.roles.cache.has(role.id)) return interaction.reply({ content: "That member does not currently hold the selected role.", ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`role-removal-modal:${member.id}:${role.id}`).setTitle("BCSO role removal record");
   modal.addComponents(
@@ -426,7 +486,7 @@ async function showInactivityReviewModal(interaction) {
 
 async function showAnnouncementModal(interaction) {
   const notifyRole = interaction.options.getRole("notify-role");
-  if (notifyRole && !isNotifiableRole(notifyRole)) return interaction.reply({ content: "Choose a normal BCSO notification role. @everyone, managed roles, and administrator roles cannot be pinged by this workflow.", ephemeral: true });
+  if (notifyRole && !isNotifiableRole(notifyRole, interaction.guild.members.me)) return interaction.reply({ content: "Choose a mentionable, normal BCSO notification role. @everyone, managed roles, administrator roles, and roles Ricky cannot mention are blocked.", ephemeral: true });
   const draftId = pending.create({ type: "announcement-draft", createdBy: interaction.user.id, data: { notifyRoleId: notifyRole?.id || null } });
   const modal = new ModalBuilder().setCustomId(`announcement-modal:${draftId}`).setTitle("PAB announcement");
   modal.addComponents(
@@ -503,21 +563,30 @@ async function runHealthCheck(interaction) {
     ["PAB announcements", config.pabAnnouncementsChannelId], ["Inactivity review", config.inactivityReviewChannelId]
   ];
   const missing = missingConfiguration(Object.keys(configLabels));
+  const botMember = interaction.guild.members.me;
+  const botPermissionChecks = [
+    [PermissionFlagsBits.ViewChannel, "View Channel"],
+    [PermissionFlagsBits.SendMessages, "Send Messages"],
+    [PermissionFlagsBits.EmbedLinks, "Embed Links"],
+    [PermissionFlagsBits.ReadMessageHistory, "Read Message History"],
+    [PermissionFlagsBits.ManageRoles, "Manage Roles"],
+    [PermissionFlagsBits.AttachFiles, "Attach Files"]
+  ];
+  const botPermissions = botMember
+    ? botPermissionChecks.map(([permission, label]) => `${botMember.permissions.has(permission) ? "✓" : "✗"} ${label}`).join("\n")
+    : "✗ Ricky is not currently visible as a server member.";
   const channelChecks = [];
   for (const [label, id] of configuredChannels) {
     if (!id) { channelChecks.push(`• ${label}: not configured`); continue; }
     try {
       const channel = await fetchChannel(id);
-      const permissions = channel.permissionsFor(interaction.guild.members.me);
-      const usable = permissions?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]);
-      channelChecks.push(`${usable ? "✓" : "✗"} ${label}: ${usable ? "reachable" : "bot lacks channel permissions"}`);
+      const issue = channelPermissionIssue(channel, botMember);
+      channelChecks.push(`${issue ? "✗" : "✓"} ${label}: ${issue || "reachable"}`);
     } catch {
       channelChecks.push(`✗ ${label}: invalid, inaccessible, or outside this server`);
     }
   }
   const roleChecks = [];
-  const botMember = interaction.guild.members.me;
-  const controllerRole = botMember?.roles.cache.find(role => !role.managed && role.name.toLowerCase().includes("ricky controller"));
   const roleTargets = [
     ["PAB", config.pabRoleId, false], ["Command", config.commandRoleId, false],
     ...rankRoleEntries(config.rankRoleIds).map(item => [`Rank: ${item.rank}`, item.id, true]),
@@ -527,14 +596,17 @@ async function runHealthCheck(interaction) {
     if (!id) { roleChecks.push(`• ${label}: not configured`); continue; }
     const role = await interaction.guild.roles.fetch(id).catch(() => null);
     if (!role) roleChecks.push(`✗ ${label}: role not found`);
-    else if (requiresManagement && role.managed) roleChecks.push(`✗ ${label}: managed integration role`);
-    else if (requiresManagement && botMember.roles.highest.comparePositionTo(role) <= 0) roleChecks.push(`✗ ${label}: move ${controllerRole ? `\`${controllerRole.name}\`` : "the bot's highest role"} above it`);
-    else roleChecks.push(`✓ ${label}: ${requiresManagement ? "manageable" : "found"}`);
+    else if (requiresManagement) {
+      const issue = roleManagementError(interaction, role);
+      roleChecks.push(`${issue ? "✗" : "✓"} ${label}: ${issue || "manageable"}`);
+    }
+    else roleChecks.push(`✓ ${label}: found`);
   }
   return interaction.reply({
     ephemeral: true,
     embeds: [recordEmbed("Ricky Live Health Check", missing.length ? 0xb45309 : GREEN, [
       { name: "Configuration", value: missing.length ? `Missing: ${missing.join(", ")}` : "All required IDs and allow-lists are present.", inline: false },
+      { name: "Bot permissions", value: botPermissions, inline: false },
       { name: "Channels", value: clean(channelChecks.join("\n"), 1024), inline: false },
       { name: "Role hierarchy", value: clean(roleChecks.join("\n") || "No rank/award roles configured yet.", 1024), inline: false }
     ], "Read-only check — no settings, roles, or messages were changed")]
@@ -749,16 +821,18 @@ async function approveTraining(interaction, action) {
 async function approvePromotion(interaction, action) {
   if (!mayApprovePromotion(interaction.member)) return interaction.reply({ content: "A Command member must approve and apply a promotion.", ephemeral: true });
   const member = await interaction.guild.members.fetch(action.data.memberId);
-  if (!member.manageable) throw new Error("The bot can no longer manage the target member.");
+  const memberIssue = memberManagementError(interaction, member);
+  if (memberIssue) throw new Error(memberIssue);
   const configuredRanks = rankRoleEntries(config.rankRoleIds);
   const currentRankRoles = configuredRanks.filter(({ id }) => member.roles.cache.has(id)).map(({ id }) => id);
   const targetRoleId = config.rankRoleIds[action.data.toRank];
   const roleTargets = await Promise.all([...new Set([...currentRankRoles, targetRoleId])].map(id => interaction.guild.roles.fetch(id)));
-  if (roleTargets.some(role => !role?.editable)) throw new Error("The bot can no longer manage one or more configured rank roles.");
+  const roleIssue = roleTargets.map(role => roleManagementError(interaction, role)).find(Boolean);
+  if (roleIssue) throw new Error(roleIssue);
   if (!member.roles.cache.has(config.rankRoleIds[action.data.fromRank])) throw new Error(`${member.user.tag} does not currently have the configured ${action.data.fromRank} role.`);
   const rolesToRemove = currentRankRoles.filter(id => id !== targetRoleId);
-  if (rolesToRemove.length) await member.roles.remove(rolesToRemove, `BCSO promotion to ${action.data.toRank} approved by ${interaction.user.tag}`);
   if (!member.roles.cache.has(targetRoleId)) await member.roles.add(targetRoleId, `BCSO promotion approved by ${interaction.user.tag}`);
+  if (rolesToRemove.length) await member.roles.remove(rolesToRemove, `BCSO promotion to ${action.data.toRank} approved by ${interaction.user.tag}`);
   const [recordChannel, announcementChannel] = await Promise.all([fetchChannel(config.personnelRecordsChannelId), fetchChannel(config.promotionsAnnouncementsChannelId)]);
   const recordMessage = await recordChannel.send({ content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data)] });
   await announcementChannel.send({ content: `Please congratulate <@${member.id}> on promotion to **${action.data.toRank}**.`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Promotion") ] });
@@ -772,7 +846,10 @@ async function approveRoleAward(interaction, action) {
   const member = await interaction.guild.members.fetch(action.data.memberId);
   const role = await interaction.guild.roles.fetch(action.data.roleId);
   if (!role || !isApprovedAwardRole(role)) throw new Error("The selected role is no longer eligible for PAB awards.");
-  if (!member.manageable || !role.editable) throw new Error("The bot can no longer manage that member or role.");
+  const memberIssue = memberManagementError(interaction, member);
+  if (memberIssue) throw new Error(memberIssue);
+  const roleIssue = roleManagementError(interaction, role);
+  if (roleIssue) throw new Error(roleIssue);
   if (!member.roles.cache.has(action.data.roleId)) await member.roles.add(action.data.roleId, `BCSO role award approved by ${interaction.user.tag}`);
   const channel = await fetchChannel(config.qualificationsRecordsChannelId);
   const message = await channel.send({ content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [roleAwardEmbed(action.data)] });
@@ -786,7 +863,10 @@ async function approveRoleRemoval(interaction, action) {
   const member = await interaction.guild.members.fetch(action.data.memberId);
   const role = await interaction.guild.roles.fetch(action.data.roleId);
   if (!role || !isApprovedAwardRole(role)) throw new Error("The selected role is no longer eligible for PAB removal.");
-  if (!member.manageable || !role.editable) throw new Error("The bot can no longer manage that member or role.");
+  const memberIssue = memberManagementError(interaction, member);
+  if (memberIssue) throw new Error(memberIssue);
+  const roleIssue = roleManagementError(interaction, role);
+  if (roleIssue) throw new Error(roleIssue);
   if (!member.roles.cache.has(action.data.roleId)) throw new Error("The member no longer holds the selected role.");
   await member.roles.remove(action.data.roleId, `BCSO role removal approved by ${interaction.user.tag}`);
   const channel = await fetchChannel(config.qualificationsRecordsChannelId);
@@ -809,6 +889,8 @@ async function approveDepartmentRecord(interaction, action) {
 
 async function approveCorrection(interaction, action) {
   const channel = await fetchChannel(action.data.channelId);
+  const channelIssue = channelPermissionIssue(channel, interaction.guild.members.me, [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]);
+  if (channelIssue) throw new Error(channelIssue);
   const original = await channel.messages.fetch(action.data.messageId);
   if (!original) throw new Error("The original record could not be found.");
   const message = await channel.send({ embeds: [correctionEmbed(action.data)], allowedMentions: { parse: [] } });
@@ -847,6 +929,10 @@ async function approveInactivityReview(interaction, action) {
 
 async function approveAnnouncement(interaction, action) {
   const channel = await fetchChannel(config.pabAnnouncementsChannelId);
+  if (action.data.notifyRoleId) {
+    const notifyRole = await interaction.guild.roles.fetch(action.data.notifyRoleId);
+    if (!isNotifiableRole(notifyRole, interaction.guild.members.me)) throw new Error("The selected notification role is no longer mentionable or eligible.");
+  }
   const content = action.data.notifyRoleId ? `<@&${action.data.notifyRoleId}>` : undefined;
   const message = await channel.send({ content, embeds: [announcementEmbed(action.data, action.data.title)], allowedMentions: { roles: action.data.notifyRoleId ? [action.data.notifyRoleId] : [] } });
   saveReceipt("announcement", interaction, action, message);
@@ -870,7 +956,7 @@ client.on(Events.InteractionCreate, async interaction => {
         if (interaction.commandName === "export-audit") return exportAudit(interaction);
       }
       if (!mayUsePab(interaction.member)) return unauthorized(interaction);
-      if (requiresConfiguration(interaction)) return;
+      if (await requiresConfiguration(interaction)) return;
       const selectedMembers = ["member", "trainer", "trainee"].map(name => interaction.options.getMember(name)).filter(Boolean);
       if (selectedMembers.some(member => member.user.bot)) return interaction.reply({ content: "PAB personnel workflows may only target human server members.", ephemeral: true });
       if (interaction.commandName === "training-log") return showTrainingModal(interaction);
@@ -947,7 +1033,7 @@ client.on(Events.InteractionCreate, async interaction => {
       else pending.release(claimedActionId);
     }
     console.error(`Workflow error: ${error instanceof Error ? error.message : "unknown error"}`);
-    const message = "I could not complete that action. Check the bot role hierarchy, configured channel IDs, and server permissions.";
+    const message = discordPermissionError(error) || "I could not complete that action. Check `/pab-health`, configured channel IDs, and the bot's server permissions.";
     if (interaction.deferred || interaction.replied) await interaction.followUp({ content: message, ephemeral: true });
     else await interaction.reply({ content: message, ephemeral: true });
   }
