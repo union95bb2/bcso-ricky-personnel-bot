@@ -86,7 +86,7 @@ export function normalizeClockTime(value) {
 }
 
 export function splitTimeRange(value, timeZoneLabel = "") {
-  const [start, end] = clean(value, 80).split(/\s*[-–—]\s*/, 2);
+  const [start, end] = clean(value, 80).split(/\s*(?:[-–—]|\bto\b)\s*/i, 2);
   if (!start || !end) return ["", ""];
   const suffix = timeZoneLabel ? new RegExp(`\\s*\\(?${escapeRegExp(timeZoneLabel)}\\)?$`, "i") : null;
   const stripZone = part => clean(part, 40).replace(suffix, "").trim();

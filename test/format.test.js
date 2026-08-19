@@ -30,6 +30,7 @@ test("training times normalize an entered timezone suffix", () => {
   assert.deepEqual(splitTimeRange("4:00 PM MST - 5:00 PM MST", "MST"), ["4:00 PM", "5:00 PM"]);
   assert.deepEqual(splitTimeRange("4:00 PM - 5:00 PM", "MST"), ["4:00 PM", "5:00 PM"]);
   assert.deepEqual(splitTimeRange("4 PM – 5 PM MST", "MST"), ["4:00 PM", "5:00 PM"]);
+  assert.deepEqual(splitTimeRange("4 PM to 5 PM MST", "MST"), ["4:00 PM", "5:00 PM"]);
   assert.deepEqual(splitTimeRange("4:00 PM - 5:00 PM (MST)", "MST"), ["4:00 PM", "5:00 PM"]);
 });
 
