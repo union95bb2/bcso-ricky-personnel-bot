@@ -67,6 +67,8 @@ For the included `BCSO PAB Bot Sandbox`, `.env.sandbox.example` already contains
 
 For the presentation environment, `.env.demo.example` maps the separate `BCSO Bot Demo | TEST ONLY` server. It contains only the demo guild, role, and channel IDs, with blank credentials. This server is intentionally separate from the real BCSO server and contains no copied members, records, tickets, or production configuration.
 
+When the protected `.env` contains Ricky's token and client ID, start that presentation environment with `npm run start:demo`. This overlays the public demo IDs without exposing or replacing the protected credentials; do not source the example file directly from a shell because JSON role maps can lose their quotes.
+
 ## Required configuration
 
 `RANK_ROLE_IDS` is the guardrail for role updates. Use exact rank names as you want PAB to type in the promotion form:

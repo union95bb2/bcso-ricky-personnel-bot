@@ -6,6 +6,7 @@
   "description": "BCSO personnel, training, and promotion workflow bot.",
   "scripts": {
     "start": "node src/index.js",
+    "start:demo": "node scripts/start-demo.mjs",
     "register": "node src/register-commands.js",
     "preflight": "node src/preflight.js",
     "test": "node --test"
