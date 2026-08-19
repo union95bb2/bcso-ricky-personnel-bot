@@ -56,3 +56,17 @@ After the Discord matrix, the release gates were tightened so these conditions f
 - `npm test`: **34 passed** after adding the process-lock regression test.
 
 The deployment and cutover procedure is now in [`RELEASE_READINESS.md`](RELEASE_READINESS.md). The stale Pi container was stopped before the matrix and its data volume was preserved; no token or third-party bot code was copied.
+
+## Stress pass — 2026-08-18
+
+The running TEST ONLY instance was exercised again after the release-gate changes:
+
+- Five repeated `/pab-health` calls: **5/5 green**, with all channels, permissions, and manageable roles reachable.
+- Three repeated `/setup-status` calls: **3/3 ready**, with no token or client credential displayed.
+- Three invalid `/find-record` calls with neither search option: **3/3 safely rejected** with the expected validation response.
+- One department-record preview was approved twice concurrently: **one** personnel record was published; the preview was consumed and no duplicate role/access mutation occurred. Evidence: [`stress-single-post-destination.png`](artifacts/command-tests/stress-single-post-destination.png).
+- An award-role request targeting the server owner: **refused** with Discord's owner-management guardrail; no preview or role mutation was created. Evidence: [`stress-hierarchy-refusal.png`](artifacts/command-tests/stress-hierarchy-refusal.png).
+- A training form with invalid date `02/30/2026`: **rejected before preview creation** with the shared `MM/DD/YYYY` validation response. Evidence: [`stress-invalid-training-date.png`](artifacts/command-tests/stress-invalid-training-date.png).
+- Store stress script: 100 simultaneous attempts to claim one approval produced exactly 1 winner and 99 single-use refusals; 200 activity events with 10 duplicate IDs accepted exactly 10 unique events.
+- A second `npm run start:demo` while Ricky was running: **refused before Discord login** by the process lock.
+- Protected live preflight with incomplete `.env`: **failed closed** and listed the missing IDs/maps without exposing credentials.
