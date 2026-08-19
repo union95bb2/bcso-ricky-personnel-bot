@@ -776,6 +776,7 @@ async function runHealthCheck(interaction) {
     if (!id) { roleChecks.push(`• ${label}: not configured`); continue; }
     const role = await interaction.guild.roles.fetch(id).catch(() => null);
     if (!role) roleChecks.push(`✗ ${label}: role not found`);
+    else if ((label === "PAB" || label === "Command") && !isNotifiableRole(role, botMember)) roleChecks.push(`✗ ${label}: found but not mentionable (or elevated/managed)`);
     else if (requiresManagement) {
       const issue = roleManagementError(interaction, role);
       roleChecks.push(`${issue ? "✗" : "✓"} ${label}: ${issue || "manageable"}`);
