@@ -76,7 +76,7 @@ function clearDiscipline(value) {
 function recommendationState(value) {
   const normalized = normalizeText(value);
   if (!normalized) return "missing";
-  if (/(deny|denied|not eligible|hold|reject|rejected|ineligible)/.test(normalized)) return "not-eligible";
+  if (/(deny|denied|not eligible|hold|reject|rejected|ineligible|not recommend|does not recommend|do not recommend)/.test(normalized)) return "not-eligible";
   if (/(eligible|approved|approve|pass|passed|recommend)/.test(normalized) && !/(pending|review)/.test(normalized)) return "positive";
   if (/(pending|review|incomplete|await)/.test(normalized)) return "pending";
   return "other";

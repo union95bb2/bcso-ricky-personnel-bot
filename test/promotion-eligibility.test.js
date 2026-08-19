@@ -49,3 +49,14 @@ test("promotion evaluation reports missing evidence without deciding from an abs
   assert.equal(result.answer, "No promotion evaluation row found");
   assert.equal(result.checks[0].state, "missing");
 });
+
+test("negative recommendation wording cannot be mistaken for a positive recommendation", () => {
+  const result = evaluatePromotionEligibility({
+    rows: [{ ...row, pab_recommendation: "Does not recommend promotion" }],
+    member: { id: "110", nickname: "C-110 | CPL. W. Dorfman", displayName: "W. Dorfman" },
+    memberRank: "Corporal",
+    currentRank: "Corporal",
+    requestedRank: "Sergeant"
+  });
+  assert.equal(result.answer, "Not eligible on the current record");
+});
