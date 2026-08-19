@@ -1373,6 +1373,15 @@ client.on(Events.InteractionCreate, async interaction => {
           const expiresAt = Math.floor(forwarded.action.expiresAt / 1000);
           const roles = [config.commandRoleId].filter(Boolean);
           const embed = promotionEmbed(forwarded.action.data, "Command Approval Required — BCSO Promotion");
+          if (!interaction.message || interaction.message.flags?.has?.(64)) {
+            const approvalChannel = await fetchChannel(config.pabApprovalsChannelId);
+            await approvalChannel.send({
+              content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the promotion. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
+              allowedMentions: { roles },
+              embeds: [embed],
+              components: [approvalRow(id, "promotion", approvalLabel("promotion"))]
+            });
+          }
           return interaction.update({
             content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the promotion. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
             allowedMentions: { roles },
