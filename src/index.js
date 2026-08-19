@@ -563,7 +563,7 @@ async function handleModal(interaction) {
     const timezone = resolveTrainingTimeZone(timezoneValue, { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
     const [trainer, trainee] = await Promise.all([interaction.guild.members.fetch(trainerId), interaction.guild.members.fetch(traineeId)]);
     const [startTime, endTime] = splitTimeRange(interaction.fields.getTextInputValue("time"), timezone.label);
-    if (!startTime || !endTime) return interaction.reply({ content: `Enter time as \`h:mm AM/PM - h:mm AM/PM\` in ${timezone.label}, for example \`4:00 PM - 5:00 PM ${timezone.label}\`.`, ephemeral: true });
+    if (!startTime || !endTime) return interaction.reply({ content: `Enter a time range such as \`4 PM - 5 PM\` or \`4:00 PM - 5:00 PM ${timezone.label}\`.`, ephemeral: true });
     const date = normalizeDate(interaction.fields.getTextInputValue("date"));
     if (!date) return interaction.reply({ content: `Enter the date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
     const data = {

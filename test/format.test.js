@@ -29,6 +29,8 @@ test("today uses the configured timezone", () => {
 test("training times normalize an entered timezone suffix", () => {
   assert.deepEqual(splitTimeRange("4:00 PM MST - 5:00 PM MST", "MST"), ["4:00 PM", "5:00 PM"]);
   assert.deepEqual(splitTimeRange("4:00 PM - 5:00 PM", "MST"), ["4:00 PM", "5:00 PM"]);
+  assert.deepEqual(splitTimeRange("4 PM – 5 PM MST", "MST"), ["4:00 PM", "5:00 PM"]);
+  assert.deepEqual(splitTimeRange("4:00 PM - 5:00 PM (MST)", "MST"), ["4:00 PM", "5:00 PM"]);
 });
 
 test("training timezone choices resolve to stable labels and IANA zones", () => {
@@ -48,6 +50,8 @@ test("dates normalize to the shared MM/DD/YYYY format", () => {
 
 test("times normalize to h:mm AM/PM", () => {
   assert.equal(normalizeClockTime("4:00 pm"), "4:00 PM");
+  assert.equal(normalizeClockTime("4 PM"), "4:00 PM");
+  assert.equal(normalizeClockTime("4 p.m."), "4:00 PM");
   assert.equal(normalizeClockTime("16:00 PM"), "");
   assert.deepEqual(splitTimeRange("4:00 pm MST - 5:00 pm MST", "MST"), ["4:00 PM", "5:00 PM"]);
 });

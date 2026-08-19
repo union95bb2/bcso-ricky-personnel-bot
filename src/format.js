@@ -77,18 +77,18 @@ export function normalizeDateRange(value) {
 }
 
 export function normalizeClockTime(value) {
-  const match = clean(value, 40).match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  const match = clean(value, 40).replace(/\./g, "").match(/^(\d{1,2})(?::(\d{2}))?\s*([AP]M)$/i);
   if (!match) return "";
   const hour = Number(match[1]);
-  const minute = Number(match[2]);
+  const minute = Number(match[2] || "00");
   if (hour < 1 || hour > 12 || minute > 59) return "";
   return `${hour}:${String(minute).padStart(2, "0")} ${match[3].toUpperCase()}`;
 }
 
 export function splitTimeRange(value, timeZoneLabel = "") {
-  const [start, end] = clean(value, 80).split(/\s*-\s*/, 2);
+  const [start, end] = clean(value, 80).split(/\s*[-–—]\s*/, 2);
   if (!start || !end) return ["", ""];
-  const suffix = timeZoneLabel ? new RegExp(`\\s+${escapeRegExp(timeZoneLabel)}$`, "i") : null;
+  const suffix = timeZoneLabel ? new RegExp(`\\s*\\(?${escapeRegExp(timeZoneLabel)}\\)?$`, "i") : null;
   const stripZone = part => clean(part, 40).replace(suffix, "").trim();
   return [normalizeClockTime(stripZone(start)), normalizeClockTime(stripZone(end))];
 }
