@@ -35,6 +35,8 @@ Create or use these roles:
 - `PAB_ROLE_ID`: staff permitted to submit and approve ordinary PAB workflows.
 - `COMMAND_ROLE_ID`: staff permitted to approve promotions.
 
+PAB and Command must be normal **mentionable** roles (or Ricky must be granted Mention Everyone) so restricted approval role pings actually notify staff. `/pab-health` reports a non-mentionable, managed, or elevated approval role.
+
 Place the **actual role assigned to Ricky**—the role shown by `/pab-health` as Ricky's highest assigned role—above every rank role and qualification/unit role listed in `RANK_ROLE_IDS` or `AWARDABLE_ROLE_IDS`. In the demo this is normally `BCSO Personnel Bot`; a separate `Ricky Controller` role has no effect unless it is assigned to the bot. Keep the bot role below the server owner; Discord never allows a bot to manage the owner. The bot does not need to sit above PAB or Command roles. Never include administrator, moderation, PAB, Command, or rank roles in `AWARDABLE_ROLE_IDS`.
 
 If Discord marks the bot integration role as managed and it cannot be moved, create a separate non-managed controller role, assign it to the bot, and place that controller role above the rank and qualification roles it must manage.

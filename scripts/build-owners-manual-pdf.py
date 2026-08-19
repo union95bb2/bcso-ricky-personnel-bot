@@ -269,6 +269,7 @@ story += [table([
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
 story += [P("Hierarchy rule", "H2Manual")]
 story += [callout("Move the actual assigned Ricky role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. Moving an unassigned controller role does nothing. Ricky can never manage the server owner, and Administrator roles are intentionally refused.", RED)]
+story += [P("PAB and Command approval roles must be normal mentionable roles (or Ricky must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
 story += [P("Recommended records category", "H2Manual")]
 story += [table([
     ["Channel", "Ordinary members", "PAB/Command", "Ricky"],
