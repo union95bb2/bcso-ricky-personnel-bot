@@ -11,7 +11,7 @@ npm ci
 npm run preflight:deploy
 ```
 
-The deploy preflight checks that credentials are present without printing them, every configured guild/channel/role ID has the right shape, the rank map is valid and non-empty, the award allow-list is present, and the host does not have multiple Ricky containers. Set `DEPLOY_SSH_HOST` and `DEPLOY_SSH_DIR` when the check must inspect the remote host that will run the bot. A failure is a no-go; it does not attempt to repair settings.
+The deploy preflight checks that credentials are present without printing them, the credentials file is private, every configured guild/channel/role ID has the right shape, the rank map is valid and non-empty, the award allow-list is present, and no Ricky container is already running on the cutover host. Set `DEPLOY_SSH_HOST` and `DEPLOY_SSH_DIR` when the check must inspect the remote host that will run the bot; set `DEPLOY_EXPECT_REMOTE_CHECK=true` to make that remote inspection mandatory. A failure is a no-go; it does not attempt to repair settings. `ALLOW_RUNNING_CONTAINER=true` is reserved for an explicitly approved non-cutover diagnostic and must not be used for a release.
 
 For the sandbox, use the protected token/client credentials with the committed demo configuration:
 
@@ -36,6 +36,7 @@ Ricky now refuses to serve commands unless its configured guild is reachable and
 - every activity source is in the configured guild and viewable;
 - PAB and Command roles exist;
 - every configured rank and allow-listed role exists and is manageable by Ricky's actual highest assigned role.
+- all expected guild slash commands are registered before Ricky announces readiness.
 
 The process exits with a redacted reason list instead of coming online partially configured. `/setup-status` and `/pab-health` remain read-only runtime checks for drift after startup.
 

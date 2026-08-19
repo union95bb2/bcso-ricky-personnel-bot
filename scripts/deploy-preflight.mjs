@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import dotenv from "dotenv";
@@ -24,6 +24,11 @@ if (process.env.DEPLOY_CONFIG_ENV_FILE) {
   }
 }
 const issues = [];
+try {
+  if ((statSync(envPath).mode & 0o077) !== 0) issues.push(`${envPath} is readable by group/other users; chmod 600 is required`);
+} catch {
+  issues.push(`${envPath} could not be inspected for permissions`);
+}
 const required = [
   "DISCORD_TOKEN", "DISCORD_CLIENT_ID", "DISCORD_GUILD_ID", "PAB_ROLE_ID", "COMMAND_ROLE_ID",
   "TRAINING_RECORDS_CHANNEL_ID", "PERSONNEL_RECORDS_CHANNEL_ID", "PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID",
@@ -53,15 +58,18 @@ if (env.RANK_ROLE_IDS?.trim()) {
   }
 }
 
-const running = spawnSync("docker", ["ps", "--filter", "name=bcso-personnel-bot", "--format", "{{.Names}}\t{{.Status}}"], { encoding: "utf8" });
+const running = spawnSync("docker", ["ps", "--filter", "name=^/bcso-personnel-bot$", "--format", "{{.Names}}\t{{.Status}}"], { encoding: "utf8" });
 if (running.status === 0) {
   const containers = running.stdout.trim().split("\n").filter(Boolean);
   if (containers.length > 1) issues.push(`more than one bcso-personnel-bot container is running on this host (${containers.length})`);
-  if (containers.length === 1) console.log(`Existing local container detected: ${containers[0]}. Stop it before cutover unless this is an intentional restart.`);
+  if (containers.length === 1 && process.env.ALLOW_RUNNING_CONTAINER !== "true") issues.push(`bcso-personnel-bot is already running on this host (${containers[0]}); stop it before cutover`);
 } else if (process.env.REQUIRE_DOCKER_CHECK === "true") {
   issues.push("Docker could not be inspected while REQUIRE_DOCKER_CHECK=true");
 }
 
+if (process.env.DEPLOY_EXPECT_REMOTE_CHECK === "true" && !process.env.DEPLOY_SSH_HOST) {
+  issues.push("DEPLOY_EXPECT_REMOTE_CHECK=true but DEPLOY_SSH_HOST is not set");
+}
 if (process.env.DEPLOY_SSH_HOST) {
   const remoteDirectory = process.env.DEPLOY_SSH_DIR || ".";
   const shellQuote = (value) => `'${String(value).replaceAll("'", "'\\''")}'`;
@@ -70,7 +78,7 @@ if (process.env.DEPLOY_SSH_HOST) {
   else {
     const containers = remote.stdout.trim().split("\n").filter(Boolean);
     if (containers.length > 1) issues.push(`more than one bcso-personnel-bot container is running on ${process.env.DEPLOY_SSH_HOST} (${containers.length})`);
-    if (containers.length === 1) console.log(`Existing remote container detected on ${process.env.DEPLOY_SSH_HOST}: ${containers[0]}. Stop it before cutover unless this is an intentional restart.`);
+    if (containers.length === 1 && process.env.ALLOW_RUNNING_CONTAINER !== "true") issues.push(`bcso-personnel-bot is already running on ${process.env.DEPLOY_SSH_HOST} (${containers[0]}); stop it before cutover`);
   }
 }
 

@@ -62,7 +62,7 @@ Use forum channels if you want each record to become a separate discussion threa
 6. Copy `.env.example` to `.env`, then fill in the IDs and the rank-role JSON. Keep the bot token only in `.env`; never paste it into Discord or commit it.
 7. Run `npm ci`, `npm run preflight:deploy`, `npm run register`, then `npm start`. For the TEST ONLY guild, use `npm run preflight:demo`, `npm run register:demo`, and `npm run start:demo`; those scripts preserve the protected token/client ID while overlaying only the demo guild IDs.
 
-Guild commands normally appear in seconds after `npm run register`. Re-run that command after changing the slash-command definitions. `/setup-status` can run with only the core bot credentials; all workflow commands remain blocked until their specific safe configuration is present.
+Guild commands normally appear in seconds after `npm run register`. Re-run that command after changing the slash-command definitions. Ricky's startup gate verifies the complete configuration and exact guild command set before it comes online; `/setup-status` and `/pab-health` are read-only diagnostics once the bot is running.
 
 For the included `BCSO PAB Bot Sandbox`, `.env.sandbox.example` already contains that sandbox's server, channel, PAB/Command role, and harmless test-role IDs. It deliberately does **not** contain the bot token or application client ID. Copy it only to the protected sandbox host configuration, fill those two values from the Developer Portal, then register commands against the sandbox before any live-server deployment.
 
@@ -144,4 +144,4 @@ The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md)
 
 ## Still needed before live deployment
 
-The bot can start with its core credentials and lets a server administrator run `/setup-status`, but it deliberately blocks each PAB workflow until its required role/channel IDs and allow-lists are valid. Before live use, place the bot role above roles it may manage, run `/pab-health`, complete the sandbox test plan, and register the commands. A roster integration is deliberately not included: it needs the roster owner's chosen system and write permissions before the bot should read or change external personnel data.
+The bot does not start partially configured. Before live use, complete the protected `.env`, register the exact guild command set, place the bot role above roles it may manage, run `/pab-health`, and complete the sandbox test plan. A roster integration is deliberately not included: it needs the roster owner's chosen system and write permissions before the bot should read or change external personnel data.

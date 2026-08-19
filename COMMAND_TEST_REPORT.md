@@ -51,6 +51,7 @@ After the Discord matrix, the release gates were tightened so these conditions f
 - `npm run preflight:demo`: **passed** against the protected token/client credentials plus the committed TEST ONLY configuration.
 - `DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy`: **passed**; the deploy gate validated the complete candidate configuration without printing credentials.
 - `npm run start:demo`: **passed** the live startup readiness gate after checking the configured guild, all destination/activity channels, required bot permissions, configured roles, and role hierarchy.
+- Startup also verified the exact 16-command guild registration, rejecting missing or stale command definitions.
 - A second simultaneous `npm run start:demo`: **refused before Discord login** by the same-volume process lock.
 - `npm test`: **34 passed** after adding the process-lock regression test.
 

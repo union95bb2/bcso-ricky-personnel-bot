@@ -62,7 +62,7 @@ Use normal text channels for first deployment. Forum/thread routing can be intro
 2. Copy the server, channel, and role IDs.
 3. Copy `.env.example` to `.env` and fill it out on the bot host.
 4. Protect `.env` and `data/` so only the bot host administrator can read them. Never send the bot token in Discord.
-5. Run `npm run preflight`. It reports missing or malformed IDs without exposing secrets.
+5. Run `npm run preflight:deploy`. It reports missing or malformed IDs without exposing secrets and checks the cutover host for duplicate Ricky containers. Use `npm run preflight:demo` for the TEST ONLY configuration.
 
 `RANK_ROLE_IDS` is a JSON object. It must contain every rank that the bot is allowed to remove during promotion:
 

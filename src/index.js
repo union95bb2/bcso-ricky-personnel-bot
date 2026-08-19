@@ -14,6 +14,7 @@ import {
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { config, configLabels, configurationIssues, missingConfiguration } from "./config.js";
+import { commands } from "./commands.js";
 import { clean, dateInTimeZone, durationLabel, endOfDateTimestamp, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
 import { PendingActions } from "./pending-actions.js";
 import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
@@ -329,6 +330,18 @@ async function startupReadinessIssues(readyClient) {
     return [`DISCORD_GUILD_ID ${config.guildId} is not reachable by this bot`];
   }
   if (!guild || guild.id !== config.guildId) return ["configured guild could not be resolved"];
+
+  try {
+    const registered = await readyClient.application.commands.fetch({ guildId: config.guildId });
+    const registeredNames = new Set(registered.map(command => command.name));
+    const expectedNames = new Set(commands.map(command => command.name));
+    const missingCommands = [...expectedNames].filter(name => !registeredNames.has(name));
+    const unexpectedCommands = [...registeredNames].filter(name => !expectedNames.has(name));
+    if (missingCommands.length) issues.push(`guild command registration is incomplete (missing: ${missingCommands.join(", ")})`);
+    if (unexpectedCommands.length) issues.push(`guild command registration contains stale/unexpected commands: ${unexpectedCommands.join(", ")}`);
+  } catch {
+    issues.push("guild command registration could not be verified");
+  }
 
   const botMember = await guild.members.fetchMe().catch(() => null);
   if (!botMember) return ["Ricky is not visible as a member of the configured guild"];
