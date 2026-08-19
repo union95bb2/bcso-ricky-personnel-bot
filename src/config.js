@@ -49,6 +49,7 @@ export const config = {
   timeZoneId: process.env.TIME_ZONE_ID?.trim() || "Etc/GMT+7",
   pendingActionTtlMinutes: boundedNumber(process.env.PENDING_ACTION_TTL_MINUTES, 24 * 60, 60, 7 * 24 * 60),
   pendingReminderMinutes: boundedNumber(process.env.PENDING_REMINDER_MINUTES, 60, 5, 12 * 60),
+  googleSheetsEnabled: process.env.GOOGLE_SHEETS_ENABLED?.trim().toLowerCase() === "true",
   googleSheetsSpreadsheetId: optional("GOOGLE_SHEETS_SPREADSHEET_ID"),
   googleSheetsRange: process.env.GOOGLE_SHEETS_RANGE?.trim() || "Roster!A:Z",
   googleSheetsServiceAccountJson: optional("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON"),

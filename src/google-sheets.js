@@ -19,23 +19,29 @@ export class GoogleRosterSheet {
   #spreadsheetId;
   #range;
   #account;
+  #enabled;
   #fetch;
   #token = null;
 
-  constructor({ spreadsheetId, range = "Roster!A:Z", serviceAccountJson, fetchImpl = globalThis.fetch } = {}) {
+  constructor({ enabled = true, spreadsheetId, range = "Roster!A:Z", serviceAccountJson, fetchImpl = globalThis.fetch } = {}) {
+    this.#enabled = Boolean(enabled);
     this.#spreadsheetId = spreadsheetId || "";
     this.#range = range;
-    this.#account = serviceAccount(serviceAccountJson);
+    // A staged integration must not validate or touch credentials until an
+    // administrator explicitly enables it. This keeps dormant configuration
+    // from blocking startup and prevents accidental API use.
+    this.#account = this.#enabled ? serviceAccount(serviceAccountJson) : null;
     this.#fetch = fetchImpl;
   }
 
   get configured() {
-    return Boolean(this.#spreadsheetId && this.#account);
+    return this.#enabled && Boolean(this.#spreadsheetId && this.#account);
   }
 
   status() {
     return {
       configured: this.configured,
+      enabled: this.#enabled,
       spreadsheetId: this.#spreadsheetId,
       range: this.#range,
       serviceAccount: this.#account?.client_email || null
@@ -94,10 +100,10 @@ export function compareRosterRows(rows, members, rankRoleIds = {}) {
     seen.add(discordId);
     const member = byId.get(discordId);
     if (!member) {
-      missingDiscord.push({ discordId, callsign: row.callsign || "", displayName: row.display_name || row.name || "" });
+      missingDiscord.push({ discordId, callsign: row.callsign || row.badge_number || "", displayName: row.display_name || row.name || "" });
       continue;
     }
-    const expectedRank = row.rank || row.current_rank || "";
+    const expectedRank = row.rank || row.current_rank || row.role || "";
     const actualRank = [...member.roles.cache.values()].map(role => rankByRole.get(role.id)).find(Boolean) || "";
     if (expectedRank && expectedRank !== actualRank) mismatches.push({ discordId, displayName: member.displayName, expected: expectedRank, actual: actualRank || "none" });
   }

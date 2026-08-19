@@ -27,6 +27,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 const store = new PabStore(config.dataPath);
 const pending = new PendingActions(store, { ttlMinutes: config.pendingActionTtlMinutes });
 const rosterSheet = new GoogleRosterSheet({
+  enabled: config.googleSheetsEnabled,
   spreadsheetId: config.googleSheetsSpreadsheetId,
   range: config.googleSheetsRange,
   serviceAccountJson: config.googleSheetsServiceAccountJson
@@ -358,7 +359,7 @@ function rosterSyncEmbed(result, sourceLabel = "Google Sheet roster") {
     ? result.mismatches.slice(0, 15).map(item => `• <@${item.discordId}> · sheet: **${item.expected}** · Discord: **${item.actual}**`).join("\n")
     : "None";
   const notInSheet = result.sheetOnlyIds.length ? `${result.sheetOnlyIds.length} Discord member(s) not represented in the sheet` : "None detected";
-  return recordEmbed("Ricky Roster Comparison", result.missingDiscord.length || result.mismatches.length ? 0xb45309 : GREEN, [
+  return recordEmbed("Ricky Bot Roster Comparison", result.missingDiscord.length || result.mismatches.length ? 0xb45309 : GREEN, [
     { name: "Source", value: sourceLabel, inline: false },
     { name: "Rows read", value: String(result.totalRows), inline: true },
     { name: "Sheet IDs not in Discord", value: String(result.missingDiscord.length), inline: true },
@@ -789,15 +790,18 @@ async function runHealthCheck(interaction) {
       { name: "Configuration", value: missing.length ? `Missing: ${missing.join(", ")}` : "All required IDs and allow-lists are present.", inline: false },
       { name: "Bot permissions", value: botPermissions, inline: false },
       { name: "Channels", value: clean(channelChecks.join("\n"), 1024), inline: false },
-      { name: "Optional integrations", value: `Birthday notices: ${config.birthdayChannelId ? "configured" : "disabled"}\nService milestones: ${config.serviceMilestonesChannelId ? "configured" : "disabled"}\nGoogle roster comparison: ${rosterSheet.configured ? "configured" : "disabled"}`, inline: false },
+      { name: "Optional integrations", value: `Birthday notices: ${config.birthdayChannelId ? "configured" : "disabled"}\nService milestones: ${config.serviceMilestonesChannelId ? "configured" : "disabled"}\nGoogle roster comparison: ${config.googleSheetsEnabled ? (rosterSheet.configured ? "enabled/configured" : "enabled/incomplete") : (config.googleSheetsSpreadsheetId ? "staged (disabled)" : "disabled")}`, inline: false },
       { name: "Role hierarchy", value: clean(`${hierarchySummary}\n\n${roleChecks.join("\n") || "No rank/award roles configured yet."}`, 1024), inline: false }
     ], "Read-only check — no settings, roles, or messages were changed")]
   });
 }
 
 async function runRosterSync(interaction) {
+  if (!config.googleSheetsEnabled) {
+    return interaction.reply({ content: "Google Sheets roster comparison is staged but disabled. A server administrator must set `GOOGLE_SHEETS_ENABLED=true`, confirm the protected service-account credentials and range, then restart Ricky Bot before `/roster-sync` can run.", ephemeral: true });
+  }
   if (!rosterSheet.configured) {
-    return interaction.reply({ content: "Google Sheets comparison is not configured. Set `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_SHEETS_RANGE`, and `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON`, share the sheet with the service-account email, then restart Ricky.", ephemeral: true });
+    return interaction.reply({ content: "Google Sheets comparison is enabled but incomplete. Set `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_SHEETS_RANGE`, and `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON`, share the sheet with the service-account email, then restart Ricky Bot.", ephemeral: true });
   }
   await interaction.deferReply({ ephemeral: true });
   try {
