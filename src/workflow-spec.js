@@ -19,32 +19,32 @@ export const PAB_COMMANDS = new Set([
 ]);
 
 export const WORKFLOW_REQUIREMENTS = {
-  "training-log": ["pabRoleId", "commandRoleId", "trainingRecordsChannelId", "auditLogChannelId"],
+  "training-log": ["pabRoleId", "commandRoleId", "trainingRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   promotion: ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "rankRoleIds"],
-  "award-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "awardableRoleIds"],
-  "remove-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "awardableRoleIds"],
-  "department-record": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId"],
-  "correct-record": ["pabRoleId", "commandRoleId", "auditLogChannelId"],
+  "award-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "awardableRoleIds"],
+  "remove-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "awardableRoleIds"],
+  "department-record": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "correct-record": ["pabRoleId", "commandRoleId", "auditLogChannelId", "pabApprovalsChannelId"],
   "promotion-check": ["pabRoleId", "commandRoleId", "pabApprovalsChannelId", "auditLogChannelId"],
-  "personnel-status": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId"],
-  "inactivity-review": ["pabRoleId", "commandRoleId", "inactivityReviewChannelId", "auditLogChannelId", "activityChannelIds"],
-  "pab-announcement": ["pabRoleId", "commandRoleId", "pabAnnouncementsChannelId", "auditLogChannelId"],
+  "personnel-status": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "inactivity-review": ["pabRoleId", "commandRoleId", "inactivityReviewChannelId", "auditLogChannelId", "pabApprovalsChannelId", "activityChannelIds"],
+  "pab-announcement": ["pabRoleId", "commandRoleId", "pabAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "pab-dashboard": ["pabRoleId", "commandRoleId"],
   "member-profile": ["pabRoleId", "commandRoleId"],
   "find-record": ["pabRoleId", "commandRoleId"]
 };
 
 export const WORKFLOW_CHANNELS = {
-  "training-log": ["trainingRecordsChannelId", "auditLogChannelId"],
+  "training-log": ["trainingRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   promotion: ["pabApprovalsChannelId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
-  "award-role": ["qualificationsRecordsChannelId", "auditLogChannelId"],
-  "remove-role": ["qualificationsRecordsChannelId", "auditLogChannelId"],
-  "department-record": ["personnelRecordsChannelId", "auditLogChannelId"],
-  "correct-record": ["auditLogChannelId"],
+  "award-role": ["qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "remove-role": ["qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "department-record": ["personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "correct-record": ["auditLogChannelId", "pabApprovalsChannelId"],
   "promotion-check": ["pabApprovalsChannelId", "auditLogChannelId"],
-  "personnel-status": ["personnelRecordsChannelId", "auditLogChannelId"],
-  "inactivity-review": ["inactivityReviewChannelId", "auditLogChannelId"],
-  "pab-announcement": ["pabAnnouncementsChannelId", "auditLogChannelId"]
+  "personnel-status": ["personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "inactivity-review": ["inactivityReviewChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
+  "pab-announcement": ["pabAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId"]
 };
 
 export function commandCoverage(commandNames) {

@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
-const FIFTEEN_MINUTES = 15 * 60 * 1000;
+const DEFAULT_PENDING_TTL = 24 * 60 * 60 * 1000;
 
 /**
  * Durable PAB workflow state. Discord remains the published record; this local
@@ -90,7 +90,7 @@ export class PabStore {
     return marked;
   }
 
-  createPending(action, expiresInMs = FIFTEEN_MINUTES) {
+  createPending(action, expiresInMs = DEFAULT_PENDING_TTL) {
     const id = randomUUID();
     const now = Date.now();
     this.#db.prepare(`
@@ -133,6 +133,11 @@ export class PabStore {
     }));
   }
 
+  pendingDetails(id) {
+    const row = this.#db.prepare("SELECT id, type, created_by, created_at, expires_at, status FROM pending_actions WHERE id = ?").get(id);
+    return row ? { id: row.id, type: row.type, createdBy: row.created_by, createdAt: row.created_at, expiresAt: row.expires_at, status: row.status } : null;
+  }
+
   listExpiringPending(withinMs, now = Date.now()) {
     this.purgeExpired(now);
     return this.#db.prepare(`
@@ -154,7 +159,7 @@ export class PabStore {
     return Boolean(this.#db.prepare("UPDATE pending_actions SET reminder_sent_at = ? WHERE id = ? AND status = 'pending' AND reminder_sent_at IS NULL").run(now, id).changes);
   }
 
-  renewPending(id, actorId, expiresInMs = FIFTEEN_MINUTES, canRenew = () => null) {
+  renewPending(id, actorId, expiresInMs = DEFAULT_PENDING_TTL, canRenew = () => null) {
     const row = this.#db.prepare("SELECT * FROM pending_actions WHERE id = ?").get(id);
     if (!row) return { error: "This preview is no longer available. Run the command again." };
     if (row.status === "claimed") return { error: "This preview is already being processed. Refresh the PAB queue in a moment." };
@@ -164,6 +169,21 @@ export class PabStore {
     const now = Date.now();
     this.#db.prepare("UPDATE pending_actions SET status = 'pending', expires_at = ?, reminder_sent_at = NULL WHERE id = ? AND status IN ('pending', 'expired')").run(now + expiresInMs, id);
     return { action: { ...action, expiresAt: now + expiresInMs } };
+  }
+
+  advancePending(id, actorId, mutate = () => null) {
+    const row = this.#db.prepare("SELECT * FROM pending_actions WHERE id = ?").get(id);
+    if (!row || row.expires_at < Date.now() || row.status === "expired") {
+      if (row && row.status === "pending") this.#db.prepare("UPDATE pending_actions SET status = 'expired' WHERE id = ?").run(id);
+      return { error: "This preview expired. Run the command again." };
+    }
+    if (row.status !== "pending") return { error: "This preview is already being processed. Refresh the PAB queue in a moment." };
+    const action = { id: row.id, type: row.type, createdBy: row.created_by, data: JSON.parse(row.data_json), expiresAt: row.expires_at };
+    const error = mutate(action, actorId);
+    if (error) return { error };
+    const result = this.#db.prepare("UPDATE pending_actions SET data_json = ?, reminder_sent_at = NULL WHERE id = ? AND status = 'pending'").run(JSON.stringify(action.data), id);
+    if (!result.changes) return { error: "This preview is already being processed. Refresh the PAB queue in a moment." };
+    return { action };
   }
 
   completePending(id) {

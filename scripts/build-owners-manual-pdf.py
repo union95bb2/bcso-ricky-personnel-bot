@@ -296,8 +296,8 @@ story += [P("Promotion", "H2Manual")]
 story += bullets([
     "PAB runs /promotion and submits the factual request. No role changes occur.",
     "The request routes to private #pab-approvals.",
-    "Command reviews the member, current rank, new rank, date, authorization, and reference.",
-    "Only the Command approval action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt.",
+    "PAB clicks PAB review & forward after checking the member, current rank, new rank, date, authorization, and reference.",
+    "Ricky updates the request and pings Command. Only the Command approve & apply action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt.",
 ])
 story += [P("Award / remove role", "H2Manual")]
 story += bullets([
@@ -313,8 +313,8 @@ story += bullets([
 ])
 story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
 story += bullets([
-    "A preview lasts PENDING_ACTION_TTL_MINUTES (15 minutes by default). A private reminder is sent during the PENDING_REMINDER_MINUTES window (5 minutes by default).",
-    "The creator can click Renew to create a fresh approval window. Command may renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
+    "A preview lasts PENDING_ACTION_TTL_MINUTES (24 hours by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 hour by default).",
+    "Every request pings the PAB role. Promotions use two gates: PAB clicks PAB review & forward, Ricky updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])
 story += [P("Google Sheet roster comparison", "H2Manual")]

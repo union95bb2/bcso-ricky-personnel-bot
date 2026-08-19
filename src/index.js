@@ -173,9 +173,50 @@ function input(id, label, style, { placeholder, required = true, maxLength = 100
 function approvalRow(id, type, label = "Approve & post") {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`approve:${type}:${id}`).setLabel(label).setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`renew:${type}:${id}`).setLabel(`Renew ${config.pendingActionTtlMinutes}m`).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`renew:${type}:${id}`).setLabel(`Renew ${ttlLabel()}`).setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`cancel:${type}:${id}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary)
   );
+}
+
+function ttlLabel() {
+  const minutes = config.pendingActionTtlMinutes;
+  if (minutes % (24 * 60) === 0) return `${minutes / (24 * 60)}d`;
+  if (minutes % 60 === 0) return `${minutes / 60}h`;
+  return `${minutes}m`;
+}
+
+function expiryText(id) {
+  const details = pending.details(id);
+  if (!details) return "Expiry unavailable — rerun the command if this preview is stale.";
+  return `Expires <t:${Math.floor(details.expiresAt / 1000)}:F> (<t:${Math.floor(details.expiresAt / 1000)}:R>)`;
+}
+
+function approvalLabel(type, stage = "final") {
+  return {
+    promotion: stage === "pab" ? "PAB review & forward" : "Command approve & apply",
+    "role-removal": "Approve & remove",
+    "promotion-check": "Approve checklist",
+    "inactivity-review": "Post private review",
+    announcement: "Approve & announce"
+  }[type] || "Approve & post";
+}
+
+function approvalMentionUsers(data = {}) {
+  return [...new Set([data.memberId, data.traineeId, data.trainerId].filter(Boolean))];
+}
+
+async function postApprovalRequest(interaction, id, type, data, embed, { commandLevel = false, stage = "final" } = {}) {
+  const channel = await fetchChannel(config.pabApprovalsChannelId);
+  const roles = [config.pabRoleId, commandLevel ? config.commandRoleId : null].filter(Boolean);
+  const users = approvalMentionUsers(data);
+  const prefix = roles.map(roleId => `<@&${roleId}>`).join(" ");
+  const level = commandLevel ? "Command approval required after PAB review" : "PAB approval required";
+  await channel.send({
+    content: `${prefix} ${level} for ${data.memberLabel || data.traineeLabel || "this record"}. Submitted by <@${interaction.user.id}>. ${expiryText(id)}`,
+    allowedMentions: { roles, users: [...new Set([...users, interaction.user.id])] },
+    embeds: [embed],
+    components: [approvalRow(id, type, approvalLabel(type, stage))]
+  });
 }
 
 function trainingEmbed(data, title = "BCSO Training Record") {
@@ -854,9 +895,12 @@ async function sendPendingReminders() {
   if (!channel) return;
   for (const item of pending.expiring(config.pendingReminderMinutes)) {
     try {
+      const awaitingCommand = item.type === "promotion" && item.data?.pabApprovedBy;
+      const roles = awaitingCommand ? [config.commandRoleId].filter(Boolean) : [config.pabRoleId].filter(Boolean);
+      const roleMentions = roles.map(roleId => `<@&${roleId}>`).join(" ");
       const sent = await channel.send({
-        content: `⏰ Approval reminder: **${item.type}** submitted by <@${item.createdBy}> expires <t:${Math.floor(item.expiresAt / 1000)}:R>. Use the original preview's **Renew** button if more review time is needed.`,
-        allowedMentions: { users: [item.createdBy] }
+        content: `${roleMentions} ⏰ Approval reminder: **${approvalLabel(item.type, awaitingCommand ? "final" : item.type === "promotion" ? "pab" : "final")}** submitted by <@${item.createdBy}> expires <t:${Math.floor(item.expiresAt / 1000)}:F> (<t:${Math.floor(item.expiresAt / 1000)}:R>). Use the original preview's **Renew** button if more review time is needed.`,
+        allowedMentions: { roles, users: [item.createdBy] }
       });
       if (sent) pending.markReminder(item.id);
     } catch (error) {
@@ -914,7 +958,9 @@ async function handleModal(interaction) {
       signerRank: rankNameForMember(interaction.member)
     };
     const id = pending.create({ type: "training", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — review the record, then approve to post it.", embeds: [trainingEmbed(data, "Preview — BCSO Training Record")], components: [approvalRow(id, "training")], ephemeral: true });
+    const embed = trainingEmbed(data, "Preview — BCSO Training Record");
+    await postApprovalRequest(interaction, id, "training", data, embed);
+    return interaction.reply({ content: `Preview only — review the record, then approve to post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "training")], ephemeral: true });
   }
   if (kind === "promotion-modal") {
     const member = await interaction.guild.members.fetch(modalParts[1]);
@@ -933,14 +979,9 @@ async function handleModal(interaction) {
     };
     if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
     const id = pending.create({ type: "promotion", createdBy: interaction.user.id, data });
-    const approvalChannel = await fetchChannel(config.pabApprovalsChannelId);
-    await approvalChannel.send({
-      content: `Command approval required for ${data.memberLabel}. Submitted by <@${interaction.user.id}>.`,
-      allowedMentions: { users: [interaction.user.id, member.id] },
-      embeds: [promotionEmbed(data, "Approval Required — BCSO Promotion")],
-      components: [approvalRow(id, "promotion", "Command approve & apply")]
-    });
-    return interaction.reply({ content: "Promotion request sent to the private PAB approvals channel. No roles changed.", embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], ephemeral: true });
+    const approvalEmbed = promotionEmbed(data, "Approval Required — BCSO Promotion");
+    await postApprovalRequest(interaction, id, "promotion", data, approvalEmbed, { stage: "pab" });
+    return interaction.reply({ content: `Promotion request sent to the private PAB approvals channel for PAB review. After PAB forwards it, Command will be pinged for final approval. No roles changed. ${expiryText(id)}`, embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], components: [approvalRow(id, "promotion", approvalLabel("promotion", "pab"))], ephemeral: true });
   }
   if (kind === "role-award-modal") {
     const [, memberId, roleId] = modalParts;
@@ -957,7 +998,9 @@ async function handleModal(interaction) {
     };
     if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
     const id = pending.create({ type: "role-award", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — review the award, then approve to apply the role and post it.", embeds: [roleAwardEmbed(data, "Preview — BCSO Role Award")], components: [approvalRow(id, "role-award")], ephemeral: true });
+    const embed = roleAwardEmbed(data, "Preview — BCSO Role Award");
+    await postApprovalRequest(interaction, id, "role-award", data, embed);
+    return interaction.reply({ content: `Preview only — review the award, then approve to apply the role and post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-award")], ephemeral: true });
   }
   if (kind === "role-removal-modal") {
     const [, memberId, roleId] = modalParts;
@@ -975,7 +1018,9 @@ async function handleModal(interaction) {
     };
     if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
     const id = pending.create({ type: "role-removal", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — review the approved removal before it changes the role.", embeds: [roleRemovalEmbed(data, "Preview — BCSO Role Removal")], components: [approvalRow(id, "role-removal", "Approve & remove")], ephemeral: true });
+    const embed = roleRemovalEmbed(data, "Preview — BCSO Role Removal");
+    await postApprovalRequest(interaction, id, "role-removal", data, embed);
+    return interaction.reply({ content: `Preview only — review the approved removal before it changes the role. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-removal", "Approve & remove")], ephemeral: true });
   }
   if (kind === "department-record-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "department-record-draft" ? null : "This form expired. Run the command again.");
@@ -994,14 +1039,18 @@ async function handleModal(interaction) {
       recordId: `PAB-${randomUUID().slice(0, 8).toUpperCase()}`
     };
     const id = pending.create({ type: "department-record", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — approve to post the PAB department record.", embeds: [new EmbedBuilder().setColor(BLUE).setTitle("Preview — PAB Department Record").setDescription(departmentRecordText(data))], components: [approvalRow(id, "department-record")], ephemeral: true });
+    const embed = new EmbedBuilder().setColor(BLUE).setTitle("Preview — PAB Department Record").setDescription(departmentRecordText(data));
+    await postApprovalRequest(interaction, id, "department-record", data, embed);
+    return interaction.reply({ content: `Preview only — approve to post the PAB department record. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "department-record")], ephemeral: true });
   }
   if (kind === "correction-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "correction-draft" ? null : "This form expired. Run the command again.");
     if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
     const data = { ...draft.action.data, correction: normalizeMultiline(interaction.fields.getTextInputValue("correction")), correctedBy: memberLabel(interaction.member) };
     const id = pending.create({ type: "correction", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — approval posts a new correction and preserves the original record.", embeds: [correctionEmbed(data, "Preview — BCSO PAB Record Correction")], components: [approvalRow(id, "correction")], ephemeral: true });
+    const embed = correctionEmbed(data, "Preview — BCSO PAB Record Correction");
+    await postApprovalRequest(interaction, id, "correction", data, embed);
+    return interaction.reply({ content: `Preview only — approval posts a new correction and preserves the original record. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "correction")], ephemeral: true });
   }
   if (kind === "promotion-check-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "promotion-check-draft" ? null : "This form expired. Run the command again.");
@@ -1017,7 +1066,9 @@ async function handleModal(interaction) {
       recommendation: normalizeMultiline(interaction.fields.getTextInputValue("recommendation"))
     };
     const id = pending.create({ type: "promotion-check", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — this is a human PAB checklist, not promotion approval.", embeds: [promotionCheckEmbed(data, "Preview — BCSO Promotion Eligibility Check")], components: [approvalRow(id, "promotion-check", "Approve checklist")], ephemeral: true });
+    const embed = promotionCheckEmbed(data, "Preview — BCSO Promotion Eligibility Check");
+    await postApprovalRequest(interaction, id, "promotion-check", data, embed);
+    return interaction.reply({ content: `Preview only — this is a human PAB checklist, not promotion approval. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "promotion-check", "Approve checklist")], ephemeral: true });
   }
   if (kind === "personnel-status-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "personnel-status-draft" ? null : "This form expired. Run the command again.");
@@ -1033,7 +1084,9 @@ async function handleModal(interaction) {
     };
     if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
     const id = pending.create({ type: "personnel-status", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — approval posts this record only. It will not change roles or remove access.", embeds: [statusEmbed(data, "Preview — BCSO Personnel Status")], components: [approvalRow(id, "personnel-status")], ephemeral: true });
+    const embed = statusEmbed(data, "Preview — BCSO Personnel Status");
+    await postApprovalRequest(interaction, id, "personnel-status", data, embed);
+    return interaction.reply({ content: `Preview only — approval posts this record only. It will not change roles or remove access. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "personnel-status")], ephemeral: true });
   }
   if (kind === "inactivity-review-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "inactivity-review-draft" ? null : "This form expired. Run the command again.");
@@ -1057,7 +1110,9 @@ async function handleModal(interaction) {
       followUp: normalizeMultiline(interaction.fields.getTextInputValue("follow-up"))
     };
     const id = pending.create({ type: "inactivity-review", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — approval posts a private PAB review. It does not change roles, access, or apply discipline.", embeds: [inactivityReviewEmbed(data, "Preview — BCSO PAB Inactivity Review")], components: [approvalRow(id, "inactivity-review", "Post private review")], ephemeral: true });
+    const embed = inactivityReviewEmbed(data, "Preview — BCSO PAB Inactivity Review");
+    await postApprovalRequest(interaction, id, "inactivity-review", data, embed);
+    return interaction.reply({ content: `Preview only — approval posts a private PAB review. It does not change roles, access, or apply discipline. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "inactivity-review", "Post private review")], ephemeral: true });
   }
   if (kind === "announcement-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "announcement-draft" ? null : "This form expired. Run the command again.");
@@ -1069,7 +1124,9 @@ async function handleModal(interaction) {
       authorName: memberLabel(interaction.member)
     };
     const id = pending.create({ type: "announcement", createdBy: interaction.user.id, data });
-    return interaction.reply({ content: "Preview only — review the announcement and its selected notification role.", embeds: [announcementEmbed(data, `Preview — ${data.title}`)], components: [approvalRow(id, "announcement", "Approve & announce")], ephemeral: true });
+    const embed = announcementEmbed(data, `Preview — ${data.title}`);
+    await postApprovalRequest(interaction, id, "announcement", data, embed);
+    return interaction.reply({ content: `Preview only — review the announcement and its selected notification role. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "announcement", "Approve & announce")], ephemeral: true });
   }
 }
 
@@ -1301,7 +1358,29 @@ client.on(Events.InteractionCreate, async interaction => {
           return action.createdBy === interaction.user.id ? null : "Only the PAB member who created this preview can renew it.";
         });
         if (renewal.error) return interaction.reply({ content: renewal.error, ephemeral: true });
-        return interaction.update({ content: `Preview renewed for ${config.pendingActionTtlMinutes} minutes. Review it before <t:${Math.floor(renewal.action.expiresAt / 1000)}:F>.`, components: [approvalRow(id, type, type === "promotion" ? "Command approve & apply" : type === "role-removal" ? "Approve & remove" : type === "promotion-check" ? "Approve checklist" : type === "inactivity-review" ? "Post private review" : type === "announcement" ? "Approve & announce" : "Approve & post")] });
+        const expiresAt = Math.floor(renewal.action.expiresAt / 1000);
+        return interaction.update({ content: `Preview renewed for ${ttlLabel()}. Review it before <t:${expiresAt}:F> (<t:${expiresAt}:R>).`, components: [approvalRow(id, type, approvalLabel(type))] });
+      }
+      if (decision === "approve" && type === "promotion") {
+        const forwarded = pending.advance(id, interaction.user.id, action => {
+          if (action.data.pabApprovedBy) return "AWAITING_COMMAND_APPROVAL";
+          if (!mayUsePab(interaction.member)) return "A PAB member must complete the review before Command approval.";
+          action.data.pabApprovedBy = interaction.user.id;
+          action.data.pabApprovedAt = new Date().toISOString();
+          return null;
+        });
+        if (!forwarded.error) {
+          const expiresAt = Math.floor(forwarded.action.expiresAt / 1000);
+          const roles = [config.commandRoleId].filter(Boolean);
+          const embed = promotionEmbed(forwarded.action.data, "Command Approval Required — BCSO Promotion");
+          return interaction.update({
+            content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the promotion. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
+            allowedMentions: { roles },
+            embeds: [embed],
+            components: [approvalRow(id, "promotion", approvalLabel("promotion"))]
+          });
+        }
+        if (forwarded.error !== "AWAITING_COMMAND_APPROVAL") return interaction.reply({ content: forwarded.error, ephemeral: true });
       }
       if (decision === "cancel") {
         const cancellation = pending.take(id, interaction.user.id, action => {
@@ -1317,7 +1396,8 @@ client.on(Events.InteractionCreate, async interaction => {
         return response;
       }
       const result = pending.take(id, interaction.user.id, action => {
-        if ((type === "training" || type === "role-award" || type === "role-removal" || type === "department-record" || type === "correction" || type === "promotion-check" || type === "personnel-status" || type === "inactivity-review" || type === "announcement") && action.createdBy !== interaction.user.id) return "Only the PAB member who created this preview can approve it.";
+        if ((type === "training" || type === "role-award" || type === "role-removal" || type === "department-record" || type === "correction" || type === "promotion-check" || type === "personnel-status" || type === "inactivity-review" || type === "announcement") && !mayUsePab(interaction.member)) return "A PAB member must approve this request.";
+        if (type === "promotion" && !action.data.pabApprovedBy) return "PAB review must be completed before Command can approve and apply this promotion.";
         if (type === "promotion" && !mayApprovePromotion(interaction.member)) return "A Command member must approve and apply a promotion.";
         return null;
       });

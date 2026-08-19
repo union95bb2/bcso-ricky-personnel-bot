@@ -89,23 +89,24 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 ## Daily workflow
 
 1. PAB runs `/training-log`, selects trainer and trainee, completes the form, reviews the private preview, and clicks **Approve & post**.
-2. PAB runs `/promotion`, chooses the member, and completes the form. The bot sends the request to private `#pab-approvals`.
-3. A Command member clicks **Command approve & apply** there. Only then does the bot change rank roles and send announcements.
-4. PAB runs `/award-role` or `/remove-role` for an allow-listed certification or unit role, reviews the private preview, and approves it.
-5. PAB creates a `/department-record` for mobile-friendly branded records, and uses `/correct-record` to append—not overwrite—any correction.
-6. PAB uses `/promotion-check` before a promotion request, `/personnel-status` to document approved leave, return, transfer, or separation records, and `/inactivity-review` for private staff-attention follow-up. None of these actions changes roles or access.
-7. PAB uses `/pab-announcement` for reviewed notices and `/member-profile` for a current-role snapshot.
-8. If anything is wrong, click Cancel and re-run the command. Nothing changes before approval.
+2. PAB runs `/promotion`, chooses the member, and completes the form. The bot sends the request to private `#pab-approvals` and pings PAB.
+3. A PAB member clicks **PAB review & forward**. Ricky updates the request and pings Command.
+4. A Command member clicks **Command approve & apply**. Only then does the bot change rank roles and send announcements.
+5. PAB runs `/award-role` or `/remove-role` for an allow-listed certification or unit role, reviews the private preview, and approves it.
+6. PAB creates a `/department-record` for mobile-friendly branded records, and uses `/correct-record` to append—not overwrite—any correction.
+7. PAB uses `/promotion-check` before a promotion request, `/personnel-status` to document approved leave, return, transfer, or separation records, and `/inactivity-review` for private staff-attention follow-up. None of these actions changes roles or access.
+8. PAB uses `/pab-announcement` for reviewed notices and `/member-profile` for a current-role snapshot.
+9. If anything is wrong, click Cancel and re-run the command. Nothing changes before approval.
 
 ## Safeguards built in
 
 - Every posting and role-change workflow presents a private preview first.
 - The bot selects actual Discord members and roles; staff never type `@` mentions by hand.
-- Rank changes require Command approval. PAB may only award or remove roles in the explicit qualification/unit allow-list.
+- Rank changes use two human gates: a PAB member reviews and forwards the request, then a Command member is pinged and must approve/apply it. PAB may only award or remove roles in the explicit qualification/unit allow-list.
 - Internal Affairs matters, conduct complaints, investigations, findings, and discipline are not part of this bot.
 - Inactivity review is a neutral PAB staff-attention record only; it does not determine misconduct, trigger discipline, or automatically remove anyone.
 - Corrections preserve the original message and link the correction to it.
-- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (15 minutes by default), receive a private PAB reminder before expiry, and expose a creator-authorized **Renew** control. Expired actions fail closed and require fresh validation before approval.
+- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (24 hours by default; configurable from 1 hour to 7 days), show both an absolute Discord timestamp and live relative countdown, receive a private PAB reminder one hour before expiry, and expose a creator-authorized **Renew** control. Every new approval request pings the PAB role in private `#pab-approvals`; after PAB forwards a promotion, Ricky updates the request and pings Command for the final role-changing approval. Expired actions fail closed and require fresh validation before approval.
 - `/my-birthday` is opt-in and stores month/day only; `/remove-birthday` deletes it. With `BIRTHDAY_CHANNEL_ID`, Ricky posts one annual birthday notice and deduplicates it.
 - With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky can post one-month, three-month, six-month, and yearly notices from the Discord join date, plus the same milestones from Ricky's own approved promotion receipts for time in rank. These are informational and never change rank or access.
 - `/roster-sync` is an administrator-only, read-only comparison against a configured Google Sheet. It reports missing Discord IDs and rank mismatches; it never applies spreadsheet-driven role changes.

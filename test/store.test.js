@@ -76,6 +76,20 @@ test("expired previews can be renewed by the authorized creator and reminders ar
   store.close();
 });
 
+test("promotion previews can be forwarded from PAB to Command without consuming them", () => {
+  const store = new PabStore(":memory:");
+  const id = store.createPending({ type: "promotion", createdBy: "pab-1", data: { memberId: "member-1" } });
+  const forwarded = store.advancePending(id, "pab-2", action => {
+    action.data.pabApprovedBy = "pab-2";
+    return null;
+  });
+  assert.equal(forwarded.action.data.pabApprovedBy, "pab-2");
+  assert.equal(store.listPending()[0].data.pabApprovedBy, "pab-2");
+  const blocked = store.advancePending(id, "pab-3", action => action.data.pabApprovedBy ? "AWAITING_COMMAND_APPROVAL" : null);
+  assert.equal(blocked.error, "AWAITING_COMMAND_APPROVAL");
+  store.close();
+});
+
 test("birthday opt-in stores month/day only and delivery markers are idempotent", () => {
   const store = new PabStore(":memory:");
   store.setBirthday({ guildId: "guild-1", memberId: "member-1", month: 8, day: 19 });
