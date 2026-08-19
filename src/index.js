@@ -22,6 +22,7 @@ import { PabStore } from "./store.js";
 import { ADMIN_COMMANDS, PAB_COMMANDS, SELF_SERVICE_COMMANDS, WORKFLOW_CHANNELS, WORKFLOW_REQUIREMENTS } from "./workflow-spec.js";
 import { acquireProcessLock } from "./process-lock.js";
 import { GoogleRosterSheet, compareRosterRows } from "./google-sheets.js";
+import { logError } from "./logger.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
@@ -124,6 +125,12 @@ function discordPermissionError(error) {
   if (code === 10011) return "The selected role no longer exists. Run the command again and choose a current role.";
   if (code === 10003) return "The selected channel no longer exists. Ask an administrator to update the protected channel IDs.";
   return null;
+}
+
+function modalReply(interaction, payload) {
+  return interaction.deferred || interaction.replied
+    ? interaction.editReply(payload)
+    : interaction.reply({ ...payload, ephemeral: true });
 }
 
 async function requiresConfiguration(interaction) {
@@ -942,9 +949,9 @@ async function handleModal(interaction) {
     const division = clean(divisionValue ? decodeURIComponent(divisionValue) : "BCSO / POST Academy", 80);
     const [trainer, trainee] = await Promise.all([interaction.guild.members.fetch(trainerId), interaction.guild.members.fetch(traineeId)]);
     const [startTime, endTime] = splitTimeRange(interaction.fields.getTextInputValue("time"), timezone.label);
-    if (!startTime || !endTime) return interaction.reply({ content: `Enter a time range such as \`4 PM - 5 PM\` or \`4:00 PM - 5:00 PM ${timezone.label}\`.`, ephemeral: true });
+    if (!startTime || !endTime) return modalReply(interaction, { content: `Enter a time range such as \`4 PM - 5 PM\` or \`4:00 PM - 5:00 PM ${timezone.label}\`.` });
     const date = normalizeDate(interaction.fields.getTextInputValue("date"));
-    if (!date) return interaction.reply({ content: `Enter the date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
+    if (!date) return modalReply(interaction, { content: `Enter the date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.` });
     const data = {
       trainerId,
       traineeId,
@@ -965,14 +972,14 @@ async function handleModal(interaction) {
     const id = pending.create({ type: "training", createdBy: interaction.user.id, data });
     const embed = trainingEmbed(data, "Preview — BCSO Training Record");
     await postApprovalRequest(interaction, id, "training", data, embed);
-    return interaction.reply({ content: `Preview only — review the record, then approve to post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "training")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — review the record, then approve to post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "training")] });
   }
   if (kind === "promotion-modal") {
     const member = await interaction.guild.members.fetch(modalParts[1]);
     const fromRank = clean(interaction.fields.getTextInputValue("from-rank"), 80);
     const toRank = clean(interaction.fields.getTextInputValue("to-rank"), 80);
-    if (!config.rankRoleIds[fromRank] || !config.rankRoleIds[toRank]) return interaction.reply({ content: `Both ranks must exactly match configured ranks: ${Object.keys(config.rankRoleIds).join(", ") || "none"}.`, ephemeral: true });
-    if (fromRank === toRank) return interaction.reply({ content: "The current and new rank cannot be the same.", ephemeral: true });
+    if (!config.rankRoleIds[fromRank] || !config.rankRoleIds[toRank]) return modalReply(interaction, { content: `Both ranks must exactly match configured ranks: ${Object.keys(config.rankRoleIds).join(", ") || "none"}.` });
+    if (fromRank === toRank) return modalReply(interaction, { content: "The current and new rank cannot be the same." });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
@@ -982,16 +989,16 @@ async function handleModal(interaction) {
       authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
       reason: normalizeMultiline(interaction.fields.getTextInputValue("reason"))
     };
-    if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
+    if (!data.effectiveDate) return modalReply(interaction, { content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.` });
     const id = pending.create({ type: "promotion", createdBy: interaction.user.id, data });
     const approvalEmbed = promotionEmbed(data, "Approval Required — BCSO Promotion");
     await postApprovalRequest(interaction, id, "promotion", data, approvalEmbed, { stage: "pab" });
-    return interaction.reply({ content: `Promotion request sent to the private PAB approvals channel for PAB review. After PAB forwards it, Command will be pinged for final approval. No roles changed. ${expiryText(id)}`, embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], components: [approvalRow(id, "promotion", approvalLabel("promotion", "pab"))], ephemeral: true });
+    return modalReply(interaction, { content: `Promotion request sent to the private PAB approvals channel for PAB review. After PAB forwards it, Command will be pinged for final approval. No roles changed. ${expiryText(id)}`, embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], components: [approvalRow(id, "promotion", approvalLabel("promotion", "pab"))] });
   }
   if (kind === "role-award-modal") {
     const [, memberId, roleId] = modalParts;
     const [member, role] = await Promise.all([interaction.guild.members.fetch(memberId), interaction.guild.roles.fetch(roleId)]);
-    if (!role || !isApprovedAwardRole(role)) return interaction.reply({ content: "That role is no longer eligible for PAB awards.", ephemeral: true });
+    if (!role || !isApprovedAwardRole(role)) return modalReply(interaction, { content: "That role is no longer eligible for PAB awards." });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
@@ -1001,17 +1008,17 @@ async function handleModal(interaction) {
       authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
       reason: normalizeMultiline(interaction.fields.getTextInputValue("reason"))
     };
-    if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
+    if (!data.effectiveDate) return modalReply(interaction, { content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.` });
     const id = pending.create({ type: "role-award", createdBy: interaction.user.id, data });
     const embed = roleAwardEmbed(data, "Preview — BCSO Role Award");
     await postApprovalRequest(interaction, id, "role-award", data, embed);
-    return interaction.reply({ content: `Preview only — review the award, then approve to apply the role and post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-award")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — review the award, then approve to apply the role and post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-award")] });
   }
   if (kind === "role-removal-modal") {
     const [, memberId, roleId] = modalParts;
     const [member, role] = await Promise.all([interaction.guild.members.fetch(memberId), interaction.guild.roles.fetch(roleId)]);
-    if (!role || !isApprovedAwardRole(role)) return interaction.reply({ content: "That role is no longer eligible for PAB removal.", ephemeral: true });
-    if (!member.roles.cache.has(role.id)) return interaction.reply({ content: "That member no longer holds the selected role.", ephemeral: true });
+    if (!role || !isApprovedAwardRole(role)) return modalReply(interaction, { content: "That role is no longer eligible for PAB removal." });
+    if (!member.roles.cache.has(role.id)) return modalReply(interaction, { content: "That member no longer holds the selected role." });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
@@ -1021,15 +1028,15 @@ async function handleModal(interaction) {
       authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
       reason: normalizeMultiline(interaction.fields.getTextInputValue("reason"))
     };
-    if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
+    if (!data.effectiveDate) return modalReply(interaction, { content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.` });
     const id = pending.create({ type: "role-removal", createdBy: interaction.user.id, data });
     const embed = roleRemovalEmbed(data, "Preview — BCSO Role Removal");
     await postApprovalRequest(interaction, id, "role-removal", data, embed);
-    return interaction.reply({ content: `Preview only — review the approved removal before it changes the role. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-removal", "Approve & remove")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — review the approved removal before it changes the role. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-removal", "Approve & remove")] });
   }
   if (kind === "department-record-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "department-record-draft" ? null : "This form expired. Run the command again.");
-    if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
+    if (draft.error) return modalReply(interaction, { content: draft.error });
     const { memberId, callsign, addedRoleId, removedRoleId, ccRoleId, sourceMessageLink } = draft.action.data;
     const member = await interaction.guild.members.fetch(memberId);
     const data = {
@@ -1046,20 +1053,20 @@ async function handleModal(interaction) {
     const id = pending.create({ type: "department-record", createdBy: interaction.user.id, data });
     const embed = new EmbedBuilder().setColor(BLUE).setTitle("Preview — PAB Department Record").setDescription(departmentRecordText(data));
     await postApprovalRequest(interaction, id, "department-record", data, embed);
-    return interaction.reply({ content: `Preview only — approve to post the PAB department record. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "department-record")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — approve to post the PAB department record. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "department-record")] });
   }
   if (kind === "correction-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "correction-draft" ? null : "This form expired. Run the command again.");
-    if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
+    if (draft.error) return modalReply(interaction, { content: draft.error });
     const data = { ...draft.action.data, correction: normalizeMultiline(interaction.fields.getTextInputValue("correction")), correctedBy: memberLabel(interaction.member) };
     const id = pending.create({ type: "correction", createdBy: interaction.user.id, data });
     const embed = correctionEmbed(data, "Preview — BCSO PAB Record Correction");
     await postApprovalRequest(interaction, id, "correction", data, embed);
-    return interaction.reply({ content: `Preview only — approval posts a new correction and preserves the original record. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "correction")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — approval posts a new correction and preserves the original record. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "correction")] });
   }
   if (kind === "promotion-check-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "promotion-check-draft" ? null : "This form expired. Run the command again.");
-    if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
+    if (draft.error) return modalReply(interaction, { content: draft.error });
     const member = await interaction.guild.members.fetch(draft.action.data.memberId);
     const data = {
       memberId: member.id,
@@ -1073,11 +1080,11 @@ async function handleModal(interaction) {
     const id = pending.create({ type: "promotion-check", createdBy: interaction.user.id, data });
     const embed = promotionCheckEmbed(data, "Preview — BCSO Promotion Eligibility Check");
     await postApprovalRequest(interaction, id, "promotion-check", data, embed);
-    return interaction.reply({ content: `Preview only — this is a human PAB checklist, not promotion approval. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "promotion-check", "Approve checklist")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — this is a human PAB checklist, not promotion approval. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "promotion-check", "Approve checklist")] });
   }
   if (kind === "personnel-status-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "personnel-status-draft" ? null : "This form expired. Run the command again.");
-    if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
+    if (draft.error) return modalReply(interaction, { content: draft.error });
     const member = await interaction.guild.members.fetch(draft.action.data.memberId);
     const data = {
       memberId: member.id,
@@ -1087,24 +1094,24 @@ async function handleModal(interaction) {
       authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
       detail: normalizeMultiline(interaction.fields.getTextInputValue("detail"))
     };
-    if (!data.effectiveDate) return interaction.reply({ content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
+    if (!data.effectiveDate) return modalReply(interaction, { content: `Enter the effective date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.` });
     const id = pending.create({ type: "personnel-status", createdBy: interaction.user.id, data });
     const embed = statusEmbed(data, "Preview — BCSO Personnel Status");
     await postApprovalRequest(interaction, id, "personnel-status", data, embed);
-    return interaction.reply({ content: `Preview only — approval posts this record only. It will not change roles or remove access. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "personnel-status")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — approval posts this record only. It will not change roles or remove access. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "personnel-status")] });
   }
   if (kind === "inactivity-review-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "inactivity-review-draft" ? null : "This form expired. Run the command again.");
-    if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
+    if (draft.error) return modalReply(interaction, { content: draft.error });
     const member = await interaction.guild.members.fetch(draft.action.data.memberId);
     const reviewPeriod = normalizeDateRange(interaction.fields.getTextInputValue("review-period"));
     const manualLastActivity = clean(interaction.fields.getTextInputValue("last-activity"), 80);
     const manualLastActivityDate = manualLastActivity ? normalizeDate(manualLastActivity) : "";
-    if (!reviewPeriod) return interaction.reply({ content: `Enter the review period as \`${DATE_RANGE_FORMAT_HINT}\`.`, ephemeral: true });
-    if (manualLastActivity && !manualLastActivityDate) return interaction.reply({ content: `Enter the last activity date as \`${DATE_FORMAT_HINT}\`, or leave it blank for Ricky to use its activity ledger.`, ephemeral: true });
+    if (!reviewPeriod) return modalReply(interaction, { content: `Enter the review period as \`${DATE_RANGE_FORMAT_HINT}\`.` });
+    if (manualLastActivity && !manualLastActivityDate) return modalReply(interaction, { content: `Enter the last activity date as \`${DATE_FORMAT_HINT}\`, or leave it blank for Ricky to use its activity ledger.` });
     const [, reviewEnd] = reviewPeriod.split(" - ");
     const trackedActivity = manualLastActivityDate ? null : store.lastActivity(member.id, { guildId: interaction.guild.id, until: endOfDateTimestamp(reviewEnd) });
-    if (!manualLastActivityDate && !trackedActivity) return interaction.reply({ content: "Ricky has no tracked activity for this member in the selected period. Enter a PAB-verified date manually, or configure and allow the activity-source channels before trying again.", ephemeral: true });
+    if (!manualLastActivityDate && !trackedActivity) return modalReply(interaction, { content: "Ricky has no tracked activity for this member in the selected period. Enter a PAB-verified date manually, or configure and allow the activity-source channels before trying again." });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
@@ -1117,11 +1124,11 @@ async function handleModal(interaction) {
     const id = pending.create({ type: "inactivity-review", createdBy: interaction.user.id, data });
     const embed = inactivityReviewEmbed(data, "Preview — BCSO PAB Inactivity Review");
     await postApprovalRequest(interaction, id, "inactivity-review", data, embed);
-    return interaction.reply({ content: `Preview only — approval posts a private PAB review. It does not change roles, access, or apply discipline. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "inactivity-review", "Post private review")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — approval posts a private PAB review. It does not change roles, access, or apply discipline. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "inactivity-review", "Post private review")] });
   }
   if (kind === "announcement-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "announcement-draft" ? null : "This form expired. Run the command again.");
-    if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
+    if (draft.error) return modalReply(interaction, { content: draft.error });
     const data = {
       ...draft.action.data,
       title: clean(interaction.fields.getTextInputValue("title"), 200),
@@ -1131,7 +1138,7 @@ async function handleModal(interaction) {
     const id = pending.create({ type: "announcement", createdBy: interaction.user.id, data });
     const embed = announcementEmbed(data, `Preview — ${data.title}`);
     await postApprovalRequest(interaction, id, "announcement", data, embed);
-    return interaction.reply({ content: `Preview only — review the announcement and its selected notification role. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "announcement", "Approve & announce")], ephemeral: true });
+    return modalReply(interaction, { content: `Preview only — review the announcement and its selected notification role. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "announcement", "Approve & announce")] });
   }
 }
 
@@ -1285,7 +1292,7 @@ client.once(Events.ClientReady, async readyClient => {
   setInterval(() => sendPendingReminders().catch(error => console.error(`Reminder pass failed: ${error instanceof Error ? error.message : "unknown error"}`)), 60_000).unref?.();
   setInterval(() => postDailyNotices(readyClient).catch(error => console.error(`Daily notice pass failed: ${error instanceof Error ? error.message : "unknown error"}`)), 60 * 60_000).unref?.();
 });
-client.on(Events.Error, error => console.error(`Discord client error: ${error instanceof Error ? error.message : "unknown error"}`));
+client.on(Events.Error, error => logError("discord-client", error, { guildId: config.guildId }));
 client.on(Events.MessageCreate, message => {
   if (message.guildId !== config.guildId || !config.activityChannelIds.has(message.channelId) || message.author?.bot) return;
   try {
@@ -1351,6 +1358,10 @@ client.on(Events.InteractionCreate, async interaction => {
     }
     if (interaction.isModalSubmit()) {
       if (!mayUsePab(interaction.member)) return unauthorized(interaction);
+      // A modal submission has only a short Discord acknowledgement window.
+      // Defer before member/channel fetches so mobile submissions do not fall
+      // back to Discord's generic “Something went wrong” banner.
+      await interaction.deferReply({ ephemeral: true });
       return handleModal(interaction);
     }
     if (interaction.isButton()) {
@@ -1448,10 +1459,22 @@ client.on(Events.InteractionCreate, async interaction => {
       if (claimedAction?.committed) pending.complete(claimedActionId);
       else pending.release(claimedActionId);
     }
-    console.error(`Workflow error: ${error instanceof Error ? error.message : "unknown error"}`);
+    logError("workflow", error, {
+      interactionId: interaction.id,
+      interactionType: interaction.type,
+      guildId: interaction.guildId,
+      userId: interaction.user?.id,
+      commandName: interaction.commandName || undefined,
+      customId: interaction.customId || undefined
+    });
     const message = discordPermissionError(error) || "I could not complete that action. Check `/pab-health`, configured channel IDs, and the bot's server permissions.";
-    if (interaction.deferred || interaction.replied) await interaction.followUp({ content: message, ephemeral: true });
-    else await interaction.reply({ content: message, ephemeral: true });
+    try {
+      if (interaction.deferred) await interaction.editReply({ content: message, embeds: [], components: [] });
+      else if (interaction.replied) await interaction.followUp({ content: message, ephemeral: true });
+      else await interaction.reply({ content: message, ephemeral: true });
+    } catch (responseError) {
+      logError("workflow-error-response", responseError, { interactionId: interaction.id, guildId: interaction.guildId, userId: interaction.user?.id });
+    }
   }
 });
 
@@ -1462,11 +1485,17 @@ async function shutdown(signal) {
   releaseProcessLock?.();
 }
 
+process.on("unhandledRejection", (reason) => logError("unhandled-rejection", reason, { guildId: config.guildId }));
+process.on("uncaughtException", async error => {
+  logError("uncaught-exception", error, { guildId: config.guildId });
+  await shutdown("uncaughtException");
+  process.exit(1);
+});
 process.once("SIGINT", () => { shutdown("SIGINT").finally(() => process.exit(0)); });
 process.once("SIGTERM", () => { shutdown("SIGTERM").finally(() => process.exit(0)); });
 
 client.login(config.token).catch(error => {
-  console.error(`Ricky could not log in: ${error instanceof Error ? error.message : "unknown error"}`);
+  logError("discord-login", error, { guildId: config.guildId });
   store.close();
   releaseProcessLock?.();
   process.exitCode = 1;

@@ -349,6 +349,8 @@ story += [P("Example rank map", "H2Manual"), P('{"Deputy":"123456789012345678","
 story += [P("Release commands", "H2Manual"), P("npm ci\nnpm run preflight:deploy\nnpm run register\nnpm start", "CodeManual")]
 story += [P("Sandbox commands", "H2Manual"), P("npm run preflight:demo\nnpm run register:demo\nnpm run start:demo", "CodeManual")]
 story += [P("The startup gate checks the guild, every destination/activity channel, required permissions, role maps, role hierarchy, and the exact guild command set. A failed gate is a hard no-go.")]
+story += [P("Technical diagnostics", "H2Manual")]
+story += [P("Ricky emits structured JSON errors to the process error stream with a timestamp, scope, interaction ID, command/custom ID, Discord code, and stack when available. It never logs submitted form values or tokens. Use the deployment supervisor's log viewer (for example, docker compose logs -f --tail=100); the PAB audit channel is reserved for personnel-action receipts. Modal submissions are acknowledged before slow Discord fetches so mobile users receive a specific Ricky validation/error message instead of Discord's generic banner.", "SmallManual")]
 
 # 8 checks
 story += [P("8. First-day commissioning checklist", "H1Manual")]
@@ -379,6 +381,7 @@ trouble_rows = [
     ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again."],
     ["Preview already being processed", "The single-use approval was already claimed or the UI is stale.", "Refresh the PAB queue, verify the destination receipt, and do not approve the same preview again."],
     ["Google roster comparison failed", "The sheet is not configured, inaccessible, or not shared with the service account.", "Set the protected Google variables, share the sheet with the service-account email, verify the range, and rerun /roster-sync."],
+    ["Something went wrong in a form", "Discord did not receive an acknowledgement, the bot stopped, or a network/permission error occurred.", "Retry once, then inspect structured process logs. Ricky should return a specific validation or permission message; verify the bot is online and run /pab-health."],
     ["Commands missing or stale", "Guild registration was not run after a command change.", "Run the target guild register command, then restart through the release gate."],
     ["Second process refuses to start", "The process lock is working.", "Stop the old instance cleanly; never run two Ricky Bot processes for one token/guild."],
 ]

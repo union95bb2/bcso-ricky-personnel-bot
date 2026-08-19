@@ -105,6 +105,8 @@ PAB/Command:
 - `/inactivity-review` — private neutral staff-attention review; it cannot change roles, access, or discipline a member.
 - `ACTIVITY_CHANNEL_IDS` — approved Discord channels whose human message timestamps may supply the last-known-activity field; message content is never stored.
 
+Technical errors are written as structured JSON to Ricky's process error stream. Each entry includes the timestamp, failure scope, interaction ID, guild/user identifiers, command or custom ID, and stack when available; form contents and tokens are not logged. Use `docker compose logs -f --tail=100` or the configured service manager's log viewer. The Discord PAB audit channel is a personnel-action ledger, not a technical error sink.
+
 ## Data retention and backup
 
 Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals and searchable metadata/record payloads. Back it up under the server's approved personnel-record retention process. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (24 hours by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one hour by default), and offers the submitting PAB member a **Renew** button. Every request is posted to private `#pab-approvals` with a PAB role ping. Promotions have two gates: PAB reviews and forwards the request, then Ricky Bot updates the same request and pings Command for the final role-changing approval. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
@@ -116,5 +118,7 @@ Do not place the database in a public repository, shared public drive, or staff-
 ## Incident procedure
 
 If a bad record is posted, use `/correct-record` with the original Discord message link. Do not delete the original record; the correction creates an immutable linked audit trail.
+
+If Discord shows **Something went wrong** while submitting a mobile form, retry after checking the process log. Ricky acknowledges modal submissions immediately and should return a specific validation or permission message; a remaining generic banner indicates a Discord/network failure or a stopped bot process.
 
 If a role action is wrong, make the correct human-authorized role change, create the appropriate correction/status record, then record the incident in the private PAB audit process. Do not rely on bot logs alone for an authorization decision.
