@@ -1,6 +1,8 @@
 # Ricky RMS on PiCam
 
-Ricky RMS is a structured personnel database and PAB dashboard. It is designed for the existing `picam` host: Debian 12, ARM64 Raspberry Pi 4, Docker, and the SSD-backed `/mnt/ssd` container storage. The RMS should not replace the existing Caddy/Cloudflare stack; it should be added as a private application behind the existing reverse-proxy controls.
+Ricky RMS is a structured personnel database and PAB dashboard. It is designed for the existing `picam` host: Debian 12, ARM64 Raspberry Pi 4, Docker, and the SSD-backed `/mnt/ssd` storage. The RMS should not replace the existing Caddy/Cloudflare stack; it should be added as a private application behind the existing reverse-proxy controls.
+
+The candidate release is staged at `/mnt/ssd/services/bcso-ricky` on PiCam. The existing `/mnt/ssd/containers` directory is root-owned, so this separate service directory is the safe staging location unless the host administrator later chooses a root-managed Compose location.
 
 ## What is deployed
 
