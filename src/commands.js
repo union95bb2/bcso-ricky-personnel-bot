@@ -80,6 +80,10 @@ export const commands = [
     .setDescription("Show PAB a private snapshot of a member's current Discord roles.")
     .addUserOption(option => option.setName("member").setDescription("Member to review.").setRequired(true)),
   new SlashCommandBuilder()
+    .setName("personnel-history")
+    .setDescription("Show PAB a private indexed personnel history for a member.")
+    .addUserOption(option => option.setName("member").setDescription("Member whose records to find.").setRequired(true)),
+  new SlashCommandBuilder()
     .setName("pab-announcement")
     .setDescription("Draft, review, and post a PAB announcement to the configured channel.")
     .addRoleOption(option => option.setName("notify-role").setDescription("Role to notify, if appropriate.")),

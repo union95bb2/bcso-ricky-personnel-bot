@@ -56,7 +56,7 @@ Create a private PAB records category or map these variables to approved existin
 | `PAB_ANNOUNCEMENTS_CHANNEL_ID` | `#pab-announcements` | Department-visible |
 | `INACTIVITY_REVIEW_CHANNEL_ID` | `#pab-inactivity-review` | PAB/Command only; neutral staff-attention review |
 
-Use normal text channels for first deployment. Forum/thread routing can be introduced after the primary workflow is proven in a sandbox.
+The normal text channels are the safe baseline and remain required fallbacks. For Phase 2, an administrator may create two Forum channels and set `TRAINING_RECORDS_FORUM_CHANNEL_ID` and `PERSONNEL_JACKETS_FORUM_CHANNEL_ID`. Ricky then creates one append-only thread per trainee/member only after approval; it never places previews or approval buttons in those threads. The Forum channels must grant Ricky View Channel, Send Messages, Embed Links, Read Message History, and Create Public Threads, while ordinary members/PAB/Command should have view-only access if the record thread is intended to be bot-only. Run `/pab-health` after adding the IDs.
 
 ## Configuration
 
@@ -67,6 +67,8 @@ Use normal text channels for first deployment. Forum/thread routing can be intro
 5. Run `npm run preflight:deploy`. It reports missing or malformed IDs without exposing secrets and checks the cutover host for duplicate Ricky Bot containers. Use `npm run preflight:demo` for the TEST ONLY configuration.
 
 `RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky Bot manages during promotion, including DST / Deputy Sheriff Trainee:
+
+The sandbox already contains the copied role-name matrix, including DST and the visual separator roles. The verified live color palette is tracked in `scripts/role-style-manifest.json`; `npm run role-audit:demo` reports gray or mismatched sandbox roles without changing them. Apply any Discord color/order migration only after a human reviews that report.
 
 ```env
 RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","2nd Lieutenant":"789012345678901234","1st Lieutenant":"890123456789012345","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
@@ -101,6 +103,7 @@ PAB/Command:
 
 - `/pab-dashboard` — queue and recent activity.
 - `/find-record` — search the bot's local receipts by member or PAB record ID.
+- `/personnel-history` — private indexed personnel-jacket lookup with direct Discord record links.
 - `/member-profile` — current Discord role snapshot only; no personnel jacket, complaint history, IA record, or prior bot-record history.
 - `/inactivity-review` — private neutral staff-attention review; it cannot change roles, access, or discipline a member.
 - `ACTIVITY_CHANNEL_IDS` — approved Discord channels whose human message timestamps may supply the last-known-activity field; message content is never stored.

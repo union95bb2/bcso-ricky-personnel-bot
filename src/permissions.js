@@ -6,6 +6,7 @@ const permissionNames = new Map([
   [PermissionFlagsBits.EmbedLinks, "Embed Links"],
   [PermissionFlagsBits.ReadMessageHistory, "Read Message History"],
   [PermissionFlagsBits.AttachFiles, "Attach Files"],
+  [PermissionFlagsBits.CreatePublicThreads, "Create Public Threads"],
   [PermissionFlagsBits.ManageRoles, "Manage Roles"],
   [PermissionFlagsBits.MentionEveryone, "Mention Everyone"]
 ]);

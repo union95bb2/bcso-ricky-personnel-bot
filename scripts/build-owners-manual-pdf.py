@@ -215,6 +215,7 @@ cmd_rows = [
     ["/pab-dashboard", "PAB", "Private queue, completed count, recent activity, and quick-workflow links.", "No"],
     ["/export-audit", "Server admin", "Private JSON export of the local receipt ledger.", "No"],
     ["/member-profile", "PAB", "Private live snapshot of current Discord roles and join date.", "No"],
+    ["/personnel-history", "PAB", "Indexed member history with direct links to up to 50 bot-posted records.", "No"],
     ["/training-log", "PAB", "Guided trainer/trainee/division/date/time-zone/time form; preview then post.", "No"],
     ["/department-record", "PAB", "Branded department record with callsign, optional role fields, CC, and source link.", "No"],
     ["/promotion-check", "PAB", "Documents a human eligibility review in private PAB queue; not approval.", "No"],
@@ -282,7 +283,8 @@ story += [table([
     ["#pab-announcements", "View", "View/send", "View/send/embed"],
     ["#pab-inactivity-review", "No access", "View/send", "View/send/embed"],
 ], [1.75 * inch, 1.35 * inch, 1.65 * inch, 2.25 * inch])]
-story += [P("Normal text channels are the supported baseline. Forum/thread routing can be introduced later, after the primary text-channel workflow is stable.", "SmallManual")]
+story += [P("Phase 2 Forum routing", "H2Manual")]
+story += [P("Set TRAINING_RECORDS_FORUM_CHANNEL_ID for one Ricky-posted thread per trainee and PERSONNEL_JACKETS_FORUM_CHANNEL_ID for one Ricky-posted personnel-jacket thread per member. Keep the normal text-channel IDs configured as fallbacks until Forum permissions are tested. Give Ricky View Channel, Send Messages, Embed Links, Read Message History, and Create Public Threads; make ordinary members/PAB/Command view-only if the thread must be bot-only. Ricky creates or reopens a thread only after approval; previews never enter record threads. /personnel-history provides the indexed lookup so staff do not need to search thread lists manually.", "SmallManual")]
 
 # 6 approval flows
 story += [P("6. Approval flows", "H1Manual")]

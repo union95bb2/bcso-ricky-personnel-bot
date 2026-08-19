@@ -9,6 +9,8 @@
     "start:demo": "node scripts/start-demo.mjs",
     "register:demo": "node scripts/register-demo.mjs",
     "register": "node src/register-commands.js",
+    "role-audit": "node scripts/role-style-audit.mjs",
+    "role-audit:demo": "node scripts/role-audit-demo.mjs",
     "preflight": "node src/preflight.js",
     "preflight:demo": "node scripts/preflight-demo.mjs",
     "preflight:deploy": "node scripts/deploy-preflight.mjs",

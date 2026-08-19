@@ -23,6 +23,7 @@ import { ADMIN_COMMANDS, PAB_COMMANDS, SELF_SERVICE_COMMANDS, WORKFLOW_CHANNELS,
 import { acquireProcessLock } from "./process-lock.js";
 import { GoogleRosterSheet, compareRosterRows } from "./google-sheets.js";
 import { logError } from "./logger.js";
+import { memberThreadName, sendRecord } from "./record-destinations.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
@@ -442,7 +443,9 @@ async function startupReadinessIssues(readyClient) {
 
   const destinationChannels = [
     ["TRAINING_RECORDS_CHANNEL_ID", config.trainingRecordsChannelId],
+    ...(config.trainingRecordsForumChannelId ? [["TRAINING_RECORDS_FORUM_CHANNEL_ID", config.trainingRecordsForumChannelId, [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.CreatePublicThreads]]] : []),
     ["PERSONNEL_RECORDS_CHANNEL_ID", config.personnelRecordsChannelId],
+    ...(config.personnelJacketsForumChannelId ? [["PERSONNEL_JACKETS_FORUM_CHANNEL_ID", config.personnelJacketsForumChannelId, [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.CreatePublicThreads]]] : []),
     ["PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID", config.promotionsAnnouncementsChannelId],
     ["AUDIT_LOG_CHANNEL_ID", config.auditLogChannelId],
     ["PAB_APPROVALS_CHANNEL_ID", config.pabApprovalsChannelId],
@@ -744,6 +747,8 @@ async function runHealthCheck(interaction) {
     ["PAB approvals", config.pabApprovalsChannelId], ["Qualification records", config.qualificationsRecordsChannelId],
     ["PAB announcements", config.pabAnnouncementsChannelId], ["Inactivity review", config.inactivityReviewChannelId],
     ["Birthday announcements (optional)", config.birthdayChannelId], ["Service milestones (optional)", config.serviceMilestonesChannelId],
+    ["Training records Forum (optional)", config.trainingRecordsForumChannelId, [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.CreatePublicThreads]],
+    ["Personnel jackets Forum (optional)", config.personnelJacketsForumChannelId, [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.CreatePublicThreads]],
     ...[...config.activityChannelIds].map(id => [`Activity source ${id}`, id, [PermissionFlagsBits.ViewChannel]])
   ];
   const missing = missingConfiguration(Object.keys(configLabels));
@@ -938,6 +943,17 @@ function findRecord(interaction) {
   const records = store.findRecords({ memberId: member?.id || null, recordId: recordId || null, limit: 10 });
   const label = member ? `Records for ${mentionWithLabel(member)}` : `Record ID: ${recordId}`;
   return interaction.reply({ embeds: [recordSearchEmbed(records, label)], ephemeral: true, allowedMentions: { parse: [] } });
+}
+
+function personnelHistory(interaction) {
+  const member = interaction.options.getMember("member");
+  if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
+  const records = store.findRecords({ memberId: member.id, limit: 50 });
+  return interaction.reply({
+    embeds: [recordSearchEmbed(records, `Personnel history for ${mentionWithLabel(member)}`)],
+    ephemeral: true,
+    allowedMentions: { parse: [] }
+  });
 }
 
 async function handleModal(interaction) {
@@ -1143,10 +1159,17 @@ async function handleModal(interaction) {
 }
 
 async function approveTraining(interaction, action) {
-  const channel = await fetchChannel(config.trainingRecordsChannelId);
   const roleMentions = config.pabRoleId ? [config.pabRoleId] : [];
   const content = [`<@${action.data.trainerId}>`, `<@${action.data.traineeId}>`, ...roleMentions.map(roleId => `<@&${roleId}>`)].join(" ");
-  const message = await channel.send({ content, allowedMentions: { users: [action.data.trainerId, action.data.traineeId], roles: roleMentions }, embeds: [trainingEmbed(action.data)] });
+  const { message } = await sendRecord({
+    guild: interaction.guild,
+    baseChannelId: config.trainingRecordsChannelId,
+    forumChannelId: config.trainingRecordsForumChannelId,
+    memberId: action.data.traineeId,
+    threadName: memberThreadName(action.data.traineeLabel, "Training"),
+    payload: { content, allowedMentions: { users: [action.data.trainerId, action.data.traineeId], roles: roleMentions }, embeds: [trainingEmbed(action.data)] },
+    store
+  });
   saveReceipt("training", interaction, action, message);
   action.committed = true;
   await audit("Training record posted", `${action.data.traineeLabel} | Trainer: ${action.data.trainerLabel} | Posted by <@${interaction.user.id}>`);
@@ -1168,8 +1191,19 @@ async function approvePromotion(interaction, action) {
   const rolesToRemove = currentRankRoles.filter(id => id !== targetRoleId);
   if (!member.roles.cache.has(targetRoleId)) await member.roles.add(targetRoleId, `BCSO promotion approved by ${interaction.user.tag}`);
   if (rolesToRemove.length) await member.roles.remove(rolesToRemove, `BCSO promotion to ${action.data.toRank} approved by ${interaction.user.tag}`);
-  const [recordChannel, announcementChannel] = await Promise.all([fetchChannel(config.personnelRecordsChannelId), fetchChannel(config.promotionsAnnouncementsChannelId)]);
-  const recordMessage = await recordChannel.send({ content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data)] });
+  const [recordResult, announcementChannel] = await Promise.all([
+    sendRecord({
+      guild: interaction.guild,
+      baseChannelId: config.personnelRecordsChannelId,
+      forumChannelId: config.personnelJacketsForumChannelId,
+      memberId: member.id,
+      threadName: memberThreadName(action.data.memberLabel),
+      payload: { content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data)] },
+      store
+    }),
+    fetchChannel(config.promotionsAnnouncementsChannelId)
+  ]);
+  const recordMessage = recordResult.message;
   await announcementChannel.send({ content: `Please congratulate <@${member.id}> on promotion to **${action.data.toRank}**.`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Promotion") ] });
   saveReceipt("promotion", interaction, action, recordMessage);
   action.committed = true;
@@ -1186,8 +1220,15 @@ async function approveRoleAward(interaction, action) {
   const roleIssue = roleManagementError(interaction, role);
   if (roleIssue) throw new Error(roleIssue);
   if (!member.roles.cache.has(action.data.roleId)) await member.roles.add(action.data.roleId, `BCSO role award approved by ${interaction.user.tag}`);
-  const channel = await fetchChannel(config.qualificationsRecordsChannelId);
-  const message = await channel.send({ content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [roleAwardEmbed(action.data)] });
+  const { message } = await sendRecord({
+    guild: interaction.guild,
+    baseChannelId: config.qualificationsRecordsChannelId,
+    forumChannelId: config.personnelJacketsForumChannelId,
+    memberId: member.id,
+    threadName: memberThreadName(action.data.memberLabel),
+    payload: { content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [roleAwardEmbed(action.data)] },
+    store
+  });
   saveReceipt("role-award", interaction, action, message);
   action.committed = true;
   await audit("Qualification or unit role awarded", `${action.data.memberLabel} | ${action.data.roleName} | Awarded by <@${interaction.user.id}>`);
@@ -1204,8 +1245,15 @@ async function approveRoleRemoval(interaction, action) {
   if (roleIssue) throw new Error(roleIssue);
   if (!member.roles.cache.has(action.data.roleId)) throw new Error("The member no longer holds the selected role.");
   await member.roles.remove(action.data.roleId, `BCSO role removal approved by ${interaction.user.tag}`);
-  const channel = await fetchChannel(config.qualificationsRecordsChannelId);
-  const message = await channel.send({ content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [roleRemovalEmbed(action.data)] });
+  const { message } = await sendRecord({
+    guild: interaction.guild,
+    baseChannelId: config.qualificationsRecordsChannelId,
+    forumChannelId: config.personnelJacketsForumChannelId,
+    memberId: member.id,
+    threadName: memberThreadName(action.data.memberLabel),
+    payload: { content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [roleRemovalEmbed(action.data)] },
+    store
+  });
   saveReceipt("role-removal", interaction, action, message);
   action.committed = true;
   await audit("Qualification or unit role removed", `${action.data.memberLabel} | ${action.data.roleName} | Removed by <@${interaction.user.id}>`);
@@ -1213,9 +1261,16 @@ async function approveRoleRemoval(interaction, action) {
 }
 
 async function approveDepartmentRecord(interaction, action) {
-  const channel = await fetchChannel(config.personnelRecordsChannelId);
   const roleMentions = [config.pabRoleId, action.data.ccRoleId].filter(Boolean);
-  const message = await channel.send({ content: departmentRecordText(action.data), allowedMentions: { users: [action.data.memberId], roles: roleMentions } });
+  const { message } = await sendRecord({
+    guild: interaction.guild,
+    baseChannelId: config.personnelRecordsChannelId,
+    forumChannelId: config.personnelJacketsForumChannelId,
+    memberId: action.data.memberId,
+    threadName: memberThreadName(`<@${action.data.memberId}>`),
+    payload: { content: departmentRecordText(action.data), allowedMentions: { users: [action.data.memberId], roles: roleMentions } },
+    store
+  });
   saveReceipt("department-record", interaction, action, message, action.data.recordId);
   action.committed = true;
   await audit("PAB department record posted", `${action.data.recordId} | <@${action.data.memberId}> | Posted by <@${interaction.user.id}>`);
@@ -1245,8 +1300,15 @@ async function approvePromotionCheck(interaction, action) {
 }
 
 async function approvePersonnelStatus(interaction, action) {
-  const channel = await fetchChannel(config.personnelRecordsChannelId);
-  const message = await channel.send({ embeds: [statusEmbed(action.data)], allowedMentions: { parse: [] } });
+  const { message } = await sendRecord({
+    guild: interaction.guild,
+    baseChannelId: config.personnelRecordsChannelId,
+    forumChannelId: config.personnelJacketsForumChannelId,
+    memberId: action.data.memberId,
+    threadName: memberThreadName(action.data.memberLabel),
+    payload: { embeds: [statusEmbed(action.data)], allowedMentions: { parse: [] } },
+    store
+  });
   saveReceipt("personnel-status", interaction, action, message);
   action.committed = true;
   await audit("Personnel status record posted", `${action.data.memberLabel} | ${action.data.status} | Posted by <@${interaction.user.id}>`);
@@ -1352,6 +1414,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.commandName === "personnel-status") return showPersonnelStatusModal(interaction);
       if (interaction.commandName === "inactivity-review") return showInactivityReviewModal(interaction);
       if (interaction.commandName === "member-profile") return showMemberProfile(interaction);
+      if (interaction.commandName === "personnel-history") return personnelHistory(interaction);
       if (interaction.commandName === "pab-announcement") return showAnnouncementModal(interaction);
       if (interaction.commandName === "pab-dashboard") return interaction.reply({ embeds: [dashboardEmbed()], ephemeral: true });
       if (interaction.commandName === "find-record") return findRecord(interaction);

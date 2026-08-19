@@ -6,6 +6,8 @@ Canonical source: [public GitHub repository](https://github.com/union95bb2/bcso-
 
 The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky Bot without copying third-party credentials or internals. The [PAB workflow audit](REAL_SERVER_PAB_WORKFLOW_AUDIT.md) documents the visible request-channel → PAB reformat → correct ping/CC → reviewed record process.
 
+The verified role-presentation audit is stored in [`scripts/role-style-manifest.json`](scripts/role-style-manifest.json). Run `node scripts/role-style-audit.mjs` with the protected sandbox `.env` to report missing roles and color mismatches. It is intentionally read-only; it will never reorder or recolor roles automatically.
+
 ## What it does
 
 - `/training-log trainer:@member trainee:@member division:SAR date:Today timezone:MST start-time:4:00 PM end-time:5:00 PM` opens a guided form with required division/program, **Today** (or manual date entry), and timezone choices. Optional hourly start/end dropdowns prefill the time field; leave both blank for a non-hour time and use the validated form. Ricky Bot derives session duration, carries the selected timezone into the form and posted record, and staff never type a timezone label.
@@ -24,6 +26,7 @@ If `/award-role` or `/remove-role` says a role is not eligible, the selected rol
 - `/inactivity-review member:@member` creates a neutral, private PAB activity review with a review period, last known activity, factual summary, and follow-up. It never changes roles or access, and is not an IA or disciplinary workflow.
 - Ricky Bot can track human message timestamps in explicitly approved `ACTIVITY_CHANNEL_IDS` channels without storing message content. In `/inactivity-review`, leave the last-activity field blank to use the latest tracked event through the review period; PAB can enter a verified override when the ledger has no event.
 - `/member-profile member:@member` gives PAB a private live snapshot of the member's current Discord roles. It does not show a personnel jacket, complaint history, IA record, or prior bot records.
+- `/personnel-history member:@member` gives PAB a private indexed history of up to 50 bot-posted records with direct Discord links. It is the fast personnel-jacket lookup; staff do not need to search every thread manually.
 - `/pab-announcement` drafts, previews, and posts a PAB announcement. It can notify one safe, non-administrator role.
 - `/pab-dashboard` shows PAB a private queue, recent activity, and operating snapshot.
 - `/find-record` searches durable receipts by member or PAB record ID, while `/export-audit` gives a server administrator a private backup export.
@@ -51,7 +54,7 @@ Create a `PAB RECORDS` category with these channels:
 | `#pab-announcements` | View only | View/send | View/send | Send/embed |
 | `#pab-inactivity-review` | No access | View/send | View/send | Send/embed |
 
-Use forum channels if you want each record to become a separate discussion thread. Version 1 posts to normal text channels, which is simpler and works in every server.
+Phase 2 supports optional Forum routing. Set `TRAINING_RECORDS_FORUM_CHANNEL_ID` to keep one Ricky-only trainee thread containing finalized training records, and `PERSONNEL_JACKETS_FORUM_CHANNEL_ID` to keep one Ricky-only personnel-jacket thread per member. Configure the Forum channel's permission overwrites so ordinary members/PAB/Command can **view** but only Ricky can **send/create threads**; Forum routing does not override Discord permissions. The existing text-channel IDs remain required fallbacks until the Forum channels are created and permission-tested. Ricky creates or reopens the member thread only after approval; previews and approval buttons never enter the record threads.
 
 ## Setup (first time)
 
@@ -115,6 +118,7 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 - See [`GOOGLE_SHEETS_ROSTER.md`](GOOGLE_SHEETS_ROSTER.md) for the exact header row, service-account sharing steps, and protected environment variables.
 - Activity tracking stores only member ID, timestamp, source channel, and source event ID. It is limited to the configured `ACTIVITY_CHANNEL_IDS` allow-list and begins when Ricky Bot is installed; it is not a historical personnel or IA record.
 - Completed records remain in Discord and also receive a private searchable SQLite receipt for PAB operations, search, and backup.
+- Forum routing is append-only at the workflow level: Ricky posts finalized records, stores the member/thread mapping locally, and `/personnel-history` returns direct links. Discord administrators can still override channel permissions; `/correct-record` appends a linked correction instead of editing the original.
 
 ## Production handoff
 

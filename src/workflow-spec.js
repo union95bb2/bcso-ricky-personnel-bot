@@ -13,6 +13,7 @@ export const PAB_COMMANDS = new Set([
   "personnel-status",
   "inactivity-review",
   "member-profile",
+  "personnel-history",
   "pab-announcement",
   "pab-dashboard",
   "find-record"
@@ -31,6 +32,7 @@ export const WORKFLOW_REQUIREMENTS = {
   "pab-announcement": ["pabRoleId", "commandRoleId", "pabAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "pab-dashboard": ["pabRoleId", "commandRoleId"],
   "member-profile": ["pabRoleId", "commandRoleId"],
+  "personnel-history": ["pabRoleId", "commandRoleId"],
   "find-record": ["pabRoleId", "commandRoleId"]
 };
 
@@ -54,6 +56,6 @@ export function commandCoverage(commandNames) {
     missingHandlers: [...names].filter(name => !known.has(name)),
     undocumentedHandlers: [...known].filter(name => !names.has(name)),
     missingRequirements: [...PAB_COMMANDS].filter(name => !WORKFLOW_REQUIREMENTS[name]),
-    missingChannelChecks: [...PAB_COMMANDS].filter(name => !["pab-dashboard", "member-profile", "find-record"].includes(name) && !WORKFLOW_CHANNELS[name])
+    missingChannelChecks: [...PAB_COMMANDS].filter(name => !["pab-dashboard", "member-profile", "personnel-history", "find-record"].includes(name) && !WORKFLOW_CHANNELS[name])
   };
 }

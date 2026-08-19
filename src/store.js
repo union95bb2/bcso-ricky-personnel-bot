@@ -45,6 +45,16 @@ export class PabStore {
       );
       CREATE INDEX IF NOT EXISTS records_member_created_idx ON records(member_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS records_record_id_idx ON records(record_id);
+      CREATE TABLE IF NOT EXISTS record_threads (
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        member_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL,
+        thread_name TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, channel_id, member_id)
+      );
       CREATE INDEX IF NOT EXISTS pending_expires_idx ON pending_actions(expires_at);
       CREATE TABLE IF NOT EXISTS member_profiles (
         guild_id TEXT NOT NULL,
@@ -223,6 +233,20 @@ export class PabStore {
     const row = this.#db.prepare("SELECT id, record_id, created_at, data_json FROM records WHERE member_id = ? AND type = 'promotion' ORDER BY created_at DESC LIMIT 1").get(memberId);
     if (!row) return null;
     return { id: row.id, recordId: row.record_id, createdAt: row.created_at, data: JSON.parse(row.data_json) };
+  }
+
+  recordThread(guildId, channelId, memberId) {
+    const row = this.#db.prepare("SELECT guild_id, channel_id, member_id, thread_id, thread_name, created_at, updated_at FROM record_threads WHERE guild_id = ? AND channel_id = ? AND member_id = ?").get(guildId, channelId, memberId);
+    return row ? { guildId: row.guild_id, channelId: row.channel_id, memberId: row.member_id, threadId: row.thread_id, threadName: row.thread_name, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+  }
+
+  saveRecordThread({ guildId, channelId, memberId, threadId, threadName }) {
+    const now = Date.now();
+    this.#db.prepare(`
+      INSERT INTO record_threads (guild_id, channel_id, member_id, thread_id, thread_name, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, channel_id, member_id) DO UPDATE SET thread_id = excluded.thread_id, thread_name = excluded.thread_name, updated_at = excluded.updated_at
+    `).run(guildId, channelId, memberId, threadId, threadName, now, now);
   }
 
   summary() {

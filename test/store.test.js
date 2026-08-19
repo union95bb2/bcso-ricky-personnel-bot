@@ -49,6 +49,15 @@ test("receipts can be searched by member and PAB record ID", () => {
   store.close();
 });
 
+test("member forum thread mappings survive updates", () => {
+  const store = new PabStore(":memory:");
+  store.saveRecordThread({ guildId: "guild-1", channelId: "forum-1", memberId: "member-1", threadId: "thread-1", threadName: "Personnel | Tyler M" });
+  assert.equal(store.recordThread("guild-1", "forum-1", "member-1").threadId, "thread-1");
+  store.saveRecordThread({ guildId: "guild-1", channelId: "forum-1", memberId: "member-1", threadId: "thread-2", threadName: "Personnel | Tyler M" });
+  assert.equal(store.recordThread("guild-1", "forum-1", "member-1").threadId, "thread-2");
+  store.close();
+});
+
 test("pending approvals and receipts survive a database reopen", () => {
   const directory = mkdtempSync(join(tmpdir(), "bcso-pab-store-"));
   const path = join(directory, "pab.sqlite");
