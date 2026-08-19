@@ -99,6 +99,7 @@ PAB/Command:
 - `/find-record` — search the bot's local receipts by member or PAB record ID.
 - `/member-profile` — current Discord role snapshot only; no personnel jacket, complaint history, IA record, or prior bot-record history.
 - `/inactivity-review` — private neutral staff-attention review; it cannot change roles, access, or discipline a member.
+- `ACTIVITY_CHANNEL_IDS` — approved Discord channels whose human message timestamps may supply the last-known-activity field; message content is never stored.
 
 ## Data retention and backup
 

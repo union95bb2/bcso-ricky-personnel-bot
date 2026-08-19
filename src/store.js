@@ -45,6 +45,18 @@ export class PabStore {
       CREATE INDEX IF NOT EXISTS records_member_created_idx ON records(member_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS records_record_id_idx ON records(record_id);
       CREATE INDEX IF NOT EXISTS pending_expires_idx ON pending_actions(expires_at);
+      CREATE TABLE IF NOT EXISTS activity_events (
+        id TEXT PRIMARY KEY,
+        member_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        source_event_id TEXT,
+        channel_id TEXT,
+        occurred_at INTEGER NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        UNIQUE(source, source_event_id)
+      );
+      CREATE INDEX IF NOT EXISTS activity_member_occurred_idx ON activity_events(member_id, occurred_at DESC);
     `);
     const pendingColumns = this.#db.prepare("PRAGMA table_info(pending_actions)").all().map(column => column.name);
     if (!pendingColumns.includes("status")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'");
@@ -147,5 +159,35 @@ export class PabStore {
 
   exportRecords() {
     return this.findRecords({ limit: 10000 });
+  }
+
+  recordActivity({ memberId, guildId, source, sourceEventId = null, channelId = null, occurredAt = Date.now(), metadata = {} }) {
+    if (!memberId || !guildId || !source) return false;
+    const result = this.#db.prepare(`
+      INSERT OR IGNORE INTO activity_events (id, member_id, guild_id, source, source_event_id, channel_id, occurred_at, metadata_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), memberId, guildId, source, sourceEventId, channelId, occurredAt, JSON.stringify(metadata));
+    return Boolean(result.changes);
+  }
+
+  lastActivity(memberId, { guildId = null, until = null } = {}) {
+    const clauses = ["member_id = ?"];
+    const values = [memberId];
+    if (guildId) { clauses.push("guild_id = ?"); values.push(guildId); }
+    if (until) { clauses.push("occurred_at <= ?"); values.push(until); }
+    const row = this.#db.prepare(`
+      SELECT member_id, guild_id, source, source_event_id, channel_id, occurred_at, metadata_json
+      FROM activity_events WHERE ${clauses.join(" AND ")} ORDER BY occurred_at DESC LIMIT 1
+    `).get(...values);
+    if (!row) return null;
+    return {
+      memberId: row.member_id,
+      guildId: row.guild_id,
+      source: row.source,
+      sourceEventId: row.source_event_id,
+      channelId: row.channel_id,
+      occurredAt: row.occurred_at,
+      metadata: JSON.parse(row.metadata_json)
+    };
   }
 }

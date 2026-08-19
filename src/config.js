@@ -39,6 +39,7 @@ export const config = {
   qualificationsRecordsChannelId: optional("QUALIFICATIONS_RECORDS_CHANNEL_ID"),
   pabAnnouncementsChannelId: optional("PAB_ANNOUNCEMENTS_CHANNEL_ID"),
   inactivityReviewChannelId: optional("INACTIVITY_REVIEW_CHANNEL_ID"),
+  activityChannelIds: parseIdList(process.env.ACTIVITY_CHANNEL_IDS),
   rankRoleIds: parseRoleMap(process.env.RANK_ROLE_IDS),
   awardableRoleIds: parseIdList(process.env.AWARDABLE_ROLE_IDS),
   timeZoneLabel: process.env.TIME_ZONE_LABEL?.trim() || "MST",
@@ -58,6 +59,7 @@ export const configLabels = {
   qualificationsRecordsChannelId: "QUALIFICATIONS_RECORDS_CHANNEL_ID",
   pabAnnouncementsChannelId: "PAB_ANNOUNCEMENTS_CHANNEL_ID",
   inactivityReviewChannelId: "INACTIVITY_REVIEW_CHANNEL_ID",
+  activityChannelIds: "ACTIVITY_CHANNEL_IDS",
   rankRoleIds: "RANK_ROLE_IDS",
   awardableRoleIds: "AWARDABLE_ROLE_IDS"
 };
@@ -86,6 +88,10 @@ export function configurationIssues(keys) {
     }
     if (key === "awardableRoleIds") {
       for (const id of value) if (!/^\d{17,20}$/.test(id)) issues.push(`${label} contains an invalid Discord role ID`);
+      continue;
+    }
+    if (key === "activityChannelIds") {
+      for (const id of value) if (!/^\d{17,20}$/.test(id)) issues.push(`${label} contains an invalid Discord channel ID`);
       continue;
     }
     if (key.endsWith("RoleId") || key.endsWith("ChannelId")) {

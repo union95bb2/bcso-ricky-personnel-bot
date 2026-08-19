@@ -22,6 +22,7 @@ If `/award-role` or `/remove-role` says a role is not eligible, the selected rol
 - `/promotion-check member:@member` captures the human eligibility review in the private PAB queue; it cannot promote anyone.
 - `/personnel-status member:@member status:` records an approved leave, return to duty, transfer, or separation. It is record-only—access and role changes remain a separate Command decision.
 - `/inactivity-review member:@member` creates a neutral, private PAB activity review with a review period, last known activity, factual summary, and follow-up. It never changes roles or access, and is not an IA or disciplinary workflow.
+- Ricky can track human message timestamps in explicitly approved `ACTIVITY_CHANNEL_IDS` channels without storing message content. In `/inactivity-review`, leave the last-activity field blank to use the latest tracked event through the review period; PAB can enter a verified override when the ledger has no event.
 - `/member-profile member:@member` gives PAB a private live snapshot of the member's current Discord roles. It does not show a personnel jacket, complaint history, IA record, or prior bot records.
 - `/pab-announcement` drafts, previews, and posts a PAB announcement. It can notify one safe, non-administrator role.
 - `/pab-dashboard` shows PAB a private queue, recent activity, and operating snapshot.
@@ -55,7 +56,7 @@ Use forum channels if you want each record to become a separate discussion threa
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), create **Ricky**, then create a bot user.
 2. Under **Installation**, add the `bot` and `applications.commands` scopes. Give it only: View Channels, Send Messages, Embed Links, Read Message History, Attach Files, Manage Roles, and Use Application Commands. Do not grant Administrator.
-3. Turn on the **Server Members Intent** under Bot → Privileged Gateway Intents.
+3. Turn on the **Server Members Intent** under Bot → Privileged Gateway Intents. Ricky also subscribes to guild message events for the approved activity-source channels; it does not require Message Content Intent because it stores timestamps and IDs, not message text.
 4. Invite the bot to the BCSO server. In the server role list, drag **Ricky Controller** above every rank or qualification role it must change. Keep it below the server owner (bots can never manage the owner) and do not test by assigning the target every copied role. Discord will otherwise reject promotion changes.
 5. Enable Developer Mode in Discord: User Settings → Advanced → Developer Mode. Right-click each required role/channel/server and choose **Copy ID**.
 6. Copy `.env.example` to `.env`, then fill in the IDs and the rank-role JSON. Keep the bot token only in `.env`; never paste it into Discord or commit it.
@@ -105,6 +106,7 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 - Inactivity review is a neutral PAB staff-attention record only; it does not determine misconduct, trigger discipline, or automatically remove anyone.
 - Corrections preserve the original message and link the correction to it.
 - Preview approvals survive a bot restart, expire after 15 minutes, and are then safely purged.
+- Activity tracking stores only member ID, timestamp, source channel, and source event ID. It is limited to the configured `ACTIVITY_CHANNEL_IDS` allow-list and begins when Ricky is installed; it is not a historical personnel or IA record.
 - Completed records remain in Discord and also receive a private searchable SQLite receipt for PAB operations, search, and backup.
 
 ## Production handoff

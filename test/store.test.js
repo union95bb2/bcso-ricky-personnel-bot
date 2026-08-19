@@ -53,3 +53,13 @@ test("pending approvals and receipts survive a database reopen", () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("activity events are deduplicated and return the latest known event", () => {
+  const store = new PabStore(":memory:");
+  assert.equal(store.recordActivity({ memberId: "member-1", guildId: "guild-1", source: "discord-message", sourceEventId: "message-1", channelId: "channel-1", occurredAt: 100 }), true);
+  assert.equal(store.recordActivity({ memberId: "member-1", guildId: "guild-1", source: "discord-message", sourceEventId: "message-1", channelId: "channel-1", occurredAt: 100 }), false);
+  store.recordActivity({ memberId: "member-1", guildId: "guild-1", source: "discord-message", sourceEventId: "message-2", channelId: "channel-2", occurredAt: 200 });
+  assert.equal(store.lastActivity("member-1", { guildId: "guild-1" }).sourceEventId, "message-2");
+  assert.equal(store.lastActivity("member-1", { guildId: "guild-1", until: 150 }).sourceEventId, "message-1");
+  store.close();
+});

@@ -14,12 +14,12 @@ import {
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { config, configLabels, configurationIssues, missingConfiguration } from "./config.js";
-import { clean, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
+import { clean, dateInTimeZone, endOfDateTimestamp, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
 import { PendingActions } from "./pending-actions.js";
 import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
 import { PabStore } from "./store.js";
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
 const pending = new PendingActions(store);
 const BLUE = 0x1d4e89;
@@ -117,7 +117,7 @@ const workflowRequirements = {
   "correct-record": ["pabRoleId", "commandRoleId", "auditLogChannelId"],
   "promotion-check": ["pabRoleId", "commandRoleId", "pabApprovalsChannelId", "auditLogChannelId"],
   "personnel-status": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId"],
-  "inactivity-review": ["pabRoleId", "commandRoleId", "inactivityReviewChannelId", "auditLogChannelId"],
+  "inactivity-review": ["pabRoleId", "commandRoleId", "inactivityReviewChannelId", "auditLogChannelId", "activityChannelIds"],
   "pab-announcement": ["pabRoleId", "commandRoleId", "pabAnnouncementsChannelId", "auditLogChannelId"],
   "pab-dashboard": ["pabRoleId", "commandRoleId"],
   "find-record": ["pabRoleId", "commandRoleId"]
@@ -151,6 +151,17 @@ async function requiresConfiguration(interaction) {
       if (issue) channelIssues.push(`${configLabels[key]}: ${issue}`);
     } catch (error) {
       channelIssues.push(`${configLabels[key] || key}: ${discordPermissionError(error) || "not accessible"}`);
+    }
+  }
+  if (interaction.commandName === "inactivity-review") {
+    for (const activityChannelId of config.activityChannelIds) {
+      try {
+        const channel = await fetchChannel(activityChannelId);
+        const issue = channelPermissionIssue(channel, botMember, [PermissionFlagsBits.ViewChannel]);
+        if (issue) channelIssues.push(`ACTIVITY_CHANNEL_IDS ${activityChannelId}: ${issue}`);
+      } catch (error) {
+        channelIssues.push(`ACTIVITY_CHANNEL_IDS ${activityChannelId}: ${discordPermissionError(error) || "not accessible"}`);
+      }
     }
   }
   if (channelIssues.length) {
@@ -292,6 +303,7 @@ function inactivityReviewEmbed(data, title = "BCSO PAB Inactivity Review") {
     { name: "Member", value: data.memberLabel, inline: false },
     { name: "Review period", value: data.reviewPeriod, inline: true },
     { name: "Last known activity", value: data.lastActivity, inline: true },
+    { name: "Activity source", value: data.lastActivitySource || "PAB-provided — verify source", inline: true },
     { name: "Activity summary", value: data.summary, inline: false },
     { name: "PAB follow-up", value: data.followUp, inline: false }
   ], "Private PAB review — no role, access, or disciplinary action is applied");
@@ -477,7 +489,7 @@ async function showInactivityReviewModal(interaction) {
   const modal = new ModalBuilder().setCustomId(`inactivity-review-modal:${draftId}`).setTitle("PAB inactivity review");
   modal.addComponents(
     new ActionRowBuilder().addComponents(input("review-period", `Review period (${DATE_RANGE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_RANGE_FORMAT_HINT, maxLength: 80 })),
-    new ActionRowBuilder().addComponents(input("last-activity", `Last known activity (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 80 })),
+    new ActionRowBuilder().addComponents(input("last-activity", "Last known activity (optional override)", TextInputStyle.Short, { placeholder: "Leave blank to use Ricky's last tracked activity", required: false, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("summary", "Activity summary", TextInputStyle.Paragraph, { placeholder: "Factual attendance or activity notes for PAB review", maxLength: 1000 })),
     new ActionRowBuilder().addComponents(input("follow-up", "PAB follow-up", TextInputStyle.Paragraph, { placeholder: "Contact member / confirm status / no follow-up needed", maxLength: 1000 }))
   );
@@ -560,7 +572,8 @@ async function runHealthCheck(interaction) {
     ["Training records", config.trainingRecordsChannelId], ["Personnel records", config.personnelRecordsChannelId],
     ["Promotion announcements", config.promotionsAnnouncementsChannelId], ["PAB audit log", config.auditLogChannelId],
     ["PAB approvals", config.pabApprovalsChannelId], ["Qualification records", config.qualificationsRecordsChannelId],
-    ["PAB announcements", config.pabAnnouncementsChannelId], ["Inactivity review", config.inactivityReviewChannelId]
+    ["PAB announcements", config.pabAnnouncementsChannelId], ["Inactivity review", config.inactivityReviewChannelId],
+    ...[...config.activityChannelIds].map(id => [`Activity source ${id}`, id, [PermissionFlagsBits.ViewChannel]])
   ];
   const missing = missingConfiguration(Object.keys(configLabels));
   const botMember = interaction.guild.members.me;
@@ -576,11 +589,11 @@ async function runHealthCheck(interaction) {
     ? botPermissionChecks.map(([permission, label]) => `${botMember.permissions.has(permission) ? "✓" : "✗"} ${label}`).join("\n")
     : "✗ Ricky is not currently visible as a server member.";
   const channelChecks = [];
-  for (const [label, id] of configuredChannels) {
+  for (const [label, id, requiredPermissions] of configuredChannels) {
     if (!id) { channelChecks.push(`• ${label}: not configured`); continue; }
     try {
       const channel = await fetchChannel(id);
-      const issue = channelPermissionIssue(channel, botMember);
+      const issue = channelPermissionIssue(channel, botMember, requiredPermissions);
       channelChecks.push(`${issue ? "✗" : "✓"} ${label}: ${issue || "reachable"}`);
     } catch {
       channelChecks.push(`✗ ${label}: invalid, inaccessible, or outside this server`);
@@ -783,15 +796,23 @@ async function handleModal(interaction) {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "inactivity-review-draft" ? null : "This form expired. Run the command again.");
     if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
     const member = await interaction.guild.members.fetch(draft.action.data.memberId);
+    const reviewPeriod = normalizeDateRange(interaction.fields.getTextInputValue("review-period"));
+    const manualLastActivity = clean(interaction.fields.getTextInputValue("last-activity"), 80);
+    const manualLastActivityDate = manualLastActivity ? normalizeDate(manualLastActivity) : "";
+    if (!reviewPeriod) return interaction.reply({ content: `Enter the review period as \`${DATE_RANGE_FORMAT_HINT}\`.`, ephemeral: true });
+    if (manualLastActivity && !manualLastActivityDate) return interaction.reply({ content: `Enter the last activity date as \`${DATE_FORMAT_HINT}\`, or leave it blank for Ricky to use its activity ledger.`, ephemeral: true });
+    const [, reviewEnd] = reviewPeriod.split(" - ");
+    const trackedActivity = manualLastActivityDate ? null : store.lastActivity(member.id, { guildId: interaction.guild.id, until: endOfDateTimestamp(reviewEnd) });
+    if (!manualLastActivityDate && !trackedActivity) return interaction.reply({ content: "Ricky has no tracked activity for this member in the selected period. Enter a PAB-verified date manually, or configure and allow the activity-source channels before trying again.", ephemeral: true });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
-      reviewPeriod: normalizeDateRange(interaction.fields.getTextInputValue("review-period")),
-      lastActivity: normalizeDate(interaction.fields.getTextInputValue("last-activity")),
+      reviewPeriod,
+      lastActivity: manualLastActivityDate || dateInTimeZone(config.timeZoneId, trackedActivity.occurredAt),
+      lastActivitySource: manualLastActivityDate ? "PAB-provided — verify source" : `Discord activity in <#${trackedActivity.channelId}>`,
       summary: normalizeMultiline(interaction.fields.getTextInputValue("summary")),
       followUp: normalizeMultiline(interaction.fields.getTextInputValue("follow-up"))
     };
-    if (!data.reviewPeriod || !data.lastActivity) return interaction.reply({ content: `Enter the review period as \`${DATE_RANGE_FORMAT_HINT}\` and last activity as \`${DATE_FORMAT_HINT}\`.`, ephemeral: true });
     const id = pending.create({ type: "inactivity-review", createdBy: interaction.user.id, data });
     return interaction.reply({ content: "Preview only — approval posts a private PAB review. It does not change roles, access, or apply discipline.", embeds: [inactivityReviewEmbed(data, "Preview — BCSO PAB Inactivity Review")], components: [approvalRow(id, "inactivity-review", "Post private review")], ephemeral: true });
   }
@@ -941,8 +962,23 @@ async function approveAnnouncement(interaction, action) {
   return interaction.update({ content: "PAB announcement posted and logged.", embeds: [announcementEmbed(action.data, action.data.title)], components: [] });
 }
 
-client.once(Events.ClientReady, readyClient => console.log(`Ricky online as ${readyClient.user.tag}; durable data store ready.`));
+client.once(Events.ClientReady, readyClient => console.log(`Ricky online as ${readyClient.user.tag}; durable data store ready. Activity tracking: ${config.activityChannelIds.size ? `${config.activityChannelIds.size} approved channel(s)` : "disabled"}.`));
 client.on(Events.Error, error => console.error(`Discord client error: ${error instanceof Error ? error.message : "unknown error"}`));
+client.on(Events.MessageCreate, message => {
+  if (message.guildId !== config.guildId || !config.activityChannelIds.has(message.channelId) || message.author?.bot) return;
+  try {
+    store.recordActivity({
+      memberId: message.author.id,
+      guildId: message.guildId,
+      source: "discord-message",
+      sourceEventId: message.id,
+      channelId: message.channelId,
+      occurredAt: message.createdTimestamp
+    });
+  } catch (error) {
+    console.error(`Activity event could not be recorded: ${error instanceof Error ? error.message : "unknown error"}`);
+  }
+});
 
 client.on(Events.InteractionCreate, async interaction => {
   let claimedActionId = null;

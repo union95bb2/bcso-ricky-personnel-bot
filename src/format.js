@@ -66,6 +66,17 @@ export function todayInTimeZone(timeZone, now = new Date()) {
   return `${values.month}/${values.day}/${values.year}`;
 }
 
+export function dateInTimeZone(timeZone, timestamp) {
+  return todayInTimeZone(timeZone, new Date(timestamp));
+}
+
+export function endOfDateTimestamp(value) {
+  const normalized = normalizeDate(value);
+  if (!normalized) return null;
+  const [month, day, year] = normalized.split("/").map(Number);
+  return Date.UTC(year, month - 1, day, 23, 59, 59, 999);
+}
+
 export function normalizeDate(value) {
   const match = clean(value, 64).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (!match) return "";
