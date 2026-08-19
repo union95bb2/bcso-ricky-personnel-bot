@@ -199,6 +199,12 @@ export class PabStore {
     }));
   }
 
+  latestPromotion(memberId) {
+    const row = this.#db.prepare("SELECT id, record_id, created_at, data_json FROM records WHERE member_id = ? AND type = 'promotion' ORDER BY created_at DESC LIMIT 1").get(memberId);
+    if (!row) return null;
+    return { id: row.id, recordId: row.record_id, createdAt: row.created_at, data: JSON.parse(row.data_json) };
+  }
+
   summary() {
     this.purgeExpired();
     const completed = this.#db.prepare("SELECT COUNT(*) AS count FROM records").get().count;

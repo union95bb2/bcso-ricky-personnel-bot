@@ -251,7 +251,7 @@ story += [P("Birthday and milestone settings", "H2Manual")]
 story += bullets([
     "Any human member may use /my-birthday with month and day to opt in. Ricky stores no birth year and does not expose the stored date in a public command response.",
     "Use /remove-birthday at any time to opt out and delete the stored month/day.",
-    "If the owner configures BIRTHDAY_CHANNEL_ID, Ricky posts one annual mention. SERVICE_MILESTONES_CHANNEL_ID enables informational one-month, three-month, six-month, and yearly notices based on the Discord join date.",
+    "If the owner configures BIRTHDAY_CHANNEL_ID, Ricky posts one annual mention. SERVICE_MILESTONES_CHANNEL_ID enables informational one-month, three-month, six-month, and yearly notices based on the Discord join date and Ricky's own approved promotion receipts for time in rank.",
 ])
 
 # 5 roles and channels

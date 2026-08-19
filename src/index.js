@@ -773,11 +773,25 @@ function parseTodayParts() {
   return { month, day, year };
 }
 
-function monthsSince(timestamp, now = new Date()) {
-  const joined = new Date(timestamp);
-  const current = new Date(now);
-  const months = (current.getUTCFullYear() - joined.getUTCFullYear()) * 12 + current.getUTCMonth() - joined.getUTCMonth();
-  return current.getUTCDate() === joined.getUTCDate() ? months : -1;
+function localDateParts(timeZone, value) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(value);
+  return Object.fromEntries(parts.filter(({ type }) => type !== "literal").map(({ type, value: part }) => [type, Number(part)]));
+}
+
+function monthsSince(timestamp, timeZone = config.timeZoneId, now = new Date()) {
+  const joined = localDateParts(timeZone, new Date(timestamp));
+  const current = localDateParts(timeZone, now);
+  const months = (current.year - joined.year) * 12 + current.month - joined.month;
+  return current.day === joined.day ? months : -1;
+}
+
+function monthsSinceDateText(dateText, timeZone = config.timeZoneId, now = new Date()) {
+  const match = String(dateText || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return -1;
+  const joined = { month: Number(match[1]), day: Number(match[2]), year: Number(match[3]) };
+  const current = localDateParts(timeZone, now);
+  const months = (current.year - joined.year) * 12 + current.month - joined.month;
+  return current.day === joined.day ? months : -1;
 }
 
 async function postDailyNotices(readyClient) {
@@ -802,7 +816,7 @@ async function postDailyNotices(readyClient) {
     if (channel) {
       for (const member of members) {
         if (!member.joinedTimestamp) continue;
-        const months = monthsSince(member.joinedTimestamp, new Date());
+        const months = monthsSince(member.joinedTimestamp);
         if (![1, 3, 6, 12].includes(months) && (months < 12 || months % 12 !== 0)) continue;
         const marker = `service:${guild.id}:${member.id}:${year}:${months}`;
         if (store.hasDelivered(marker)) continue;
@@ -813,6 +827,21 @@ async function postDailyNotices(readyClient) {
           { name: "Source", value: "Discord server join date; verify against the official roster when appropriate.", inline: false }
         ], "Automatic notice — no rank or personnel decision")], allowedMentions: { users: [member.id] } });
         if (message) store.markDelivered(marker);
+      }
+      const promotion = store.latestPromotion(member.id);
+      const rankMonths = promotion?.data?.effectiveDate ? monthsSinceDateText(promotion.data.effectiveDate) : -1;
+      if (promotion && ([1, 3, 6, 12].includes(rankMonths) || (rankMonths >= 12 && rankMonths % 12 === 0))) {
+        const marker = `rank:${guild.id}:${member.id}:${promotion.id}:${year}:${rankMonths}`;
+        if (!store.hasDelivered(marker)) {
+          const label = rankMonths < 12 ? `${rankMonths}-month` : `${Math.floor(rankMonths / 12)}-year`;
+          const message = await channel.send({ content: `🏅 <@${member.id}>`, embeds: [recordEmbed("BCSO Rank Anniversary", BLUE, [
+            { name: "Member", value: mentionWithLabel(member), inline: false },
+            { name: "Rank", value: promotion.data.toRank || "Configured rank", inline: true },
+            { name: "Milestone", value: `${label} in rank`, inline: true },
+            { name: "Source", value: "Ricky promotion receipt; informational only.", inline: false }
+          ], "Automatic notice — no promotion or personnel decision")], allowedMentions: { users: [member.id] } });
+          if (message) store.markDelivered(marker);
+        }
       }
     }
   }

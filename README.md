@@ -107,7 +107,7 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 - Corrections preserve the original message and link the correction to it.
 - Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (15 minutes by default), receive a private PAB reminder before expiry, and expose a creator-authorized **Renew** control. Expired actions fail closed and require fresh validation before approval.
 - `/my-birthday` is opt-in and stores month/day only; `/remove-birthday` deletes it. With `BIRTHDAY_CHANNEL_ID`, Ricky posts one annual birthday notice and deduplicates it.
-- With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky can post one-month, three-month, six-month, and yearly service notices from the Discord join date. These are informational and never change rank or access.
+- With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky can post one-month, three-month, six-month, and yearly notices from the Discord join date, plus the same milestones from Ricky's own approved promotion receipts for time in rank. These are informational and never change rank or access.
 - `/roster-sync` is an administrator-only, read-only comparison against a configured Google Sheet. It reports missing Discord IDs and rank mismatches; it never applies spreadsheet-driven role changes.
 - See [`GOOGLE_SHEETS_ROSTER.md`](GOOGLE_SHEETS_ROSTER.md) for the exact header row, service-account sharing steps, and protected environment variables.
 - Activity tracking stores only member ID, timestamp, source channel, and source event ID. It is limited to the configured `ACTIVITY_CHANNEL_IDS` allow-list and begins when Ricky is installed; it is not a historical personnel or IA record.
