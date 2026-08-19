@@ -70,3 +70,28 @@ The running TEST ONLY instance was exercised again after the release-gate change
 - Store stress script: 100 simultaneous attempts to claim one approval produced exactly 1 winner and 99 single-use refusals; 200 activity events with 10 duplicate IDs accepted exactly 10 unique events.
 - A second `npm run start:demo` while Ricky was running: **refused before Discord login** by the process lock.
 - Protected live preflight with incomplete `.env`: **failed closed** and listed the missing IDs/maps without exposing credentials.
+
+## Fresh live rerun — 2026-08-19
+
+The complete command matrix was rerun in `BCSO Bot Demo | TEST ONLY` (`1539383172536467516`) through the logged-in Discord client. The real BCSO guild was not opened or modified. `C-110 | CPL. W. Dorfman | BCSO` was the operator/trainer and `Rickya128` was the controlled sandbox member.
+
+| Command | Result | Live result |
+| --- | --- | --- |
+| `/setup-status` | PASS | All required IDs, allow-lists, activity sources, rank map, and awardable-role map configured. |
+| `/pab-health` | PASS | Permissions, channels, and role hierarchy green; final check showed no pending previews. |
+| `/pab-dashboard` | PASS | Control panel rendered queue, completed records, recent activity, and quick workflow links. |
+| `/export-audit` | PASS | Private local-ledger JSON export returned without token values. |
+| `/member-profile` | PASS | Live role snapshot showed `@Deputy` only after cleanup; no IA/personnel-jacket history. |
+| `/training-log` | PASS | Today prefill, division selector, MST time zone, duration, pings, preview, approval, and posted record verified. |
+| `/department-record` | PASS | Callsign `C-999`, PAB record `PAB-851A50EA`, CC, preview, approval, and destination post verified. |
+| `/promotion-check` | PASS | Private human-review queue post explicitly stated that no role changed. |
+| `/personnel-status` | PASS | Today date prefill and `Leave of absence` record posted with explicit no-role/access-change language. |
+| `/inactivity-review` | PASS | Leaving last-known-activity blank caused the bot to compute `08/18/2026` from Discord activity; private review stated no discipline or role action. |
+| `/pab-announcement` | PASS | Reviewed announcement posted through the no-notification-role path. |
+| `/award-role` | PASS | `@Test FTO` was added to `Rickya128` only after approval; receipt posted. |
+| `/remove-role` | PASS | The temporary `@Test FTO` role was removed only after approval; receipt posted. |
+| `/promotion` | PASS | Deputy → Corporal request routed to private PAB approvals and explicitly made no role change. |
+| `/find-record` | PASS | `PAB-851A50EA` search returned the record and open-record link. |
+| `/correct-record` | PASS | Valid message link produced a preview; approval posted a correction while preserving the original. |
+
+The temporary award-role mutation was cleaned up and a final member-profile check confirmed `Rickya128` returned to `@Deputy`. Fresh browser evidence is in [`artifacts/command-tests/`](artifacts/command-tests/), including the final health capture and remaining-command overview.
