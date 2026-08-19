@@ -109,6 +109,7 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 - `/my-birthday` is opt-in and stores month/day only; `/remove-birthday` deletes it. With `BIRTHDAY_CHANNEL_ID`, Ricky posts one annual birthday notice and deduplicates it.
 - With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky can post one-month, three-month, six-month, and yearly service notices from the Discord join date. These are informational and never change rank or access.
 - `/roster-sync` is an administrator-only, read-only comparison against a configured Google Sheet. It reports missing Discord IDs and rank mismatches; it never applies spreadsheet-driven role changes.
+- See [`GOOGLE_SHEETS_ROSTER.md`](GOOGLE_SHEETS_ROSTER.md) for the exact header row, service-account sharing steps, and protected environment variables.
 - Activity tracking stores only member ID, timestamp, source channel, and source event ID. It is limited to the configured `ACTIVITY_CHANNEL_IDS` allow-list and begins when Ricky is installed; it is not a historical personnel or IA record.
 - Completed records remain in Discord and also receive a private searchable SQLite receipt for PAB operations, search, and backup.
 

@@ -318,7 +318,7 @@ story += bullets([
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])
 story += [P("Google Sheet roster comparison", "H2Manual")]
-story += [P("Configure a service account, spreadsheet ID, and range, share the sheet with that service-account email, then use /roster-sync as a server administrator. The expected header row includes discord_id and may include callsign, display_name, and rank. Ricky reports differences for human review and never changes a Discord role from spreadsheet data.")]
+story += [P("Configure a Viewer-only service account, spreadsheet ID, and range, share the sheet with that service-account email, then use /roster-sync as a server administrator. The expected header row includes discord_id and may include callsign, display_name, rank, and status. See GOOGLE_SHEETS_ROSTER.md for the exact setup. Ricky reports differences for human review and never changes a Discord role from spreadsheet data.")]
 
 # 7 setup
 story += [PageBreak(), P("7. Installation and configuration", "H1Manual")]
