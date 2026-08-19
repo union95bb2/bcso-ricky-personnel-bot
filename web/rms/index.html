@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ricky RMS | BCSO Personnel Administration</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="badge">PAB</div><div><span class="eyebrow">BCSO</span><h1>Ricky RMS</h1></div></div>
+      <div id="identity" class="identity"><a class="button primary" href="/auth/login">Sign in with Discord</a></div>
+    </header>
+    <main>
+      <section id="signed-out" class="hero panel">
+        <div><span class="eyebrow">Personnel Administration Bureau</span><h2>The authoritative personnel record.</h2><p>Search member histories, review approval queues, and trace every action. Discord remains the workflow front door; Ricky RMS is the structured record.</p><a class="button primary" href="/auth/login">Continue with Discord</a></div>
+        <div class="hero-mark">RMS<span>01</span></div>
+      </section>
+      <section id="app" class="hidden">
+        <div class="welcome"><div><span class="eyebrow">PAB CONTROL PANEL</span><h2 id="welcome-title">Good to see you.</h2><p id="welcome-subtitle">Your access and activity are recorded.</p></div><div id="access-pill" class="pill"></div></div>
+        <div class="metric-grid"><article class="metric panel"><span>Open approvals</span><strong id="approval-count">—</strong><small>Private queue awaiting review</small></article><article class="metric panel"><span>Member search</span><strong>RMS</strong><small>Structured, indexed timelines</small></article><article class="metric panel"><span>Audit coverage</span><strong>100%</strong><small>Reads, writes, approvals, imports</small></article></div>
+        <div class="layout-grid"><section class="panel section"><div class="section-head"><div><span class="eyebrow">PERSONNEL</span><h3>Member lookup</h3></div><input id="member-search" class="search" placeholder="Search callsign, name, or Discord ID"></div><div id="member-results" class="results"><p class="muted">Search the RMS to open a personnel timeline.</p></div></section><section class="panel section"><div class="section-head"><div><span class="eyebrow">WORK QUEUE</span><h3>PAB approvals</h3></div><button id="refresh-approvals" class="button ghost">Refresh</button></div><div id="approval-results" class="results"><p class="muted">Loading queue…</p></div></section></div>
+        <section id="timeline-panel" class="panel section hidden"><div class="section-head"><div><span class="eyebrow">PERSONNEL TIMELINE</span><h3 id="timeline-title">Member history</h3></div><button id="close-timeline" class="button ghost">Close</button></div><div id="timeline"></div></section>
+        <section id="audit-panel" class="panel section hidden"><div class="section-head"><div><span class="eyebrow">COMMAND AUDIT</span><h3>Recent activity</h3></div><button id="refresh-audit" class="button ghost">Refresh</button></div><div id="audit-results"></div></section>
+      </section>
+      <div id="error" class="notice error hidden"></div>
+    </main>
+    <footer>Ricky RMS · BCSO Personnel Administration Bureau · Every view and action is auditable</footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

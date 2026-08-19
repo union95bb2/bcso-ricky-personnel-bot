@@ -25,9 +25,11 @@ import { GoogleRosterSheet, compareRosterRows } from "./google-sheets.js";
 import { evaluatePromotionEligibility, promotionEligibilityLines } from "./promotion-eligibility.js";
 import { logError } from "./logger.js";
 import { memberThreadName, sendRecord } from "./record-destinations.js";
+import { RmsStore } from "./rms/store.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
+const rms = config.rmsEnabled ? new RmsStore(config.rmsDataPath) : null;
 const pending = new PendingActions(store, { ttlMinutes: config.pendingActionTtlMinutes });
 const rosterSheet = new GoogleRosterSheet({
   enabled: config.googleSheetsEnabled,
@@ -47,6 +49,7 @@ try {
 } catch (error) {
   console.error(`Ricky startup blocked: ${error instanceof Error ? error.message : "another instance is already running"}`);
   store.close();
+  rms?.close();
   process.exit(1);
 }
 const BLUE = 0x1d4e89;
@@ -233,6 +236,35 @@ async function postApprovalRequest(interaction, id, type, data, embed, { command
     embeds: [embed],
     components: [approvalRow(id, type, approvalLabel(type, stage))]
   });
+  if (rms) {
+    try {
+      const approvalStage = commandLevel ? "command" : stage === "pab" ? "pab" : "pab";
+      rms.createApproval({ guildId: interaction.guild.id, sourceActionId: id, workflowType: type, stage: approvalStage, requestedBy: interaction.user.id, expiresAt: pending.details(id)?.expiresAt || null, notes: data.memberLabel || data.traineeLabel || null });
+      rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "approval_requested", entityType: "approval", entityId: id, metadata: { workflowType: type, stage: approvalStage } });
+    } catch (error) {
+      logError("rms.approval-request", error, { workflowType: type, actionId: id });
+    }
+  }
+}
+
+function rmsApprovalDecision(interaction, actionId, status, notes = null) {
+  if (!rms) return;
+  try {
+    const changes = rms.decideApprovalsForSource(interaction.guild.id, actionId, { status, decidedBy: interaction.user.id, notes });
+    rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: `approval_${status}`, entityType: "approval", entityId: actionId, metadata: { changes, status } });
+  } catch (error) {
+    logError("rms.approval-decision", error, { actionId, status });
+  }
+}
+
+function rmsApprovalRenewal(interaction, actionId, expiresAt) {
+  if (!rms) return;
+  try {
+    const changes = rms.renewApprovalsForSource(interaction.guild.id, actionId, expiresAt);
+    rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "approval_renewed", entityType: "approval", entityId: actionId, metadata: { changes, expiresAt } });
+  } catch (error) {
+    logError("rms.approval-renewal", error, { actionId });
+  }
 }
 
 function trainingEmbed(data, title = "BCSO Training Record") {
@@ -510,7 +542,7 @@ async function audit(title, description) {
 }
 
 function saveReceipt(type, interaction, action, message, recordId = null) {
-  store.record({
+  const receiptId = store.record({
     type,
     actorId: interaction.user.id,
     memberId: action.data.memberId || action.data.traineeId || null,
@@ -518,6 +550,23 @@ function saveReceipt(type, interaction, action, message, recordId = null) {
     message,
     data: action.data
   });
+  if (!rms) return receiptId;
+  try {
+    rmsApprovalDecision(interaction, action.id, "approved");
+    const memberId = action.data.memberId || action.data.traineeId || null;
+    if (!memberId) return receiptId;
+    const member = interaction.guild.members.cache.get(memberId);
+    const label = String(action.data.memberLabel || action.data.traineeLabel || member?.displayName || memberId);
+    const callsign = label.match(/\bC-?\d{1,4}\b/i)?.[0].replace(/^C(\d)/i, "C-$1").toUpperCase() || null;
+    const rmsMember = rms.upsertMember({ guildId: interaction.guild.id, discordId: memberId, callsign, displayName: member?.displayName || label, rank: member ? rankNameForMember(member) : action.data.toRank || null, source: "discord" });
+    const record = rms.createRecord({ guildId: interaction.guild.id, memberId: rmsMember.id, recordType: type, effectiveDate: action.data.effectiveDate || action.data.date || null, createdBy: interaction.user.id, sourceChannelId: message?.channelId, sourceMessageId: message?.id, sourceRecordId: receiptId, data: action.data });
+    if (type === "training") rms.addTrainingRecord({ recordId: record.id, trainerDiscordId: action.data.trainerId || "unknown", division: action.data.division || null, trainingDate: action.data.date || "unknown", startTime: action.data.startTime || null, endTime: action.data.endTime || null, timeZone: action.data.timeZoneLabel || null, trainingType: action.data.trainingType || null, outcome: action.data.outcome || null, notes: action.data.notes || null });
+    if (type === "promotion") rms.addPromotionRecord({ recordId: record.id, fromRank: action.data.fromRank || "unknown", toRank: action.data.toRank || "unknown", promotionDate: action.data.effectiveDate || "unknown", reason: action.data.reason || null, authorizationReference: action.data.authorizedBy || null });
+    rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "record_finalized", entityType: "record", entityId: record.id, metadata: { recordType: type, discordReceiptId: receiptId } });
+  } catch (error) {
+    logError("rms.record-finalization", error, { recordType: type, discordReceiptId: receiptId });
+  }
+  return receiptId;
 }
 
 async function showTrainingModal(interaction) {
@@ -912,6 +961,16 @@ async function postDailyNotices(readyClient) {
       }
     }
   }
+}
+
+async function syncRmsMembers(guild) {
+  if (!rms) return;
+  const members = [...(await guild.members.fetch()).values()].filter(member => !member.user.bot);
+  for (const member of members) {
+    const callsign = member.displayName.match(/\bC-?\d{1,4}\b/i)?.[0].replace(/^C(\d)/i, "C-$1").toUpperCase() || null;
+    rms.upsertMember({ guildId: guild.id, discordId: member.id, callsign, displayName: member.displayName, rank: rankNameForMember(member), joinedAt: member.joinedTimestamp, source: "discord-sync" });
+  }
+  rms.audit({ guildId: guild.id, actorDiscordId: "system", action: "member_sync", entityType: "member", metadata: { count: members.length } });
 }
 
 async function sendPendingReminders() {
@@ -1374,10 +1433,12 @@ client.once(Events.ClientReady, async readyClient => {
     console.error("No commands will be served. Fix the protected configuration/Discord settings, then restart Ricky.");
     readyClient.destroy();
     store.close();
+    rms?.close();
     releaseProcessLock?.();
     process.exit(1);
   }
   console.log(`Ricky online as ${readyClient.user.tag}; durable data store ready. Activity tracking: ${config.activityChannelIds.size ? `${config.activityChannelIds.size} approved channel(s)` : "disabled"}. Startup readiness gate passed.`);
+  await syncRmsMembers(await readyClient.guilds.fetch(config.guildId)).catch(error => logError("rms.member-sync", error, { guildId: config.guildId }));
   await postDailyNotices(readyClient).catch(error => console.error(`Daily notice pass failed: ${error instanceof Error ? error.message : "unknown error"}`));
   setInterval(() => sendPendingReminders().catch(error => console.error(`Reminder pass failed: ${error instanceof Error ? error.message : "unknown error"}`)), 60_000).unref?.();
   setInterval(() => postDailyNotices(readyClient).catch(error => console.error(`Daily notice pass failed: ${error instanceof Error ? error.message : "unknown error"}`)), 60 * 60_000).unref?.();
@@ -1466,6 +1527,7 @@ client.on(Events.InteractionCreate, async interaction => {
         });
         if (renewal.error) return interaction.reply({ content: renewal.error, ephemeral: true });
         const expiresAt = Math.floor(renewal.action.expiresAt / 1000);
+        rmsApprovalRenewal(interaction, id, renewal.action.expiresAt);
         return interaction.update({ content: `Preview renewed for ${ttlLabel()}. Review it before <t:${expiresAt}:F> (<t:${expiresAt}:R>).`, components: [approvalRow(id, type, approvalLabel(type))] });
       }
       if (decision === "approve" && type === "promotion") {
@@ -1477,6 +1539,15 @@ client.on(Events.InteractionCreate, async interaction => {
           return null;
         });
         if (!forwarded.error) {
+          rmsApprovalDecision(interaction, id, "approved", "PAB review completed; forwarded to Command");
+          if (rms) {
+            try {
+              rms.createApproval({ guildId: interaction.guild.id, sourceActionId: id, workflowType: "promotion", stage: "command", requestedBy: interaction.user.id, expiresAt: forwarded.action.expiresAt, notes: forwarded.action.data.memberLabel || null });
+              rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "approval_requested", entityType: "approval", entityId: id, metadata: { workflowType: "promotion", stage: "command" } });
+            } catch (error) {
+              logError("rms.command-approval-request", error, { actionId: id });
+            }
+          }
           const expiresAt = Math.floor(forwarded.action.expiresAt / 1000);
           const roles = [config.commandRoleId].filter(Boolean);
           const embed = promotionEmbed(forwarded.action.data, "Command Approval Required — BCSO Promotion");
@@ -1506,6 +1577,7 @@ client.on(Events.InteractionCreate, async interaction => {
         });
         if (cancellation.error) return interaction.reply({ content: cancellation.error, ephemeral: true });
         claimedActionId = cancellation.action.id;
+        rmsApprovalDecision(interaction, claimedActionId, "cancelled", "Cancelled from Discord approval control");
         const response = await interaction.update({ content: "Cancelled. Nothing was posted or changed.", embeds: [], components: [] });
         pending.complete(claimedActionId);
         claimedActionId = null;
@@ -1573,6 +1645,7 @@ async function shutdown(signal) {
   console.log(`Ricky received ${signal}; closing Discord connection and local data store.`);
   client.destroy();
   store.close();
+  rms?.close();
   releaseProcessLock?.();
 }
 
@@ -1588,6 +1661,7 @@ process.once("SIGTERM", () => { shutdown("SIGTERM").finally(() => process.exit(0
 client.login(config.token).catch(error => {
   logError("discord-login", error, { guildId: config.guildId });
   store.close();
+  rms?.close();
   releaseProcessLock?.();
   process.exitCode = 1;
 });

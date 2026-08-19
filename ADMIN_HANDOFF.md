@@ -116,6 +116,8 @@ Discord channels are the published record. `data/pab.sqlite` is a private local 
 
 Optional self-service and comparison features are controlled separately: `/my-birthday` stores only an opt-in month/day, `/remove-birthday` deletes it, and `/roster-sync` performs a read-only comparison against a configured Google Sheet. `/promotion-check` can additionally read a separate promotion-evaluation sheet and report rank/evidence alignment in the PAB preview. Google Sheets is staged behind `GOOGLE_SHEETS_ENABLED=false` and `GOOGLE_PROMOTION_TESTS_ENABLED=false` until a server owner explicitly activates each source. Ricky Bot never applies spreadsheet-driven role changes or makes an IA/discipline decision; PAB and Command remain the approvers.
 
+Ricky RMS is the Phase 2 system-of-record path. It stores structured member profiles, typed records, approval states, imports, and audit events in `data/rms.sqlite`, and serves the protected PAB dashboard through the optional `ricky-rms` Compose profile. It is staged behind `RMS_ENABLED=false` for the Discord process until the PiCam OAuth redirect, session secret, backup path, and reverse-proxy route have been configured. Follow [`RMS_PICAM_DEPLOYMENT.md`](RMS_PICAM_DEPLOYMENT.md) and validate the migration in the sandbox before opening it to staff.
+
 Do not place the database in a public repository, shared public drive, or staff-accessible Discord attachment channel. `/export-audit` is restricted to Discord server administrators and should be handled as PAB personnel data.
 
 ## Incident procedure

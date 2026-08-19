@@ -8,6 +8,12 @@ The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVE
 
 The verified role-presentation audit is stored in [`scripts/role-style-manifest.json`](scripts/role-style-manifest.json). Run `node scripts/role-style-audit.mjs` with the protected sandbox `.env` to report missing roles and color mismatches. It is intentionally read-only; it will never reorder or recolor roles automatically.
 
+## Ricky RMS (Phase 2)
+
+Ricky RMS is the structured system of record for personnel data. Discord remains the intake, approval, and notification surface; the RMS stores normalized member profiles, typed training and promotion records, approval states, imports, and an append-only audit trail. The PAB dashboard provides individual Discord-account sign-in, member search, personnel timelines, and the approval queue. Members can view only their own profile; PAB, Command, and administrators receive progressively broader access from current Discord roles.
+
+The RMS is designed for the PiCam host and starts as a protected SQLite database plus Node dashboard. The existing PAB ledger is migrated idempotently with `npm run migrate:rms`. Google Sheets are migration/reference inputs, not the authoritative personnel database. See [`RMS_PICAM_DEPLOYMENT.md`](RMS_PICAM_DEPLOYMENT.md) for OAuth, backup, reverse-proxy, and rollback requirements. The RMS profile is staged until OAuth and host routing are configured.
+
 ## What it does
 
 - `/training-log trainer:@member trainee:@member division:SAR date:Today timezone:MST start-time:4:00 PM end-time:5:00 PM` opens a guided form with required division/program, **Today** (or manual date entry), and timezone choices. Optional hourly start/end dropdowns prefill the time field; leave both blank for a non-hour time and use the validated form. Ricky Bot derives session duration, carries the selected timezone into the form and posted record, and staff never type a timezone label.

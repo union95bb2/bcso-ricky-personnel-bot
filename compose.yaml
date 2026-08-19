@@ -12,3 +12,21 @@ services:
       - /tmp:rw,noexec,nosuid,size=16m
     volumes:
       - ./data:/app/data
+
+  # Start only after OAuth redirect, RMS_SESSION_SECRET, and PiCam reverse
+  # proxy routing are configured: docker compose --profile rms up -d.
+  ricky-rms:
+    profiles: ["rms"]
+    build: .
+    container_name: ricky-rms
+    command: ["node", "scripts/start-rms.mjs"]
+    restart: unless-stopped
+    env_file: .env
+    init: true
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    volumes:
+      - ./data:/app/data

@@ -58,6 +58,8 @@ export const config = {
   googlePromotionTestsEnabled: process.env.GOOGLE_PROMOTION_TESTS_ENABLED?.trim().toLowerCase() === "true",
   googlePromotionTestsSpreadsheetId: optional("GOOGLE_PROMOTION_TESTS_SPREADSHEET_ID"),
   googlePromotionTestsRange: process.env.GOOGLE_PROMOTION_TESTS_RANGE?.trim() || "'BCSO Promotion Evaluation Roster'!A:Z",
+  rmsEnabled: process.env.RMS_ENABLED?.trim().toLowerCase() === "true",
+  rmsDataPath: resolve(process.env.RMS_DATA_PATH?.trim() || "data/rms.sqlite"),
   brandEmoji: process.env.BCSO_BRAND_EMOJI?.trim() || "",
   dataPath: resolve(process.env.PAB_DATA_PATH?.trim() || "data/pab.sqlite")
 };
