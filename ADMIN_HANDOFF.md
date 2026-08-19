@@ -1,4 +1,4 @@
-# Ricky BCSO Personnel Bot — Server Administrator Handoff
+# Ricky Bot — Server Administrator Handoff
 
 This bot is a private BCSO Personnel Administration Bureau (PAB) workflow system for the FiveM roleplay server. It standardizes records and controlled role changes; Internal Affairs matters, conduct complaints, investigations, findings, and discipline are outside its scope.
 
@@ -35,9 +35,9 @@ Create or use these roles:
 - `PAB_ROLE_ID`: staff permitted to submit and approve ordinary PAB workflows.
 - `COMMAND_ROLE_ID`: staff permitted to approve promotions.
 
-PAB and Command must be normal **mentionable** roles (or Ricky must be granted Mention Everyone) so restricted approval role pings actually notify staff. `/pab-health` reports a non-mentionable, managed, or elevated approval role.
+PAB and Command must be normal **mentionable** roles (or Ricky Bot must be granted Mention Everyone) so restricted approval role pings actually notify staff. `/pab-health` reports a non-mentionable, managed, or elevated approval role.
 
-Place the **actual role assigned to Ricky**—the role shown by `/pab-health` as Ricky's highest assigned role—above every rank role and qualification/unit role listed in `RANK_ROLE_IDS` or `AWARDABLE_ROLE_IDS`. In the demo this is normally `BCSO Personnel Bot`; a separate `Ricky Controller` role has no effect unless it is assigned to the bot. Keep the bot role below the server owner; Discord never allows a bot to manage the owner. The bot does not need to sit above PAB or Command roles. Never include administrator, moderation, PAB, Command, or rank roles in `AWARDABLE_ROLE_IDS`.
+Place the **actual role assigned to Ricky Bot**—the role shown by `/pab-health` as Ricky Bot's highest assigned role—above every rank role and qualification/unit role listed in `RANK_ROLE_IDS` or `AWARDABLE_ROLE_IDS`. In the demo this is normally `BCSO Personnel Bot`; a separate `Ricky Controller` role has no effect unless it is assigned to the bot. Keep the bot role below the server owner; Discord never allows a bot to manage the owner. The bot does not need to sit above PAB or Command roles. Never include administrator, moderation, PAB, Command, or rank roles in `AWARDABLE_ROLE_IDS`.
 
 If Discord marks the bot integration role as managed and it cannot be moved, create a separate non-managed controller role, assign it to the bot, and place that controller role above the rank and qualification roles it must manage.
 
@@ -64,9 +64,9 @@ Use normal text channels for first deployment. Forum/thread routing can be intro
 2. Copy the server, channel, and role IDs.
 3. Copy `.env.example` to `.env` and fill it out on the bot host.
 4. Protect `.env` and `data/` so only the bot host administrator can read them. Never send the bot token in Discord.
-5. Run `npm run preflight:deploy`. It reports missing or malformed IDs without exposing secrets and checks the cutover host for duplicate Ricky containers. Use `npm run preflight:demo` for the TEST ONLY configuration.
+5. Run `npm run preflight:deploy`. It reports missing or malformed IDs without exposing secrets and checks the cutover host for duplicate Ricky Bot containers. Use `npm run preflight:demo` for the TEST ONLY configuration.
 
-`RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky manages during promotion, including DST / Deputy Sheriff Trainee:
+`RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky Bot manages during promotion, including DST / Deputy Sheriff Trainee:
 
 ```env
 RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","2nd Lieutenant":"789012345678901234","1st Lieutenant":"890123456789012345","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
@@ -79,7 +79,7 @@ RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior 
 1. Install the bot in a private BCSO sandbox server first.
 2. Set up test channels and harmless test roles.
 3. Run `npm ci` and `npm run preflight:deploy` from the bot host. The deploy preflight is a hard no-go gate; it checks credentials without displaying them, validates all IDs/maps, and checks for duplicate local/optional remote containers. Use `npm run preflight:demo` for the sandbox.
-4. Start the bot with `npm start` (or `docker compose up -d --build`). Ricky now performs a live startup readiness gate and exits without serving commands if the guild, channels, permissions, or manageable roles are incomplete.
+4. Start the bot with `npm start` (or `docker compose up -d --build`). Ricky Bot now performs a live startup readiness gate and exits without serving commands if the guild, channels, permissions, or manageable roles are incomplete.
 5. In Discord, run `/setup-status` and `/pab-health` as a server administrator. Resolve every failed channel or hierarchy check. Do not treat a green command response as a substitute for the startup gate or the single-instance cutover check.
 6. Run one test of each role-changing workflow using test roles: promotion, award-role, and remove-role.
 7. Confirm `/department-record`, `/correct-record`, training, and `/export-audit` produce the desired artifacts.
@@ -107,9 +107,9 @@ PAB/Command:
 
 ## Data retention and backup
 
-Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals and searchable metadata/record payloads. Back it up under the server's approved personnel-record retention process. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (24 hours by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one hour by default), and offers the submitting PAB member a **Renew** button. Every request is posted to private `#pab-approvals` with a PAB role ping. Promotions have two gates: PAB reviews and forwards the request, then Ricky updates the same request and pings Command for the final role-changing approval. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
+Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals and searchable metadata/record payloads. Back it up under the server's approved personnel-record retention process. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (24 hours by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one hour by default), and offers the submitting PAB member a **Renew** button. Every request is posted to private `#pab-approvals` with a PAB role ping. Promotions have two gates: PAB reviews and forwards the request, then Ricky Bot updates the same request and pings Command for the final role-changing approval. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
 
-Optional self-service and comparison features are controlled separately: `/my-birthday` stores only an opt-in month/day, `/remove-birthday` deletes it, and `/roster-sync` performs a read-only comparison against a configured Google Sheet. Ricky never applies spreadsheet-driven role changes.
+Optional self-service and comparison features are controlled separately: `/my-birthday` stores only an opt-in month/day, `/remove-birthday` deletes it, and `/roster-sync` performs a read-only comparison against a configured Google Sheet. Ricky Bot never applies spreadsheet-driven role changes.
 
 Do not place the database in a public repository, shared public drive, or staff-accessible Discord attachment channel. `/export-audit` is restricted to Discord server administrators and should be handled as PAB personnel data.
 

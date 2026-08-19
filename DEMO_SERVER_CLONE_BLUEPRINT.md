@@ -60,7 +60,7 @@ Use this baseline first and never remove these IDs in case we need to return to 
   - `#promotion-announcements`
   - `#pab-announcements`
 
-The demo includes a non-managed `Ricky Controller` role for a clean hierarchy if the server owner assigns it to Ricky. The role that is actually assigned to the bot is what matters: `/pab-health` reports Ricky's highest assigned role. A server owner must move that actual role above `Deputy`, `Corporal`, and `Test FTO` before testing promotion, award-role, or remove-role. In the current screenshot the highest assigned role is `BCSO Personnel Bot`, so moving an unassigned `Ricky Controller` role would not fix the error. Discord will not let Ricky manage a role that is at or above its highest role; run `/pab-health` after reordering to verify the result.
+The demo includes a non-managed `Ricky Controller` role for a clean hierarchy if the server owner assigns it to Ricky Bot. The role that is actually assigned to Ricky Bot is what matters: `/pab-health` reports Ricky Bot's highest assigned role. A server owner must move that actual role above `Deputy`, `Corporal`, and `Test FTO` before testing promotion, award-role, or remove-role. In the current screenshot the highest assigned role is `BCSO Personnel Bot`, so moving an unassigned `Ricky Controller` role would not fix the error. Discord will not let Ricky Bot manage a role that is at or above its highest role; run `/pab-health` after reordering to verify the result.
 
 ## 2) High-impact visual parity additions (completed)
 
@@ -92,7 +92,7 @@ These names are based on the visible live BCSO layout and remain TEST ONLY place
 
 ## 4) BCSO bot presence and branding in the server
 
-- Add Ricky as the bot profile name in Discord Developers.
+- Add Ricky Bot as the bot profile name in Discord Developers.
 - Set bot profile icon to official BCSO badge.
 - Keep the test server marked clearly as TEST ONLY in channel names and guild description.
 
@@ -101,7 +101,7 @@ These names are based on the visible live BCSO layout and remain TEST ONLY place
 In scope
 - Visual clone
 - Permission layout checks
-- Demo role hierarchy with Ricky workflow
+- Demo role hierarchy with Ricky Bot workflow
 - Safe command execution and preview-based posting
 
 Out of scope

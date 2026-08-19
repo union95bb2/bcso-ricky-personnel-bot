@@ -149,7 +149,7 @@ def footer(canvas, doc):
     canvas.line(0.6 * inch, 0.48 * inch, width - 0.6 * inch, 0.48 * inch)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(0.6 * inch, 0.29 * inch, "Ricky BCSO Personnel Bot | Owner's Manual | Technical reference")
+    canvas.drawString(0.6 * inch, 0.29 * inch, "Ricky Bot v1 | Owner's Manual | Technical reference")
     canvas.drawRightString(width - 0.6 * inch, 0.29 * inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -164,7 +164,7 @@ if logo.exists():
     story += [Spacer(1, 0.38 * inch), im, Spacer(1, 0.18 * inch)]
 story += [
     P("BCSO PERSONNEL ADMINISTRATION BUREAU", "CoverKicker"),
-    P("Ricky", "CoverTitle"),
+    P("Ricky Bot v1", "CoverTitle"),
     P("Owner's Manual and Server Administrator Reference", "CoverTitle"),
     P("A technical operating guide for the Discord personnel workflow bot", "CoverSub"),
     Spacer(1, 0.15 * inch),
@@ -177,7 +177,7 @@ story += [
 
 # 1
 story += [P("1. Read this first", "H1Manual")]
-story += [P("Ricky is a Discord workflow application. It turns a small amount of factual staff input into a consistent BCSO/PAB record, sends it to the configured destination, and leaves a searchable receipt. It does not replace PAB or Command judgment.")]
+story += [P("Ricky Bot is a Discord workflow application. It turns a small amount of factual staff input into a consistent BCSO/PAB record, sends it to the configured destination, and leaves a searchable receipt. It does not replace PAB or Command judgment.")]
 story += [callout("The bot is not an autonomous disciplinary, Internal Affairs, promotion, or personnel-jacket system. It never decides that a member is guilty, inactive enough for discipline, eligible for promotion, or deserving of removal.", RED)]
 story += [P("The operating model is deliberately two-stage:")]
 story += bullets([
@@ -244,14 +244,14 @@ story += bullets([
     "Invalid dates, reversed ranges, and malformed times are rejected before a preview exists.",
 ])
 story += [P("Department record form", "H2Manual")]
-story += [P("The member and optional role fields are Discord selectors. The factual note remains staff-entered. A source link can be preserved for traceability; Ricky does not scrape or copy source-message content automatically.")]
+story += [P("The member and optional role fields are Discord selectors. The factual note remains staff-entered. A source link can be preserved for traceability; Ricky Bot does not scrape or copy source-message content automatically.")]
 story += [P("Correction form", "H2Manual")]
 story += [P("Use Discord's Copy Message Link on the original record. The bot validates the guild/message, captures the correction text, and creates a new linked record. It never edits or deletes the original.")]
 story += [P("Birthday and milestone settings", "H2Manual")]
 story += bullets([
-    "Any human member may use /my-birthday with month and day to opt in. Ricky stores no birth year and does not expose the stored date in a public command response.",
+    "Any human member may use /my-birthday with month and day to opt in. Ricky Bot stores no birth year and does not expose the stored date in a public command response.",
     "Use /remove-birthday at any time to opt out and delete the stored month/day.",
-    "If the owner configures BIRTHDAY_CHANNEL_ID, Ricky posts one annual mention. SERVICE_MILESTONES_CHANNEL_ID enables informational one-month, three-month, six-month, and yearly notices based on the Discord join date and Ricky's own approved promotion receipts for time in rank.",
+    "If the owner configures BIRTHDAY_CHANNEL_ID, Ricky Bot posts one annual mention. SERVICE_MILESTONES_CHANNEL_ID enables informational one-month, three-month, six-month, and yearly notices based on the Discord join date and Ricky Bot's own approved promotion receipts for time in rank.",
 ])
 
 # 5 roles and channels
@@ -262,17 +262,17 @@ story += [table([
     ["Role", "Purpose", "Bot behavior"],
     ["PAB", "Staff allowed to submit/approve ordinary PAB workflows.", "Checked for command authorization."],
     ["Command", "Staff allowed to approve promotions.", "Required at the promotion approval step."],
-    ["Actual bot/controller role", "The role assigned to Ricky that Discord uses for hierarchy.", "Must be above every rank/award role Ricky must change."],
+    ["Actual bot/controller role", "The role assigned to Ricky Bot that Discord uses for hierarchy.", "Must be above every rank/award role Ricky Bot must change."],
     ["Rank roles", "Complete BCSO matrix: DST / Deputy Sheriff Trainee, Deputy, Senior Deputy, Corporal, Sergeant, Staff Sergeant, 2nd Lieutenant, 1st Lieutenant, Captain, Major, Commander, Division Chief, Chief Deputy, Assistant Sheriff, UnderSheriff, Sheriff.", "Startup requires every canonical key in RANK_ROLE_IDS; only those roles are removed/replaced by promotion."],
     ["Qualification/unit roles", "FTO, certifications, divisions, awards.", "Only IDs in AWARDABLE_ROLE_IDS may be added/removed."],
     ["Category separators", "Visual labels only.", "Permissions 0; never assign to members or map to bot actions."],
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
 story += [P("Hierarchy rule", "H2Manual")]
-story += [callout("Move the actual assigned Ricky role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. Moving an unassigned controller role does nothing. Ricky can never manage the server owner, and Administrator roles are intentionally refused.", RED)]
-story += [P("PAB and Command approval roles must be normal mentionable roles (or Ricky must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
+story += [callout("Move the actual assigned Ricky Bot role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. Moving an unassigned controller role does nothing. Ricky Bot can never manage the server owner, and Administrator roles are intentionally refused.", RED)]
+story += [P("PAB and Command approval roles must be normal mentionable roles (or Ricky Bot must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
 story += [P("Recommended records category", "H2Manual")]
 story += [table([
-    ["Channel", "Ordinary members", "PAB/Command", "Ricky"],
+    ["Channel", "Ordinary members", "PAB/Command", "Ricky Bot"],
     ["#training-records", "View", "View/send", "View/send/embed"],
     ["#personnel-records", "View", "View/send", "View/send/embed"],
     ["#pab-approvals", "No access", "View/send", "View/send/embed"],
@@ -291,19 +291,19 @@ story += [P("Training / department / status / announcement", "H2Manual")]
 story += bullets([
     "PAB selects members and roles, completes the form, and reviews the preview.",
     "PAB clicks Approve & post (or Approve & announce).",
-    "Ricky posts the formatted record to the configured destination and writes the receipt.",
+    "Ricky Bot posts the formatted record to the configured destination and writes the receipt.",
 ])
 story += [P("Promotion", "H2Manual")]
 story += bullets([
     "PAB runs /promotion and submits the factual request. No role changes occur.",
     "The request routes to private #pab-approvals.",
     "PAB clicks PAB review & forward after checking the member, current rank, new rank, date, authorization, and reference.",
-    "Ricky updates the request and pings Command. Only the Command approve & apply action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt.",
+    "Ricky Bot updates the request and pings Command. Only the Command approve & apply action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt.",
 ])
 story += [P("Award / remove role", "H2Manual")]
 story += bullets([
     "PAB selects a member and an allow-listed qualification/unit role.",
-    "Ricky refuses rank, PAB, Command, managed, Administrator, or unallow-listed roles.",
+    "Ricky Bot refuses rank, PAB, Command, managed, Administrator, or unallow-listed roles.",
     "PAB reviews the private preview and approves the single role mutation.",
 ])
 story += [P("Inactivity review", "H2Manual")]
@@ -315,18 +315,18 @@ story += bullets([
 story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
 story += bullets([
     "A preview lasts PENDING_ACTION_TTL_MINUTES (24 hours by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 hour by default).",
-    "Every request pings the PAB role. Promotions use two gates: PAB clicks PAB review & forward, Ricky updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
+    "Every request pings the PAB role. Promotions use two gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])
 story += [P("Google Sheet roster comparison", "H2Manual")]
-story += [P("Configure a Viewer-only service account, spreadsheet ID, and range, share the sheet with that service-account email, then use /roster-sync as a server administrator. The expected header row includes discord_id and may include callsign, display_name, rank, and status. See GOOGLE_SHEETS_ROSTER.md for the exact setup. Ricky reports differences for human review and never changes a Discord role from spreadsheet data.")]
+story += [P("Configure a Viewer-only service account, spreadsheet ID, and range, share the sheet with that service-account email, then use /roster-sync as a server administrator. The expected header row includes discord_id and may include callsign, display_name, rank, and status. See GOOGLE_SHEETS_ROSTER.md for the exact setup. Ricky Bot reports differences for human review and never changes a Discord role from spreadsheet data.")]
 
 # 7 setup
 story += [PageBreak(), P("7. Installation and configuration", "H1Manual")]
 story += [P("Use a separate private sandbox before live cutover. The repository includes demo and sandbox examples with IDs but blank credentials. Keep the token and client ID only on the protected host.")]
 story += [P("Developer Portal", "H2Manual")]
 story += bullets([
-    "Create the Ricky application and bot user.",
+    "Create the Ricky Bot application and bot user.",
     "Install with bot and applications.commands scopes.",
     "Grant only View Channels, Send Messages, Embed Links, Read Message History, Attach Files, Manage Roles, and Use Application Commands.",
     "Enable Server Members Intent. Do not grant Administrator.",
@@ -336,11 +336,11 @@ story += [P("Copy .env.example to .env on the protected host. Fill the IDs below
 env_rows = [
     ["Variable", "Required value"],
     ["DISCORD_TOKEN", "Protected bot token; never printed or pasted into Discord."],
-    ["DISCORD_CLIENT_ID", "Ricky application client ID."],
+    ["DISCORD_CLIENT_ID", "Ricky Bot application client ID."],
     ["DISCORD_GUILD_ID", "One target guild for this process."],
     ["PAB_ROLE_ID / COMMAND_ROLE_ID", "Exact authorization role IDs."],
     ["*_CHANNEL_ID variables", "Each configured destination/activity channel ID."],
-    ["RANK_ROLE_IDS", "JSON rank-name to role-ID map; include every rank Ricky may replace."],
+    ["RANK_ROLE_IDS", "JSON rank-name to role-ID map; include every rank Ricky Bot may replace."],
     ["AWARDABLE_ROLE_IDS", "Comma-separated non-rank qualification/unit role IDs only."],
     ["TIME_ZONE_LABEL", "Configured display label, such as MST."],
 ]
@@ -356,9 +356,9 @@ check_items = [
     "Create or confirm the PAB records channels and permissions.",
     "Create or confirm inert category separator roles; give them no permissions and do not assign them.",
     "Copy IDs with Developer Mode enabled; verify each ID against the visible name before writing .env.",
-    "Place Ricky's actual assigned role above every configured rank and award role.",
+    "Place Ricky Bot's actual assigned role above every configured rank and award role.",
     "Run npm run preflight:demo or npm run preflight:deploy; stop on any failure.",
-    "Start exactly one Ricky process and confirm the startup readiness gate passes.",
+    "Start exactly one Ricky Bot process and confirm the startup readiness gate passes.",
     "Run /setup-status and /pab-health as a server administrator.",
     "Run one harmless test of training, department record, promotion-check, personnel-status, inactivity-review, announcement, award-role, remove-role, correction, search, and audit export.",
     "Use a clean test member for role changes; never test against the server owner.",
@@ -372,15 +372,15 @@ story += [PageBreak(), P("9. Troubleshooting", "H1Manual")]
 trouble_rows = [
     ["Message / symptom", "Cause", "Fix"],
     ["Workflow is not ready yet", "A required ID, map, channel, or allow-list is missing.", "Run /setup-status; fill the protected config; restart; run /pab-health."],
-    ["Move Ricky above it", "The actual role assigned to the bot is below a rank/award role.", "Move the assigned Ricky/controller role above every configured managed role. Do not move an unassigned role."],
-    ["Bot cannot manage that member", "Target is the server owner, above Ricky, or protected by Discord hierarchy.", "Use a normal sandbox member and correct hierarchy. Never test role changes on the owner."],
+    ["Move Ricky Bot above it", "The actual role assigned to the bot is below a rank/award role.", "Move the assigned Ricky Bot/controller role above every configured managed role. Do not move an unassigned role."],
+    ["Bot cannot manage that member", "Target is the server owner, above Ricky Bot, or protected by Discord hierarchy.", "Use a normal sandbox member and correct hierarchy. Never test role changes on the owner."],
     ["Role is not eligible", "Role is not in AWARDABLE_ROLE_IDS, or is rank/managed/elevated.", "Use a harmless allow-listed qualification/unit role. Never add PAB, Command, rank, moderator, or Administrator roles."],
     ["Enter time as...", "Input does not match the validated range or selected zone.", "Use the dropdowns or h:mm AM/PM - h:mm AM/PM in the selected timezone."],
     ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again."],
     ["Preview already being processed", "The single-use approval was already claimed or the UI is stale.", "Refresh the PAB queue, verify the destination receipt, and do not approve the same preview again."],
     ["Google roster comparison failed", "The sheet is not configured, inaccessible, or not shared with the service account.", "Set the protected Google variables, share the sheet with the service-account email, verify the range, and rerun /roster-sync."],
     ["Commands missing or stale", "Guild registration was not run after a command change.", "Run the target guild register command, then restart through the release gate."],
-    ["Second process refuses to start", "The process lock is working.", "Stop the old instance cleanly; never run two Ricky processes for one token/guild."],
+    ["Second process refuses to start", "The process lock is working.", "Stop the old instance cleanly; never run two Ricky Bot processes for one token/guild."],
 ]
 story += [table(trouble_rows, [1.7 * inch, 2.35 * inch, 2.95 * inch], small=True)]
 story += [P("Do not solve a Discord hierarchy failure by granting Administrator. The bot is deliberately designed to fail closed and report the missing capability.")]
@@ -436,13 +436,13 @@ story += [P("Copy Message Link from the original, run /correct-record, state the
 story += [P("Admin diagnostics", "H2Manual")]
 story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup. /roster-sync = read-only Google comparison. /my-birthday and /remove-birthday = member-controlled opt-in.")]
 story += [Spacer(1, 0.2 * inch), HRFlowable(width="100%", thickness=1, color=GOLD), Spacer(1, 0.1 * inch)]
-story += [P("This document is an operating manual for Ricky. Server-specific policy, retention, role names, and authorization decisions remain under the server owner's control.", "SmallManual")]
+story += [P("This document is an operating manual for Ricky Bot. Server-specific policy, retention, role names, and authorization decisions remain under the server owner's control.", "SmallManual")]
 
 
 doc = SimpleDocTemplate(
     str(OUT), pagesize=letter, rightMargin=0.6 * inch, leftMargin=0.6 * inch,
     topMargin=0.62 * inch, bottomMargin=0.68 * inch,
-    title="Ricky BCSO Personnel Bot - Owner's Manual",
+    title="Ricky Bot v1 - Owner's Manual",
     author="BCSO Personnel Administration Bureau",
 )
 doc.build(story, onFirstPage=footer, onLaterPages=footer)
