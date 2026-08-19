@@ -976,6 +976,10 @@ client.on(Events.InteractionCreate, async interaction => {
   let claimedActionId = null;
   let claimedAction = null;
   try {
+    // A token may be invited to more than one guild.  Ignore interactions
+    // outside the configured guild so an old/stale deployment cannot answer
+    // commands in another sandbox or race the active instance.
+    if (interaction.guildId !== config.guildId) return;
     if (interaction.isChatInputCommand()) {
       if (ADMIN_COMMANDS.has(interaction.commandName)) {
         if (!isServerAdministrator(interaction.member)) return unauthorizedAdmin(interaction);

@@ -129,6 +129,8 @@ chmod 700 data
 
 Do not use the Docker command until the server administrator has completed `.env`, reviewed the permissions, and approved the installation.
 
+Run only one active Ricky process per Discord token and configured guild. A token can be invited to multiple sandboxes, but a stale container can still receive globally registered interactions. The bot now ignores interactions whose guild ID does not match its configured `DISCORD_GUILD_ID`; still stop old containers before cutover and confirm `/setup-status` plus `/pab-health` in the target guild. See [`COMMAND_TEST_REPORT.md`](COMMAND_TEST_REPORT.md) for the complete 16-command Discord test and screenshot evidence.
+
 ## Before going live
 
 - Test first in a private BCSO test server with test roles and test channels.
