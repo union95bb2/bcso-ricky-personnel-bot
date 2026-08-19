@@ -28,7 +28,8 @@ export class PabStore {
         expires_at INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
         claimed_by TEXT,
-        claimed_at INTEGER
+        claimed_at INTEGER,
+        reminder_sent_at INTEGER
       );
       CREATE TABLE IF NOT EXISTS records (
         id TEXT PRIMARY KEY,
@@ -45,6 +46,19 @@ export class PabStore {
       CREATE INDEX IF NOT EXISTS records_member_created_idx ON records(member_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS records_record_id_idx ON records(record_id);
       CREATE INDEX IF NOT EXISTS pending_expires_idx ON pending_actions(expires_at);
+      CREATE TABLE IF NOT EXISTS member_profiles (
+        guild_id TEXT NOT NULL,
+        member_id TEXT NOT NULL,
+        birthday_month INTEGER,
+        birthday_day INTEGER,
+        birthday_opted_in INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, member_id)
+      );
+      CREATE TABLE IF NOT EXISTS delivery_markers (
+        marker TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS activity_events (
         id TEXT PRIMARY KEY,
         member_id TEXT NOT NULL,
@@ -62,6 +76,7 @@ export class PabStore {
     if (!pendingColumns.includes("status")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'");
     if (!pendingColumns.includes("claimed_by")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN claimed_by TEXT");
     if (!pendingColumns.includes("claimed_at")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN claimed_at INTEGER");
+    if (!pendingColumns.includes("reminder_sent_at")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN reminder_sent_at INTEGER");
     this.purgeExpired();
   }
 
@@ -70,7 +85,9 @@ export class PabStore {
   }
 
   purgeExpired(now = Date.now()) {
-    return this.#db.prepare("DELETE FROM pending_actions WHERE expires_at < ?").run(now).changes;
+    const marked = this.#db.prepare("UPDATE pending_actions SET status = 'expired' WHERE status = 'pending' AND expires_at < ?").run(now).changes;
+    this.#db.prepare("DELETE FROM pending_actions WHERE status = 'expired' AND expires_at < ?").run(now - 24 * 60 * 60 * 1000);
+    return marked;
   }
 
   createPending(action, expiresInMs = FIFTEEN_MINUTES) {
@@ -85,8 +102,8 @@ export class PabStore {
 
   takePending(id, actorId, canApprove = () => null) {
     const row = this.#db.prepare("SELECT * FROM pending_actions WHERE id = ?").get(id);
-    if (!row || row.expires_at < Date.now()) {
-      if (row) this.#db.prepare("DELETE FROM pending_actions WHERE id = ?").run(id);
+    if (!row || row.expires_at < Date.now() || row.status === "expired") {
+      if (row && row.status === "pending") this.#db.prepare("UPDATE pending_actions SET status = 'expired' WHERE id = ?").run(id);
       return { error: "This preview expired. Run the command again." };
     }
     if (row.status !== "pending") return { error: "This preview is already being processed. Refresh the PAB queue in a moment." };
@@ -114,6 +131,39 @@ export class PabStore {
       createdAt: row.created_at,
       expiresAt: row.expires_at
     }));
+  }
+
+  listExpiringPending(withinMs, now = Date.now()) {
+    this.purgeExpired(now);
+    return this.#db.prepare(`
+      SELECT id, type, created_by, data_json, created_at, expires_at
+      FROM pending_actions
+      WHERE status = 'pending' AND reminder_sent_at IS NULL AND expires_at > ? AND expires_at <= ?
+      ORDER BY expires_at ASC
+    `).all(now, now + withinMs).map(row => ({
+      id: row.id,
+      type: row.type,
+      createdBy: row.created_by,
+      data: JSON.parse(row.data_json),
+      createdAt: row.created_at,
+      expiresAt: row.expires_at
+    }));
+  }
+
+  markPendingReminder(id, now = Date.now()) {
+    return Boolean(this.#db.prepare("UPDATE pending_actions SET reminder_sent_at = ? WHERE id = ? AND status = 'pending' AND reminder_sent_at IS NULL").run(now, id).changes);
+  }
+
+  renewPending(id, actorId, expiresInMs = FIFTEEN_MINUTES, canRenew = () => null) {
+    const row = this.#db.prepare("SELECT * FROM pending_actions WHERE id = ?").get(id);
+    if (!row) return { error: "This preview is no longer available. Run the command again." };
+    if (row.status === "claimed") return { error: "This preview is already being processed. Refresh the PAB queue in a moment." };
+    const action = { id: row.id, type: row.type, createdBy: row.created_by, data: JSON.parse(row.data_json) };
+    const error = canRenew(action, actorId);
+    if (error) return { error };
+    const now = Date.now();
+    this.#db.prepare("UPDATE pending_actions SET status = 'pending', expires_at = ?, reminder_sent_at = NULL WHERE id = ? AND status IN ('pending', 'expired')").run(now + expiresInMs, id);
+    return { action: { ...action, expiresAt: now + expiresInMs } };
   }
 
   completePending(id) {
@@ -189,5 +239,34 @@ export class PabStore {
       occurredAt: row.occurred_at,
       metadata: JSON.parse(row.metadata_json)
     };
+  }
+
+  setBirthday({ guildId, memberId, month, day, optedIn = true }) {
+    this.#db.prepare(`
+      INSERT INTO member_profiles (guild_id, member_id, birthday_month, birthday_day, birthday_opted_in, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, member_id) DO UPDATE SET birthday_month = excluded.birthday_month, birthday_day = excluded.birthday_day, birthday_opted_in = excluded.birthday_opted_in, updated_at = excluded.updated_at
+    `).run(guildId, memberId, month, day, optedIn ? 1 : 0, Date.now());
+  }
+
+  clearBirthday(guildId, memberId) {
+    this.#db.prepare("UPDATE member_profiles SET birthday_month = NULL, birthday_day = NULL, birthday_opted_in = 0, updated_at = ? WHERE guild_id = ? AND member_id = ?").run(Date.now(), guildId, memberId);
+  }
+
+  birthday(guildId, memberId) {
+    const row = this.#db.prepare("SELECT * FROM member_profiles WHERE guild_id = ? AND member_id = ?").get(guildId, memberId);
+    return row ? { month: row.birthday_month, day: row.birthday_day, optedIn: Boolean(row.birthday_opted_in) } : null;
+  }
+
+  birthdaysOn(guildId, month, day) {
+    return this.#db.prepare("SELECT member_id, birthday_month, birthday_day FROM member_profiles WHERE guild_id = ? AND birthday_month = ? AND birthday_day = ? AND birthday_opted_in = 1").all(guildId, month, day).map(row => ({ memberId: row.member_id, month: row.birthday_month, day: row.birthday_day }));
+  }
+
+  markDelivered(marker) {
+    return Boolean(this.#db.prepare("INSERT OR IGNORE INTO delivery_markers (marker, created_at) VALUES (?, ?)").run(marker, Date.now()).changes);
+  }
+
+  hasDelivered(marker) {
+    return Boolean(this.#db.prepare("SELECT marker FROM delivery_markers WHERE marker = ?").get(marker));
   }
 }

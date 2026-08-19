@@ -4,7 +4,7 @@ Test environment: `BCSO Bot Demo | TEST ONLY` (`1539383172536467516`), 2026-08-1
 
 ## Result
 
-All 16 registered slash commands were exercised through their real Discord surface. Form commands were taken from command picker → member/role selector → guided form → preview/approval → destination record. Role-changing tests used the clean sandbox member `Rickya128`; the member was restored to Deputy after the promotion test.
+The original 16 production workflow commands were exercised through their real Discord surface. The current source registers 19 commands: the three additions (`/my-birthday`, `/remove-birthday`, and `/roster-sync`) are covered by automated tests and require optional birthday/Google configuration for a live Discord pass. Form commands were taken from command picker → member/role selector → guided form → preview/approval → destination record. Role-changing tests used the clean sandbox member `Rickya128`; the member was restored to Deputy after the promotion test.
 
 | Command | Result | What was verified |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ The complete browser screenshot set is in [`artifacts/command-tests/`](artifacts
 
 ## Code and deployment checks
 
-- `npm test`: **34 passed**.
+- `npm test`: **37 passed**.
 - `git diff --check`: passed.
 - `npm run preflight`: intentionally reports missing live `.env` IDs; the protected `.env` is not the demo configuration. Demo readiness was verified through `/setup-status` and `/pab-health`.
 - A guild-bound interaction guard was added so an old deployment configured for another guild ignores this guild’s interactions instead of racing the active instance.
@@ -51,9 +51,16 @@ After the Discord matrix, the release gates were tightened so these conditions f
 - `npm run preflight:demo`: **passed** against the protected token/client credentials plus the committed TEST ONLY configuration.
 - `DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy`: **passed**; the deploy gate validated the complete candidate configuration without printing credentials.
 - `npm run start:demo`: **passed** the live startup readiness gate after checking the configured guild, all destination/activity channels, required bot permissions, configured roles, and role hierarchy.
-- Startup also verified the exact 16-command guild registration, rejecting missing or stale command definitions.
+- Startup also verified the exact 19-command guild registration, rejecting missing or stale command definitions.
 - A second simultaneous `npm run start:demo`: **refused before Discord login** by the same-volume process lock.
-- `npm test`: **34 passed** after adding the process-lock regression test.
+- `npm test`: **37 passed** after adding renewal, birthday, and roster-comparison regression tests.
+
+## New feature validation — 2026-08-19
+
+- Approval TTL is configurable and bounded to 5–120 minutes. Pending actions receive one deduplicated reminder in the configured reminder window; creator-authorized **Renew** resets the window, and final approval still re-checks live Discord state.
+- `/my-birthday` stores only opted-in month/day data. `/remove-birthday` clears it. Annual delivery markers prevent duplicate birthday announcements.
+- `SERVICE_MILESTONES_CHANNEL_ID` enables informational one-month, three-month, six-month, and yearly join-date notices; no role or access mutation is attached.
+- `/roster-sync` uses a read-only Google Sheets service-account scope and reports sheet IDs missing from Discord, rank mismatches, and Discord members absent from the sheet. It has no role-write path.
 
 The deployment and cutover procedure is now in [`RELEASE_READINESS.md`](RELEASE_READINESS.md). The stale Pi container was stopped before the matrix and its data volume was preserved; no token or third-party bot code was copied.
 

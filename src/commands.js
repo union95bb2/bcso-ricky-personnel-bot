@@ -99,5 +99,16 @@ export const commands = [
     .addStringOption(option => option.setName("record-id").setDescription("PAB record ID, for example PAB-1234ABCD.")),
   new SlashCommandBuilder()
     .setName("export-audit")
-    .setDescription("Export the local PAB receipt ledger for authorized backup or review.")
+    .setDescription("Export the local PAB receipt ledger for authorized backup or review."),
+  new SlashCommandBuilder()
+    .setName("my-birthday")
+    .setDescription("Opt in to a birthday announcement using month and day only.")
+    .addIntegerOption(option => option.setName("month").setDescription("Birth month (1-12). No birth year is stored.").setRequired(true).setMinValue(1).setMaxValue(12))
+    .addIntegerOption(option => option.setName("day").setDescription("Birth day (1-31).").setRequired(true).setMinValue(1).setMaxValue(31)),
+  new SlashCommandBuilder()
+    .setName("remove-birthday")
+    .setDescription("Remove your opt-in birthday announcement data."),
+  new SlashCommandBuilder()
+    .setName("roster-sync")
+    .setDescription("Compare the configured Google Sheet roster with Discord; never changes roles automatically.")
 ].map(command => command.toJSON());

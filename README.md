@@ -105,7 +105,10 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 - Internal Affairs matters, conduct complaints, investigations, findings, and discipline are not part of this bot.
 - Inactivity review is a neutral PAB staff-attention record only; it does not determine misconduct, trigger discipline, or automatically remove anyone.
 - Corrections preserve the original message and link the correction to it.
-- Preview approvals survive a bot restart, expire after 15 minutes, and are then safely purged.
+- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (15 minutes by default), receive a private PAB reminder before expiry, and expose a creator-authorized **Renew** control. Expired actions fail closed and require fresh validation before approval.
+- `/my-birthday` is opt-in and stores month/day only; `/remove-birthday` deletes it. With `BIRTHDAY_CHANNEL_ID`, Ricky posts one annual birthday notice and deduplicates it.
+- With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky can post one-month, three-month, six-month, and yearly service notices from the Discord join date. These are informational and never change rank or access.
+- `/roster-sync` is an administrator-only, read-only comparison against a configured Google Sheet. It reports missing Discord IDs and rank mismatches; it never applies spreadsheet-driven role changes.
 - Activity tracking stores only member ID, timestamp, source channel, and source event ID. It is limited to the configured `ACTIVITY_CHANNEL_IDS` allow-list and begins when Ricky is installed; it is not a historical personnel or IA record.
 - Completed records remain in Discord and also receive a private searchable SQLite receipt for PAB operations, search, and backup.
 
@@ -129,7 +132,7 @@ chmod 700 data
 
 Do not use the Docker command until the server administrator has completed `.env`, reviewed the permissions, and approved the installation.
 
-Run only one active Ricky process per Discord token and configured guild. A token can be invited to multiple sandboxes, but a stale container can still receive globally registered interactions. The bot now ignores interactions whose guild ID does not match its configured `DISCORD_GUILD_ID`; still stop old containers before cutover and confirm `/setup-status` plus `/pab-health` in the target guild. See [`COMMAND_TEST_REPORT.md`](COMMAND_TEST_REPORT.md) for the complete 16-command Discord test and screenshot evidence.
+Run only one active Ricky process per Discord token and configured guild. A token can be invited to multiple sandboxes, but a stale container can still receive globally registered interactions. The bot now ignores interactions whose guild ID does not match its configured `DISCORD_GUILD_ID`; still stop old containers before cutover and confirm `/setup-status` plus `/pab-health` in the target guild. See [`COMMAND_TEST_REPORT.md`](COMMAND_TEST_REPORT.md) for the controlled Discord command test and screenshot evidence.
 
 The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md). It covers candidate configuration, duplicate-instance checks, the live startup readiness gate, Discord verification, and explicit no-go conditions.
 
@@ -144,4 +147,4 @@ The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md)
 
 ## Still needed before live deployment
 
-The bot does not start partially configured. Before live use, complete the protected `.env`, register the exact guild command set, place the bot role above roles it may manage, run `/pab-health`, and complete the sandbox test plan. A roster integration is deliberately not included: it needs the roster owner's chosen system and write permissions before the bot should read or change external personnel data.
+The bot does not start partially configured. Before live use, complete the protected `.env`, register the exact guild command set, place the bot role above roles it may manage, run `/pab-health`, and complete the sandbox test plan. Google Sheets is an optional read-only roster comparison; the bot never treats a spreadsheet as permission to change Discord roles.

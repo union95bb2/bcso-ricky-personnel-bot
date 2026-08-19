@@ -171,7 +171,7 @@ story += [
     callout("This manual describes what the bot does, what it never does, how approvals work, and exactly how to install, test, operate, and troubleshoot it. It is written for server owners, developers, Command, and PAB staff."),
     Spacer(1, 0.16 * inch),
     P("Repository: github.com/union95bb2/bcso-ricky-personnel-bot", "SmallManual"),
-    P("Current command matrix: 16 guild slash commands | Human approval required for every consequential action", "SmallManual"),
+    P("Current command matrix: 19 guild slash commands | Human approval required for every consequential action", "SmallManual"),
     PageBreak(),
 ]
 
@@ -226,6 +226,9 @@ cmd_rows = [
     ["/pab-announcement", "PAB", "Reviewed announcement with optional safe notification role.", "No"],
     ["/find-record", "PAB", "Searches by member or PAB record ID.", "No"],
     ["/correct-record", "PAB", "Posts an immutable correction linked to an existing message; original remains.", "No"],
+    ["/my-birthday", "Any member", "Opt-in birthday notice using month/day only; no birth year is stored.", "No"],
+    ["/remove-birthday", "Any member", "Deletes that member's opt-in birthday data.", "No"],
+    ["/roster-sync", "Server admin", "Read-only Google Sheet comparison showing missing IDs and rank mismatches.", "No"],
 ]
 story += [table(cmd_rows, [1.25 * inch, 1.0 * inch, 3.2 * inch, 1.55 * inch], small=True)]
 story += [P("The command list is exact for the current release. After changing command definitions, run the register command for the target guild and restart through the normal release gate.", "SmallManual")]
@@ -244,6 +247,12 @@ story += [P("Department record form", "H2Manual")]
 story += [P("The member and optional role fields are Discord selectors. The factual note remains staff-entered. A source link can be preserved for traceability; Ricky does not scrape or copy source-message content automatically.")]
 story += [P("Correction form", "H2Manual")]
 story += [P("Use Discord's Copy Message Link on the original record. The bot validates the guild/message, captures the correction text, and creates a new linked record. It never edits or deletes the original.")]
+story += [P("Birthday and milestone settings", "H2Manual")]
+story += bullets([
+    "Any human member may use /my-birthday with month and day to opt in. Ricky stores no birth year and does not expose the stored date in a public command response.",
+    "Use /remove-birthday at any time to opt out and delete the stored month/day.",
+    "If the owner configures BIRTHDAY_CHANNEL_ID, Ricky posts one annual mention. SERVICE_MILESTONES_CHANNEL_ID enables informational one-month, three-month, six-month, and yearly notices based on the Discord join date.",
+])
 
 # 5 roles and channels
 story += [PageBreak(), P("5. Discord server layout", "H1Manual")]
@@ -302,6 +311,14 @@ story += bullets([
     "Leave last-known activity blank to use the latest tracked timestamp from approved activity channels, or enter a verified override when the ledger has no event.",
     "The result is private and neutral. It applies no discipline, role change, access change, IA finding, or automatic removal.",
 ])
+story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
+story += bullets([
+    "A preview lasts PENDING_ACTION_TTL_MINUTES (15 minutes by default). A private reminder is sent during the PENDING_REMINDER_MINUTES window (5 minutes by default).",
+    "The creator can click Renew to create a fresh approval window. Command may renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
+    "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
+])
+story += [P("Google Sheet roster comparison", "H2Manual")]
+story += [P("Configure a service account, spreadsheet ID, and range, share the sheet with that service-account email, then use /roster-sync as a server administrator. The expected header row includes discord_id and may include callsign, display_name, and rank. Ricky reports differences for human review and never changes a Discord role from spreadsheet data.")]
 
 # 7 setup
 story += [PageBreak(), P("7. Installation and configuration", "H1Manual")]
@@ -347,7 +364,7 @@ check_items = [
     "Verify the test member's baseline role is restored and /pab-health is green before handoff.",
 ]
 story += [P(f"{i + 1}. {item}", "BulletManual") for i, item in enumerate(check_items)]
-story += [P("The repository's COMMAND_TEST_REPORT.md contains the full 16-command Discord matrix and screenshot evidence from the TEST ONLY guild.")]
+story += [P("The repository's COMMAND_TEST_REPORT.md contains the controlled Discord command matrix and screenshot evidence from the TEST ONLY guild. Add birthday, renewal, reminder, and roster-comparison checks to the commissioning run when those optional features are enabled.")]
 
 # 9 troubleshooting
 story += [PageBreak(), P("9. Troubleshooting", "H1Manual")]
@@ -358,7 +375,9 @@ trouble_rows = [
     ["Bot cannot manage that member", "Target is the server owner, above Ricky, or protected by Discord hierarchy.", "Use a normal sandbox member and correct hierarchy. Never test role changes on the owner."],
     ["Role is not eligible", "Role is not in AWARDABLE_ROLE_IDS, or is rank/managed/elevated.", "Use a harmless allow-listed qualification/unit role. Never add PAB, Command, rank, moderator, or Administrator roles."],
     ["Enter time as...", "Input does not match the validated range or selected zone.", "Use the dropdowns or h:mm AM/PM - h:mm AM/PM in the selected timezone."],
+    ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again."],
     ["Preview already being processed", "The single-use approval was already claimed or the UI is stale.", "Refresh the PAB queue, verify the destination receipt, and do not approve the same preview again."],
+    ["Google roster comparison failed", "The sheet is not configured, inaccessible, or not shared with the service account.", "Set the protected Google variables, share the sheet with the service-account email, verify the range, and rerun /roster-sync."],
     ["Commands missing or stale", "Guild registration was not run after a command change.", "Run the target guild register command, then restart through the release gate."],
     ["Second process refuses to start", "The process lock is working.", "Stop the old instance cleanly; never run two Ricky processes for one token/guild."],
 ]
@@ -371,7 +390,9 @@ story += bullets([
     "Published records live in Discord channels according to the server's retention rules.",
     "data/pab.sqlite contains pending approvals and searchable receipt metadata. Protect it like PAB personnel data.",
     "/export-audit produces a private JSON backup for an authorized server administrator.",
-    "Unapproved previews expire after 15 minutes and are purged on startup or queue access.",
+    "Unapproved previews expire after PENDING_ACTION_TTL_MINUTES, reminders are deduplicated, and expired rows are eventually purged. Renewing never bypasses final permission or hierarchy checks.",
+    "Opt-in birthday data stores month/day only. Delivery markers prevent duplicate annual notices.",
+    "Google Sheets credentials are read-only and belong only in the protected host environment; the service-account JSON must never be committed.",
     "Activity tracking stores member ID, timestamp, source channel, and source event ID. It does not store message content and is limited to ACTIVITY_CHANNEL_IDS.",
     "The bot does not import IA, complaint, discipline, personnel-jacket, or historical roster data.",
     "Use Docker or a supervised process with one persistent data directory. Back up the SQLite file under the approved personnel-record procedure.",
@@ -391,11 +412,11 @@ story += bullets([
 story += [P("Current validation baseline", "H2Manual")]
 story += [table([
     ["Check", "Expected result"],
-    ["npm test", "34 tests passed in the current release baseline."],
+    ["npm test", "37 tests passed in the current release baseline."],
     ["npm run preflight:demo", "Demo IDs and protected credentials pass validation."],
     ["DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy", "Candidate deployment configuration passes without printing secrets."],
     ["/setup-status + /pab-health", "All IDs/channels/permissions/hierarchy ready in the target guild."],
-    ["16-command Discord matrix", "Every registered command exercised with previews, approvals, receipts, and guardrails."],
+    ["Discord command matrix", "Registered commands exercised with previews, approvals, receipts, and guardrails; optional birthday and roster checks added when enabled."],
 ], [2.7 * inch, 4.3 * inch])]
 
 # 12 quick reference
@@ -412,7 +433,7 @@ story += [P("Use /inactivity-review for neutral staff follow-up. Leave last-know
 story += [P("Correction", "H2Manual")]
 story += [P("Copy Message Link from the original, run /correct-record, state the factual correction, approve, and preserve the original record.")]
 story += [P("Admin diagnostics", "H2Manual")]
-story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup.")]
+story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup. /roster-sync = read-only Google comparison. /my-birthday and /remove-birthday = member-controlled opt-in.")]
 story += [Spacer(1, 0.2 * inch), HRFlowable(width="100%", thickness=1, color=GOLD), Spacer(1, 0.1 * inch)]
 story += [P("This document is an operating manual for Ricky. Server-specific policy, retention, role names, and authorization decisions remain under the server owner's control.", "SmallManual")]
 

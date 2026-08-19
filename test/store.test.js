@@ -63,3 +63,27 @@ test("activity events are deduplicated and return the latest known event", () =>
   assert.equal(store.lastActivity("member-1", { guildId: "guild-1", until: 150 }).sourceEventId, "message-1");
   store.close();
 });
+
+test("expired previews can be renewed by the authorized creator and reminders are one-shot", () => {
+  const store = new PabStore(":memory:");
+  const id = store.createPending({ type: "promotion", createdBy: "pab-1", data: { memberId: "member-1" } }, 60_000);
+  assert.equal(store.listExpiringPending(60_000, Date.now()).length, 1);
+  assert.equal(store.markPendingReminder(id), true);
+  assert.equal(store.markPendingReminder(id), false);
+  const renewed = store.renewPending(id, "pab-1", 60_000, action => action.createdBy === "pab-1" ? null : "not creator");
+  assert.equal(renewed.action.id, id);
+  assert.equal(store.listPending().some(item => item.id === id), true);
+  store.close();
+});
+
+test("birthday opt-in stores month/day only and delivery markers are idempotent", () => {
+  const store = new PabStore(":memory:");
+  store.setBirthday({ guildId: "guild-1", memberId: "member-1", month: 8, day: 19 });
+  assert.deepEqual(store.birthday("guild-1", "member-1"), { month: 8, day: 19, optedIn: true });
+  assert.deepEqual(store.birthdaysOn("guild-1", 8, 19)[0].memberId, "member-1");
+  assert.equal(store.markDelivered("birthday:guild-1:member-1:2026"), true);
+  assert.equal(store.markDelivered("birthday:guild-1:member-1:2026"), false);
+  store.clearBirthday("guild-1", "member-1");
+  assert.equal(store.birthdaysOn("guild-1", 8, 19).length, 0);
+  store.close();
+});

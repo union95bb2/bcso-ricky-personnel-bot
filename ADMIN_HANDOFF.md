@@ -105,7 +105,9 @@ PAB/Command:
 
 ## Data retention and backup
 
-Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals and searchable metadata/record payloads. Back it up under the server's approved personnel-record retention process. The bot keeps unapproved previews for 15 minutes and purges them when it starts or accesses its queue.
+Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals and searchable metadata/record payloads. Back it up under the server's approved personnel-record retention process. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (15 minutes by default), sends a reminder during the configured `PENDING_REMINDER_MINUTES` window, and offers the submitting PAB member a **Renew** button. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
+
+Optional self-service and comparison features are controlled separately: `/my-birthday` stores only an opt-in month/day, `/remove-birthday` deletes it, and `/roster-sync` performs a read-only comparison against a configured Google Sheet. Ricky never applies spreadsheet-driven role changes.
 
 Do not place the database in a public repository, shared public drive, or staff-accessible Discord attachment channel. `/export-audit` is restricted to Discord server administrators and should be handled as PAB personnel data.
 

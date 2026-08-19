@@ -39,14 +39,27 @@ export const config = {
   qualificationsRecordsChannelId: optional("QUALIFICATIONS_RECORDS_CHANNEL_ID"),
   pabAnnouncementsChannelId: optional("PAB_ANNOUNCEMENTS_CHANNEL_ID"),
   inactivityReviewChannelId: optional("INACTIVITY_REVIEW_CHANNEL_ID"),
+  birthdayChannelId: optional("BIRTHDAY_CHANNEL_ID"),
+  serviceMilestonesChannelId: optional("SERVICE_MILESTONES_CHANNEL_ID"),
   activityChannelIds: parseIdList(process.env.ACTIVITY_CHANNEL_IDS),
   rankRoleIds: parseRoleMap(process.env.RANK_ROLE_IDS),
   awardableRoleIds: parseIdList(process.env.AWARDABLE_ROLE_IDS),
   timeZoneLabel: process.env.TIME_ZONE_LABEL?.trim() || "MST",
   timeZoneId: process.env.TIME_ZONE_ID?.trim() || "Etc/GMT+7",
+  pendingActionTtlMinutes: boundedNumber(process.env.PENDING_ACTION_TTL_MINUTES, 15, 5, 120),
+  pendingReminderMinutes: boundedNumber(process.env.PENDING_REMINDER_MINUTES, 5, 1, 30),
+  googleSheetsSpreadsheetId: optional("GOOGLE_SHEETS_SPREADSHEET_ID"),
+  googleSheetsRange: process.env.GOOGLE_SHEETS_RANGE?.trim() || "Roster!A:Z",
+  googleSheetsServiceAccountJson: optional("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON"),
   brandEmoji: process.env.BCSO_BRAND_EMOJI?.trim() || "",
   dataPath: resolve(process.env.PAB_DATA_PATH?.trim() || "data/pab.sqlite")
 };
+
+function boundedNumber(value, fallback, minimum, maximum) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.floor(parsed)));
+}
 
 export const configLabels = {
   pabRoleId: "PAB_ROLE_ID",

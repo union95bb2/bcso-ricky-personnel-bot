@@ -1,4 +1,6 @@
-export const ADMIN_COMMANDS = new Set(["setup-status", "pab-health", "export-audit"]);
+export const ADMIN_COMMANDS = new Set(["setup-status", "pab-health", "export-audit", "roster-sync"]);
+
+export const SELF_SERVICE_COMMANDS = new Set(["my-birthday", "remove-birthday"]);
 
 export const PAB_COMMANDS = new Set([
   "training-log",
@@ -47,7 +49,7 @@ export const WORKFLOW_CHANNELS = {
 
 export function commandCoverage(commandNames) {
   const names = new Set(commandNames);
-  const known = new Set([...ADMIN_COMMANDS, ...PAB_COMMANDS]);
+  const known = new Set([...ADMIN_COMMANDS, ...PAB_COMMANDS, ...SELF_SERVICE_COMMANDS]);
   return {
     missingHandlers: [...names].filter(name => !known.has(name)),
     undocumentedHandlers: [...known].filter(name => !names.has(name)),

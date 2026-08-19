@@ -19,12 +19,18 @@ import { clean, dateInTimeZone, durationLabel, endOfDateTimestamp, memberLabel, 
 import { PendingActions } from "./pending-actions.js";
 import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
 import { PabStore } from "./store.js";
-import { ADMIN_COMMANDS, PAB_COMMANDS, WORKFLOW_CHANNELS, WORKFLOW_REQUIREMENTS } from "./workflow-spec.js";
+import { ADMIN_COMMANDS, PAB_COMMANDS, SELF_SERVICE_COMMANDS, WORKFLOW_CHANNELS, WORKFLOW_REQUIREMENTS } from "./workflow-spec.js";
 import { acquireProcessLock } from "./process-lock.js";
+import { GoogleRosterSheet, compareRosterRows } from "./google-sheets.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
-const pending = new PendingActions(store);
+const pending = new PendingActions(store, { ttlMinutes: config.pendingActionTtlMinutes });
+const rosterSheet = new GoogleRosterSheet({
+  spreadsheetId: config.googleSheetsSpreadsheetId,
+  range: config.googleSheetsRange,
+  serviceAccountJson: config.googleSheetsServiceAccountJson
+});
 let releaseProcessLock;
 try {
   releaseProcessLock = acquireProcessLock(`${config.dataPath}.lock`);
@@ -167,6 +173,7 @@ function input(id, label, style, { placeholder, required = true, maxLength = 100
 function approvalRow(id, type, label = "Approve & post") {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`approve:${type}:${id}`).setLabel(label).setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`renew:${type}:${id}`).setLabel(`Renew ${config.pendingActionTtlMinutes}m`).setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`cancel:${type}:${id}`).setLabel("Cancel").setStyle(ButtonStyle.Secondary)
   );
 }
@@ -293,6 +300,32 @@ function inactivityReviewEmbed(data, title = "BCSO PAB Inactivity Review") {
     { name: "Activity summary", value: data.summary, inline: false },
     { name: "PAB follow-up", value: data.followUp, inline: false }
   ], "Private PAB review — no role, access, or disciplinary action is applied");
+}
+
+function birthdayEmbed(member, month, day) {
+  return recordEmbed("BCSO Birthday Announcement", BLUE, [
+    { name: "Member", value: mentionWithLabel(member), inline: false },
+    { name: "Message", value: `Please wish ${memberLabel(member)} a happy birthday!`, inline: false }
+  ], "Opt-in birthday notice — month/day only");
+}
+
+function rosterSyncEmbed(result, sourceLabel = "Google Sheet roster") {
+  const missing = result.missingDiscord.length
+    ? result.missingDiscord.slice(0, 15).map(item => `• ${item.discordId} · ${item.callsign || item.displayName || "unnamed"}`).join("\n")
+    : "None";
+  const mismatches = result.mismatches.length
+    ? result.mismatches.slice(0, 15).map(item => `• <@${item.discordId}> · sheet: **${item.expected}** · Discord: **${item.actual}**`).join("\n")
+    : "None";
+  const notInSheet = result.sheetOnlyIds.length ? `${result.sheetOnlyIds.length} Discord member(s) not represented in the sheet` : "None detected";
+  return recordEmbed("Ricky Roster Comparison", result.missingDiscord.length || result.mismatches.length ? 0xb45309 : GREEN, [
+    { name: "Source", value: sourceLabel, inline: false },
+    { name: "Rows read", value: String(result.totalRows), inline: true },
+    { name: "Sheet IDs not in Discord", value: String(result.missingDiscord.length), inline: true },
+    { name: "Rank mismatches", value: String(result.mismatches.length), inline: true },
+    { name: "Sheet IDs not in Discord", value: clean(missing, 1024), inline: false },
+    { name: "Rank mismatches — review only", value: clean(mismatches, 1024), inline: false },
+    { name: "Discord members not in sheet", value: notInSheet, inline: false }
+  ], "Read-only comparison — Ricky never changes roles from a spreadsheet");
 }
 
 function announcementEmbed(data, title = "BCSO PAB Announcement") {
@@ -661,6 +694,7 @@ async function runHealthCheck(interaction) {
     ["Promotion announcements", config.promotionsAnnouncementsChannelId], ["PAB audit log", config.auditLogChannelId],
     ["PAB approvals", config.pabApprovalsChannelId], ["Qualification records", config.qualificationsRecordsChannelId],
     ["PAB announcements", config.pabAnnouncementsChannelId], ["Inactivity review", config.inactivityReviewChannelId],
+    ["Birthday announcements (optional)", config.birthdayChannelId], ["Service milestones (optional)", config.serviceMilestonesChannelId],
     ...[...config.activityChannelIds].map(id => [`Activity source ${id}`, id, [PermissionFlagsBits.ViewChannel]])
   ];
   const missing = missingConfiguration(Object.keys(configLabels));
@@ -713,9 +747,93 @@ async function runHealthCheck(interaction) {
       { name: "Configuration", value: missing.length ? `Missing: ${missing.join(", ")}` : "All required IDs and allow-lists are present.", inline: false },
       { name: "Bot permissions", value: botPermissions, inline: false },
       { name: "Channels", value: clean(channelChecks.join("\n"), 1024), inline: false },
+      { name: "Optional integrations", value: `Birthday notices: ${config.birthdayChannelId ? "configured" : "disabled"}\nService milestones: ${config.serviceMilestonesChannelId ? "configured" : "disabled"}\nGoogle roster comparison: ${rosterSheet.configured ? "configured" : "disabled"}`, inline: false },
       { name: "Role hierarchy", value: clean(`${hierarchySummary}\n\n${roleChecks.join("\n") || "No rank/award roles configured yet."}`, 1024), inline: false }
     ], "Read-only check — no settings, roles, or messages were changed")]
   });
+}
+
+async function runRosterSync(interaction) {
+  if (!rosterSheet.configured) {
+    return interaction.reply({ content: "Google Sheets comparison is not configured. Set `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_SHEETS_RANGE`, and `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON`, share the sheet with the service-account email, then restart Ricky.", ephemeral: true });
+  }
+  await interaction.deferReply({ ephemeral: true });
+  try {
+    const rows = await rosterSheet.rows();
+    const members = [...(await interaction.guild.members.fetch()).values()];
+    const result = compareRosterRows(rows, members, config.rankRoleIds);
+    await interaction.editReply({ embeds: [rosterSyncEmbed(result, `Google Sheets · ${config.googleSheetsRange}`)] });
+  } catch (error) {
+    await interaction.editReply({ content: `Google Sheets comparison failed: ${error instanceof Error ? error.message : "unknown error"}` });
+  }
+}
+
+function parseTodayParts() {
+  const [month, day, year] = todayInTimeZone(config.timeZoneId).split("/").map(Number);
+  return { month, day, year };
+}
+
+function monthsSince(timestamp, now = new Date()) {
+  const joined = new Date(timestamp);
+  const current = new Date(now);
+  const months = (current.getUTCFullYear() - joined.getUTCFullYear()) * 12 + current.getUTCMonth() - joined.getUTCMonth();
+  return current.getUTCDate() === joined.getUTCDate() ? months : -1;
+}
+
+async function postDailyNotices(readyClient) {
+  const guild = await readyClient.guilds.fetch(config.guildId).catch(() => null);
+  if (!guild) return;
+  const { month, day, year } = parseTodayParts();
+  const members = [...(await guild.members.fetch()).values()].filter(member => !member.user.bot);
+  if (config.birthdayChannelId) {
+    const channel = await fetchChannel(config.birthdayChannelId).catch(() => null);
+    if (channel) {
+      for (const entry of store.birthdaysOn(guild.id, month, day)) {
+        const member = members.find(candidate => candidate.id === entry.memberId);
+        const marker = `birthday:${guild.id}:${entry.memberId}:${year}`;
+        if (!member || store.hasDelivered(marker)) continue;
+        const message = await channel.send({ content: `🎂 <@${member.id}>`, embeds: [birthdayEmbed(member, month, day)], allowedMentions: { users: [member.id] } });
+        if (message) store.markDelivered(marker);
+      }
+    }
+  }
+  if (config.serviceMilestonesChannelId) {
+    const channel = await fetchChannel(config.serviceMilestonesChannelId).catch(() => null);
+    if (channel) {
+      for (const member of members) {
+        if (!member.joinedTimestamp) continue;
+        const months = monthsSince(member.joinedTimestamp, new Date());
+        if (![1, 3, 6, 12].includes(months) && (months < 12 || months % 12 !== 0)) continue;
+        const marker = `service:${guild.id}:${member.id}:${year}:${months}`;
+        if (store.hasDelivered(marker)) continue;
+        const label = months < 12 ? `${months}-month` : `${Math.floor(months / 12)}-year`;
+        const message = await channel.send({ content: `🎉 <@${member.id}>`, embeds: [recordEmbed("BCSO Service Milestone", GREEN, [
+          { name: "Member", value: mentionWithLabel(member), inline: false },
+          { name: "Milestone", value: `${label} anniversary`, inline: true },
+          { name: "Source", value: "Discord server join date; verify against the official roster when appropriate.", inline: false }
+        ], "Automatic notice — no rank or personnel decision")], allowedMentions: { users: [member.id] } });
+        if (message) store.markDelivered(marker);
+      }
+    }
+  }
+}
+
+async function sendPendingReminders() {
+  const destinationId = config.pabApprovalsChannelId || config.auditLogChannelId;
+  if (!destinationId) return;
+  const channel = await fetchChannel(destinationId).catch(() => null);
+  if (!channel) return;
+  for (const item of pending.expiring(config.pendingReminderMinutes)) {
+    try {
+      const sent = await channel.send({
+        content: `⏰ Approval reminder: **${item.type}** submitted by <@${item.createdBy}> expires <t:${Math.floor(item.expiresAt / 1000)}:R>. Use the original preview's **Renew** button if more review time is needed.`,
+        allowedMentions: { users: [item.createdBy] }
+      });
+      if (sent) pending.markReminder(item.id);
+    } catch (error) {
+      console.error(`Pending approval reminder failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
 }
 
 function exportAudit(interaction) {
@@ -1072,6 +1190,9 @@ client.once(Events.ClientReady, async readyClient => {
     process.exit(1);
   }
   console.log(`Ricky online as ${readyClient.user.tag}; durable data store ready. Activity tracking: ${config.activityChannelIds.size ? `${config.activityChannelIds.size} approved channel(s)` : "disabled"}. Startup readiness gate passed.`);
+  await postDailyNotices(readyClient).catch(error => console.error(`Daily notice pass failed: ${error instanceof Error ? error.message : "unknown error"}`));
+  setInterval(() => sendPendingReminders().catch(error => console.error(`Reminder pass failed: ${error instanceof Error ? error.message : "unknown error"}`)), 60_000).unref?.();
+  setInterval(() => postDailyNotices(readyClient).catch(error => console.error(`Daily notice pass failed: ${error instanceof Error ? error.message : "unknown error"}`)), 60 * 60_000).unref?.();
 });
 client.on(Events.Error, error => console.error(`Discord client error: ${error instanceof Error ? error.message : "unknown error"}`));
 client.on(Events.MessageCreate, message => {
@@ -1099,11 +1220,24 @@ client.on(Events.InteractionCreate, async interaction => {
     // commands in another sandbox or race the active instance.
     if (interaction.guildId !== config.guildId) return;
     if (interaction.isChatInputCommand()) {
+      if (SELF_SERVICE_COMMANDS.has(interaction.commandName)) {
+        if (interaction.commandName === "my-birthday") {
+          const month = interaction.options.getInteger("month");
+          const day = interaction.options.getInteger("day");
+          const candidate = new Date(Date.UTC(2000, month - 1, day));
+          if (candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) return interaction.reply({ content: "That month/day combination is not valid.", ephemeral: true });
+          store.setBirthday({ guildId: interaction.guild.id, memberId: interaction.user.id, month, day, optedIn: true });
+          return interaction.reply({ content: `Opted in. Ricky will announce your birthday on **${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}** in the configured birthday channel. No birth year is stored.`, ephemeral: true });
+        }
+        store.clearBirthday(interaction.guild.id, interaction.user.id);
+        return interaction.reply({ content: "Your opt-in birthday data was removed. Ricky will not announce it.", ephemeral: true });
+      }
       if (ADMIN_COMMANDS.has(interaction.commandName)) {
         if (!isServerAdministrator(interaction.member)) return unauthorizedAdmin(interaction);
         if (interaction.commandName === "setup-status") return interaction.reply({ embeds: [setupStatusEmbed()], ephemeral: true });
         if (interaction.commandName === "pab-health") return runHealthCheck(interaction);
         if (interaction.commandName === "export-audit") return exportAudit(interaction);
+        if (interaction.commandName === "roster-sync") return runRosterSync(interaction);
       }
       if (!PAB_COMMANDS.has(interaction.commandName)) return;
       if (!mayUsePab(interaction.member)) return unauthorized(interaction);
@@ -1131,7 +1265,15 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.isButton()) {
       if (!mayUsePab(interaction.member)) return unauthorized(interaction);
       const [decision, type, id] = interaction.customId.split(":");
-      if (!["approve", "cancel"].includes(decision) || !id) return;
+      if (!["approve", "cancel", "renew"].includes(decision) || !id) return;
+      if (decision === "renew") {
+        const renewal = pending.renew(id, interaction.user.id, action => {
+          if (type === "promotion") return action.createdBy === interaction.user.id || mayApprovePromotion(interaction.member) ? null : "Only the submitting PAB member or Command can renew this promotion request.";
+          return action.createdBy === interaction.user.id ? null : "Only the PAB member who created this preview can renew it.";
+        });
+        if (renewal.error) return interaction.reply({ content: renewal.error, ephemeral: true });
+        return interaction.update({ content: `Preview renewed for ${config.pendingActionTtlMinutes} minutes. Review it before <t:${Math.floor(renewal.action.expiresAt / 1000)}:F>.`, components: [approvalRow(id, type, type === "promotion" ? "Command approve & apply" : type === "role-removal" ? "Approve & remove" : type === "promotion-check" ? "Approve checklist" : type === "inactivity-review" ? "Post private review" : type === "announcement" ? "Approve & announce" : "Approve & post")] });
+      }
       if (decision === "cancel") {
         const cancellation = pending.take(id, interaction.user.id, action => {
           if ((type === "training" || type === "role-award" || type === "role-removal" || type === "department-record" || type === "correction" || type === "promotion-check" || type === "personnel-status" || type === "inactivity-review" || type === "announcement") && action.createdBy !== interaction.user.id) return "Only the PAB member who created this preview can cancel it.";
