@@ -14,7 +14,7 @@ import {
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { config, configLabels, configurationIssues, missingConfiguration } from "./config.js";
-import { clean, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, splitTimeRange, todayInTimeZone } from "./format.js";
+import { clean, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
 import { PendingActions } from "./pending-actions.js";
 import { PabStore } from "./store.js";
 
@@ -132,7 +132,7 @@ function trainingEmbed(data, title = "BCSO Training Record") {
       { name: "Trainer", value: data.trainerLabel, inline: false },
       { name: "Trainee", value: data.traineeLabel, inline: false },
       { name: "Date", value: data.date, inline: true },
-      { name: "Time", value: `${data.startTime} ${config.timeZoneLabel} – ${data.endTime} ${config.timeZoneLabel}`, inline: true },
+      { name: "Time", value: `${data.startTime} ${data.timeZoneLabel || config.timeZoneLabel} – ${data.endTime} ${data.timeZoneLabel || config.timeZoneLabel}`, inline: true },
       { name: "Training", value: data.trainingType, inline: false },
       { name: "Outcome", value: data.outcome, inline: false },
       { name: "Notes", value: data.notes, inline: false },
@@ -289,12 +289,14 @@ async function showTrainingModal(interaction) {
   const trainer = interaction.options.getMember("trainer");
   const trainee = interaction.options.getMember("trainee");
   if (!trainer || !trainee) return interaction.reply({ content: "Both members must be in this server.", ephemeral: true });
-  const modal = new ModalBuilder().setCustomId(`training-modal:${trainer.id}:${trainee.id}`).setTitle("BCSO training record");
-  const dateInput = input("date", `Date (${DATE_FORMAT_HINT}; Today is available)`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
-  if (interaction.options.getString("date") === "today") dateInput.setValue(todayInTimeZone(config.timeZoneId));
+  const timezone = resolveTrainingTimeZone(interaction.options.getString("timezone"), { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
+  const dateMode = interaction.options.getString("date") || "manual";
+  const modal = new ModalBuilder().setCustomId(`training-modal:${trainer.id}:${trainee.id}:${timezone.value}`).setTitle(`BCSO training record — ${timezone.label}`);
+  const dateInput = input("date", `Date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  if (dateMode === "today") dateInput.setValue(todayInTimeZone(timezone.timeZoneId));
   modal.addComponents(
     new ActionRowBuilder().addComponents(dateInput),
-    new ActionRowBuilder().addComponents(input("time", `Start/end time (${config.timeZoneLabel})`, TextInputStyle.Short, { placeholder: `4:00 PM - 5:00 PM ${config.timeZoneLabel}`, maxLength: 80 })),
+    new ActionRowBuilder().addComponents(input("time", `Start/end time (${timezone.label})`, TextInputStyle.Short, { placeholder: `4:00 PM - 5:00 PM ${timezone.label}`, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("training-type", "Training completed", TextInputStyle.Short, { placeholder: "Classroom, practical, and ride-along", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("outcome", "Outcome / recommendation", TextInputStyle.Paragraph, { placeholder: "Academy Complete — good to proceed to Deputy", maxLength: 800 })),
     new ActionRowBuilder().addComponents(input("notes", "Notes", TextInputStyle.Paragraph, { placeholder: "Performance, follow-up needs, and any important detail", maxLength: 1000 }))
@@ -557,10 +559,11 @@ async function handleModal(interaction) {
   const modalParts = interaction.customId.split(":");
   const kind = modalParts[0];
   if (kind === "training-modal") {
-    const [, trainerId, traineeId] = modalParts;
+    const [, trainerId, traineeId, timezoneValue] = modalParts;
+    const timezone = resolveTrainingTimeZone(timezoneValue, { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
     const [trainer, trainee] = await Promise.all([interaction.guild.members.fetch(trainerId), interaction.guild.members.fetch(traineeId)]);
-    const [startTime, endTime] = splitTimeRange(interaction.fields.getTextInputValue("time"), config.timeZoneLabel);
-    if (!startTime || !endTime) return interaction.reply({ content: `Enter time as \`h:mm AM/PM - h:mm AM/PM\` in ${config.timeZoneLabel}, for example \`4:00 PM - 5:00 PM ${config.timeZoneLabel}\`.`, ephemeral: true });
+    const [startTime, endTime] = splitTimeRange(interaction.fields.getTextInputValue("time"), timezone.label);
+    if (!startTime || !endTime) return interaction.reply({ content: `Enter time as \`h:mm AM/PM - h:mm AM/PM\` in ${timezone.label}, for example \`4:00 PM - 5:00 PM ${timezone.label}\`.`, ephemeral: true });
     const date = normalizeDate(interaction.fields.getTextInputValue("date"));
     if (!date) return interaction.reply({ content: `Enter the date as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.`, ephemeral: true });
     const data = {
@@ -571,6 +574,7 @@ async function handleModal(interaction) {
       date,
       startTime,
       endTime,
+      timeZoneLabel: timezone.label,
       trainingType: clean(interaction.fields.getTextInputValue("training-type"), 200),
       outcome: normalizeMultiline(interaction.fields.getTextInputValue("outcome")),
       notes: normalizeMultiline(interaction.fields.getTextInputValue("notes")),

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clean, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, splitTimeRange, todayInTimeZone } from "../src/format.js";
+import { clean, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "../src/format.js";
 
 test("clean trims and preserves ordinary text", () => {
   assert.equal(clean("  Academy Complete  "), "Academy Complete");
@@ -29,6 +29,12 @@ test("today uses the configured timezone", () => {
 test("training times normalize an entered timezone suffix", () => {
   assert.deepEqual(splitTimeRange("4:00 PM MST - 5:00 PM MST", "MST"), ["4:00 PM", "5:00 PM"]);
   assert.deepEqual(splitTimeRange("4:00 PM - 5:00 PM", "MST"), ["4:00 PM", "5:00 PM"]);
+});
+
+test("training timezone choices resolve to stable labels and IANA zones", () => {
+  assert.equal(resolveTrainingTimeZone("MST").timeZoneId, "Etc/GMT+7");
+  assert.equal(resolveTrainingTimeZone("EST").label, "EST");
+  assert.equal(resolveTrainingTimeZone("unknown", { label: "MST", timeZoneId: "Etc/GMT+7" }).label, "MST");
 });
 
 test("dates normalize to the shared MM/DD/YYYY format", () => {

@@ -1,4 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
+import { TRAINING_TIME_ZONES } from "./format.js";
 
 export const commands = [
   new SlashCommandBuilder()
@@ -6,8 +7,13 @@ export const commands = [
     .setDescription("Create a formatted BCSO training record.")
     .addUserOption(option => option.setName("trainer").setDescription("The trainer who conducted the session.").setRequired(true))
     .addUserOption(option => option.setName("trainee").setDescription("The member who received training.").setRequired(true))
-    .addStringOption(option => option.setName("date").setDescription("Pre-fill the form with today's date.")
-      .addChoices({ name: "Today", value: "today" })),
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill, or enter a date in the form.").setRequired(true)
+      .addChoices(
+        { name: "Today (prefill)", value: "today" },
+        { name: "Enter manually", value: "manual" }
+      ))
+    .addStringOption(option => option.setName("timezone").setDescription("Timezone used for the form and posted record.").setRequired(true)
+      .addChoices(...TRAINING_TIME_ZONES.map(({ name, value }) => ({ name, value })))),
   new SlashCommandBuilder()
     .setName("promotion")
     .setDescription("Prepare and approve a BCSO promotion record and role update.")

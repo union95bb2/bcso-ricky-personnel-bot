@@ -1,5 +1,25 @@
 const MAX_FIELD_VALUE = 1024;
 
+// Discord modals do not support select menus. These choices are therefore
+// presented on /training-log before the modal opens, then carried through the
+// modal custom ID so the posted record cannot silently change timezones.
+export const TRAINING_TIME_ZONES = [
+  { value: "MST", name: "MST — Mountain Time", label: "MST", timeZoneId: "Etc/GMT+7" },
+  { value: "PST", name: "PST — Pacific Time", label: "PST", timeZoneId: "America/Los_Angeles" },
+  { value: "CST", name: "CST — Central Time", label: "CST", timeZoneId: "America/Chicago" },
+  { value: "EST", name: "EST — Eastern Time", label: "EST", timeZoneId: "America/New_York" },
+  { value: "UTC", name: "UTC — Coordinated Universal Time", label: "UTC", timeZoneId: "UTC" }
+];
+
+export function resolveTrainingTimeZone(value, fallback = {}) {
+  return TRAINING_TIME_ZONES.find(zone => zone.value === value) || {
+    value: fallback.label || "MST",
+    name: fallback.label || "MST",
+    label: fallback.label || "MST",
+    timeZoneId: fallback.timeZoneId || "Etc/GMT+7"
+  };
+}
+
 export function clean(value, max = MAX_FIELD_VALUE) {
   const result = String(value || "").trim().replace(/\r\n/g, "\n");
   return result.length > max ? `${result.slice(0, max - 1)}…` : result;

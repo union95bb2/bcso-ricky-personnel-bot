@@ -2,14 +2,14 @@
 
 An internal Discord bot for the Blaine County Sheriff's Office FiveM roleplay server. It produces consistent training and personnel records, safely pings the relevant members, updates rank roles only after Command approval, and logs every completed action in Discord.
 
-Canonical source: [private GitHub repository](https://github.com/union95bb2/bcso-ricky-personnel-bot). Keep deployment changes and reviewed fixes in `main`; never commit `.env` or the local SQLite data directory.
+Canonical source: [public GitHub repository](https://github.com/union95bb2/bcso-ricky-personnel-bot). Keep deployment changes and reviewed fixes in `main`; never commit `.env` or the local SQLite data directory.
 
 The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky without copying third-party credentials or internals.
 
 ## What it does
 
-- `/training-log trainer:@member trainee:@member date:Today` opens a guided form with an optional one-click **Today** date prefill and generates a polished training embed.
-- The submitting PAB member gets a private preview and must approve it before it posts to the training-records channel. Training times are displayed with the configured timezone label (for example, `4:00 PM MST – 5:00 PM MST`).
+- `/training-log trainer:@member trainee:@member date:Today timezone:MST` opens a guided form with required slash-command choices for **Today** (or manual date entry) and the timezone. The selected timezone is carried into the form and posted record; staff never type a timezone label.
+- The submitting PAB member gets a private preview and must approve it before it posts to the training-records channel. Training times are displayed with the selected timezone label (for example, `4:00 PM MST – 5:00 PM MST`).
 - Every date field uses `MM/DD/YYYY`; inactivity review periods use `MM/DD/YYYY - MM/DD/YYYY`. Training times use `h:mm AM/PM` in the configured timezone (for example, `4:00 PM - 5:00 PM MST`). The bot normalizes padded dates and AM/PM casing and rejects invalid entries before creating a preview.
 - `/promotion member:@member` opens a guided promotion form.
 - Only Command can approve the promotion preview. Approval removes any configured prior rank role, adds the configured new rank role, posts the personnel record, announces it, and writes an audit entry.
