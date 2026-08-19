@@ -34,6 +34,15 @@ RMS_DEV_LOGIN=false
 ```
 
 3. Add the exact redirect URI to the Discord application's OAuth2 settings. Use the existing PiCam Caddy/Cloudflare route; do not expose the Node port directly to the Internet.
+   The staged Compose service joins the existing `the57-web` Docker network. The corresponding Caddy site block should be reviewed and then added to the host configuration:
+
+```caddyfile
+http://rms.the57consulting.com {
+    reverse_proxy ricky-rms:8788
+}
+```
+
+   Reload Caddy only after the RMS container is healthy and the DNS/Cloudflare route has been verified.
 4. Run the existing bot only first and verify `/pab-health`.
 5. Run the idempotent migration before opening the dashboard:
 

@@ -30,3 +30,12 @@ services:
       - /tmp:rw,noexec,nosuid,size=16m
     volumes:
       - ./data:/app/data
+    networks:
+      default:
+      the57-web:
+        aliases:
+          - ricky-rms
+
+networks:
+  the57-web:
+    external: true
