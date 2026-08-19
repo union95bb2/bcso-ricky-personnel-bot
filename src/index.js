@@ -14,10 +14,11 @@ import {
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { config, configLabels, configurationIssues, missingConfiguration } from "./config.js";
-import { clean, dateInTimeZone, endOfDateTimestamp, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
+import { clean, dateInTimeZone, durationLabel, endOfDateTimestamp, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
 import { PendingActions } from "./pending-actions.js";
 import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
 import { PabStore } from "./store.js";
+import { ADMIN_COMMANDS, PAB_COMMANDS, WORKFLOW_CHANNELS, WORKFLOW_REQUIREMENTS } from "./workflow-spec.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
@@ -108,43 +109,15 @@ function discordPermissionError(error) {
   return null;
 }
 
-const workflowRequirements = {
-  "training-log": ["pabRoleId", "commandRoleId", "trainingRecordsChannelId", "auditLogChannelId"],
-  promotion: ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "rankRoleIds"],
-  "award-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "awardableRoleIds"],
-  "remove-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "awardableRoleIds"],
-  "department-record": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId"],
-  "correct-record": ["pabRoleId", "commandRoleId", "auditLogChannelId"],
-  "promotion-check": ["pabRoleId", "commandRoleId", "pabApprovalsChannelId", "auditLogChannelId"],
-  "personnel-status": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId"],
-  "inactivity-review": ["pabRoleId", "commandRoleId", "inactivityReviewChannelId", "auditLogChannelId", "activityChannelIds"],
-  "pab-announcement": ["pabRoleId", "commandRoleId", "pabAnnouncementsChannelId", "auditLogChannelId"],
-  "pab-dashboard": ["pabRoleId", "commandRoleId"],
-  "find-record": ["pabRoleId", "commandRoleId"]
-};
-
-const workflowChannels = {
-  "training-log": ["trainingRecordsChannelId", "auditLogChannelId"],
-  promotion: ["pabApprovalsChannelId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
-  "award-role": ["qualificationsRecordsChannelId", "auditLogChannelId"],
-  "remove-role": ["qualificationsRecordsChannelId", "auditLogChannelId"],
-  "department-record": ["personnelRecordsChannelId", "auditLogChannelId"],
-  "correct-record": ["auditLogChannelId"],
-  "promotion-check": ["pabApprovalsChannelId", "auditLogChannelId"],
-  "personnel-status": ["personnelRecordsChannelId", "auditLogChannelId"],
-  "inactivity-review": ["inactivityReviewChannelId", "auditLogChannelId"],
-  "pab-announcement": ["pabAnnouncementsChannelId", "auditLogChannelId"]
-};
-
 async function requiresConfiguration(interaction) {
-  const issues = configurationIssues(workflowRequirements[interaction.commandName] || []);
+  const issues = configurationIssues(WORKFLOW_REQUIREMENTS[interaction.commandName] || []);
   if (issues.length) {
     await interaction.reply({ content: `This workflow is not ready yet: ${issues.map(issue => `\`${issue}\``).join(", ")}. A server administrator can run \`/setup-status\`.`, ephemeral: true });
     return true;
   }
   const botMember = interaction.guild.members.me;
   const channelIssues = [];
-  for (const key of workflowChannels[interaction.commandName] || []) {
+  for (const key of WORKFLOW_CHANNELS[interaction.commandName] || []) {
     try {
       const channel = await fetchChannel(config[key]);
       const issue = channelPermissionIssue(channel, botMember);
@@ -195,8 +168,10 @@ function trainingEmbed(data, title = "BCSO Training Record") {
     .addFields(
       { name: "Trainer", value: data.trainerLabel, inline: false },
       { name: "Trainee", value: data.traineeLabel, inline: false },
+      { name: "Division / program", value: data.division, inline: true },
       { name: "Date", value: data.date, inline: true },
       { name: "Time", value: `${data.startTime} ${data.timeZoneLabel || config.timeZoneLabel} – ${data.endTime} ${data.timeZoneLabel || config.timeZoneLabel}`, inline: true },
+      { name: "Session duration", value: data.duration || "Not calculated", inline: true },
       { name: "Training", value: data.trainingType, inline: false },
       { name: "Outcome", value: data.outcome, inline: false },
       { name: "Notes", value: data.notes, inline: false },
@@ -268,9 +243,10 @@ function departmentRecordText(data) {
     added,
     removed,
     `**Note:** ${data.note}`,
+    data.sourceMessageLink ? `**Source request:** [Open original request](${data.sourceMessageLink})` : null,
     `**Record ID:** \`${data.recordId}\``,
     `**CC:** <@&${config.pabRoleId}>${data.ccRoleId ? ` <@&${data.ccRoleId}>` : ""}`
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function recordEmbed(title, color, fields, footer = "Ricky PAB") {
@@ -321,12 +297,6 @@ function correctionEmbed(data, title = "BCSO PAB Record Correction") {
     ], "Ricky PAB — Original records are preserved for auditability");
 }
 
-function parseMessageLink(value) {
-  const match = String(value || "").trim().match(/^https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)\/?$/i);
-  if (!match || match[1] !== config.guildId) return null;
-  return { guildId: match[1], channelId: match[2], messageId: match[3], messageLink: match[0] };
-}
-
 async function fetchChannel(id) {
   const channel = await client.channels.fetch(id);
   if (!channel?.isTextBased()) throw new Error(`Configured channel ${id} is not a text-based channel.`);
@@ -355,11 +325,12 @@ async function showTrainingModal(interaction) {
   const trainee = interaction.options.getMember("trainee");
   if (!trainer || !trainee) return interaction.reply({ content: "Both members must be in this server.", ephemeral: true });
   const timezone = resolveTrainingTimeZone(interaction.options.getString("timezone"), { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
+  const division = clean(interaction.options.getString("division"), 80) || "BCSO / POST Academy";
   const dateMode = interaction.options.getString("date") || "manual";
   const selectedStart = interaction.options.getString("start-time");
   const selectedEnd = interaction.options.getString("end-time");
   if (Boolean(selectedStart) !== Boolean(selectedEnd)) return interaction.reply({ content: "Choose both Start time and End time, or leave both blank and enter the range in the form.", ephemeral: true });
-  const modal = new ModalBuilder().setCustomId(`training-modal:${trainer.id}:${trainee.id}:${timezone.value}`).setTitle(`BCSO training record — ${timezone.label}`);
+  const modal = new ModalBuilder().setCustomId(`training-modal:${trainer.id}:${trainee.id}:${timezone.value}:${encodeURIComponent(division)}`).setTitle(`BCSO training record — ${timezone.label}`);
   const dateInput = input("date", `Date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
   const timeInput = input("time", `Start/end time (${timezone.label})`, TextInputStyle.Short, { placeholder: `4:00 PM - 5:00 PM ${timezone.label}`, maxLength: 80 });
   if (selectedStart && selectedEnd) timeInput.setValue(`${selectedStart} - ${selectedEnd} ${timezone.label}`);
@@ -381,8 +352,10 @@ async function showPromotionModal(interaction) {
   if (managementIssue) return interaction.reply({ content: managementIssue, ephemeral: true });
   const choices = rankRoleEntries(config.rankRoleIds).map(({ rank }) => rank).join(", ") || "Configure RANK_ROLE_IDS first";
   const modal = new ModalBuilder().setCustomId(`promotion-modal:${member.id}`).setTitle("BCSO promotion record");
+  const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
-    new ActionRowBuilder().addComponents(input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
+    new ActionRowBuilder().addComponents(effectiveDate),
     new ActionRowBuilder().addComponents(input("from-rank", "Current rank", TextInputStyle.Short, { placeholder: choices, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("to-rank", "New rank", TextInputStyle.Short, { placeholder: choices, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "Sheriff / Undersheriff / Command member", maxLength: 200 })),
@@ -401,8 +374,10 @@ async function showRoleAwardModal(interaction) {
   const roleIssue = roleManagementError(interaction, role);
   if (roleIssue) return interaction.reply({ content: roleIssue, ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`role-award-modal:${member.id}:${role.id}`).setTitle("BCSO role award record");
+  const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
-    new ActionRowBuilder().addComponents(input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
+    new ActionRowBuilder().addComponents(effectiveDate),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "PAB / Command member", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("reason", "Reason or approval reference", TextInputStyle.Paragraph, { placeholder: "Completed TEU certification requirements", maxLength: 1000 }))
   );
@@ -420,8 +395,10 @@ async function showRoleRemovalModal(interaction) {
   if (roleIssue) return interaction.reply({ content: roleIssue, ephemeral: true });
   if (!member.roles.cache.has(role.id)) return interaction.reply({ content: "That member does not currently hold the selected role.", ephemeral: true });
   const modal = new ModalBuilder().setCustomId(`role-removal-modal:${member.id}:${role.id}`).setTitle("BCSO role removal record");
+  const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
-    new ActionRowBuilder().addComponents(input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
+    new ActionRowBuilder().addComponents(effectiveDate),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "PAB / Command member", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("reason", "Reason or approval reference", TextInputStyle.Paragraph, { placeholder: "Transfer, expiration, or approved removal reference", maxLength: 1000 }))
   );
@@ -435,7 +412,10 @@ async function showDepartmentRecordModal(interaction) {
   const addedRole = interaction.options.getRole("added-role");
   const removedRole = interaction.options.getRole("removed-role");
   const ccRole = interaction.options.getRole("cc-role");
-  const draftId = pending.create({ type: "department-record-draft", createdBy: interaction.user.id, data: { memberId: member.id, callsign, addedRoleId: addedRole?.id || null, removedRoleId: removedRole?.id || null, ccRoleId: ccRole?.id || null } });
+  const sourceLink = clean(interaction.options.getString("source-link"), 300);
+  const source = sourceLink ? parseDiscordMessageLink(sourceLink, config.guildId) : null;
+  if (sourceLink && !source) return interaction.reply({ content: "The optional source link must be a message link from this BCSO server.", ephemeral: true });
+  const draftId = pending.create({ type: "department-record-draft", createdBy: interaction.user.id, data: { memberId: member.id, callsign, addedRoleId: addedRole?.id || null, removedRoleId: removedRole?.id || null, ccRoleId: ccRole?.id || null, sourceMessageLink: source?.messageLink || null } });
   const modal = new ModalBuilder().setCustomId(`department-record-modal:${draftId}`).setTitle("PAB department record");
   modal.addComponents(
     new ActionRowBuilder().addComponents(input("record-type", "Record type", TextInputStyle.Short, { placeholder: "Training completion, promotion, role update", maxLength: 100 })),
@@ -445,7 +425,7 @@ async function showDepartmentRecordModal(interaction) {
 }
 
 async function showCorrectionModal(interaction) {
-  const reference = parseMessageLink(interaction.options.getString("message-link"));
+  const reference = parseDiscordMessageLink(interaction.options.getString("message-link"), config.guildId);
   if (!reference) return interaction.reply({ content: "Use **Copy Message Link** from a record in this BCSO server. The original record is never edited or deleted.", ephemeral: true });
   const draftId = pending.create({ type: "correction-draft", createdBy: interaction.user.id, data: reference });
   const modal = new ModalBuilder().setCustomId(`correction-modal:${draftId}`).setTitle("PAB record correction");
@@ -474,8 +454,10 @@ async function showPersonnelStatusModal(interaction) {
   const status = interaction.options.getString("status");
   const draftId = pending.create({ type: "personnel-status-draft", createdBy: interaction.user.id, data: { memberId: member.id, status } });
   const modal = new ModalBuilder().setCustomId(`personnel-status-modal:${draftId}`).setTitle("BCSO personnel status record");
+  const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
-    new ActionRowBuilder().addComponents(input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
+    new ActionRowBuilder().addComponents(effectiveDate),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "Command member / approval reference", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("detail", "Record detail", TextInputStyle.Paragraph, { placeholder: "Factual status details and any approved follow-up", maxLength: 1000 }))
   );
@@ -653,8 +635,9 @@ async function handleModal(interaction) {
   const modalParts = interaction.customId.split(":");
   const kind = modalParts[0];
   if (kind === "training-modal") {
-    const [, trainerId, traineeId, timezoneValue] = modalParts;
+    const [, trainerId, traineeId, timezoneValue, divisionValue] = modalParts;
     const timezone = resolveTrainingTimeZone(timezoneValue, { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
+    const division = clean(divisionValue ? decodeURIComponent(divisionValue) : "BCSO / POST Academy", 80);
     const [trainer, trainee] = await Promise.all([interaction.guild.members.fetch(trainerId), interaction.guild.members.fetch(traineeId)]);
     const [startTime, endTime] = splitTimeRange(interaction.fields.getTextInputValue("time"), timezone.label);
     if (!startTime || !endTime) return interaction.reply({ content: `Enter a time range such as \`4 PM - 5 PM\` or \`4:00 PM - 5:00 PM ${timezone.label}\`.`, ephemeral: true });
@@ -665,9 +648,11 @@ async function handleModal(interaction) {
       traineeId,
       trainerLabel: mentionWithLabel(trainer),
       traineeLabel: mentionWithLabel(trainee),
+      division,
       date,
       startTime,
       endTime,
+      duration: durationLabel(startTime, endTime),
       timeZoneLabel: timezone.label,
       trainingType: clean(interaction.fields.getTextInputValue("training-type"), 200),
       outcome: normalizeMultiline(interaction.fields.getTextInputValue("outcome")),
@@ -742,7 +727,7 @@ async function handleModal(interaction) {
   if (kind === "department-record-modal") {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "department-record-draft" ? null : "This form expired. Run the command again.");
     if (draft.error) return interaction.reply({ content: draft.error, ephemeral: true });
-    const { memberId, callsign, addedRoleId, removedRoleId, ccRoleId } = draft.action.data;
+    const { memberId, callsign, addedRoleId, removedRoleId, ccRoleId, sourceMessageLink } = draft.action.data;
     const member = await interaction.guild.members.fetch(memberId);
     const data = {
       memberId: member.id,
@@ -750,6 +735,7 @@ async function handleModal(interaction) {
       addedRoleId,
       removedRoleId,
       ccRoleId,
+      sourceMessageLink,
       recordType: clean(interaction.fields.getTextInputValue("record-type"), 100),
       note: normalizeMultiline(interaction.fields.getTextInputValue("note")),
       recordId: `PAB-${randomUUID().slice(0, 8).toUpperCase()}`
@@ -836,7 +822,9 @@ async function handleModal(interaction) {
 
 async function approveTraining(interaction, action) {
   const channel = await fetchChannel(config.trainingRecordsChannelId);
-  const message = await channel.send({ content: `<@${action.data.trainerId}> <@${action.data.traineeId}>`, allowedMentions: { users: [action.data.trainerId, action.data.traineeId] }, embeds: [trainingEmbed(action.data)] });
+  const roleMentions = config.pabRoleId ? [config.pabRoleId] : [];
+  const content = [`<@${action.data.trainerId}>`, `<@${action.data.traineeId}>`, ...roleMentions.map(roleId => `<@&${roleId}>`)].join(" ");
+  const message = await channel.send({ content, allowedMentions: { users: [action.data.trainerId, action.data.traineeId], roles: roleMentions }, embeds: [trainingEmbed(action.data)] });
   saveReceipt("training", interaction, action, message);
   action.committed = true;
   await audit("Training record posted", `${action.data.traineeLabel} | Trainer: ${action.data.trainerLabel} | Posted by <@${interaction.user.id}>`);
@@ -989,12 +977,13 @@ client.on(Events.InteractionCreate, async interaction => {
   let claimedAction = null;
   try {
     if (interaction.isChatInputCommand()) {
-      if (["setup-status", "pab-health", "export-audit"].includes(interaction.commandName)) {
+      if (ADMIN_COMMANDS.has(interaction.commandName)) {
         if (!isServerAdministrator(interaction.member)) return unauthorizedAdmin(interaction);
         if (interaction.commandName === "setup-status") return interaction.reply({ embeds: [setupStatusEmbed()], ephemeral: true });
         if (interaction.commandName === "pab-health") return runHealthCheck(interaction);
         if (interaction.commandName === "export-audit") return exportAudit(interaction);
       }
+      if (!PAB_COMMANDS.has(interaction.commandName)) return;
       if (!mayUsePab(interaction.member)) return unauthorized(interaction);
       if (await requiresConfiguration(interaction)) return;
       const selectedMembers = ["member", "trainer", "trainee"].map(name => interaction.options.getMember(name)).filter(Boolean);

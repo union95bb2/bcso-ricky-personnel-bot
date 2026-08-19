@@ -1,5 +1,10 @@
 import { SlashCommandBuilder } from "discord.js";
-import { TRAINING_TIME_CHOICES, TRAINING_TIME_ZONES } from "./format.js";
+import { TRAINING_DIVISION_CHOICES, TRAINING_TIME_CHOICES, TRAINING_TIME_ZONES } from "./format.js";
+
+const DATE_CHOICES = [
+  { name: "Today (prefill)", value: "today" },
+  { name: "Enter manually", value: "manual" }
+];
 
 export const commands = [
   new SlashCommandBuilder()
@@ -7,6 +12,8 @@ export const commands = [
     .setDescription("Create a formatted BCSO training record.")
     .addUserOption(option => option.setName("trainer").setDescription("The trainer who conducted the session.").setRequired(true))
     .addUserOption(option => option.setName("trainee").setDescription("The member who received training.").setRequired(true))
+    .addStringOption(option => option.setName("division").setDescription("Division or program for this training record.").setRequired(true)
+      .addChoices(...TRAINING_DIVISION_CHOICES))
     .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill, or enter a date in the form.").setRequired(true)
       .addChoices(
         { name: "Today (prefill)", value: "today" },
@@ -21,17 +28,20 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("promotion")
     .setDescription("Prepare and approve a BCSO promotion record and role update.")
-    .addUserOption(option => option.setName("member").setDescription("Member being promoted.").setRequired(true)),
+    .addUserOption(option => option.setName("member").setDescription("Member being promoted.").setRequired(true))
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
     .setName("award-role")
     .setDescription("Award an approved BCSO qualification or unit role.")
     .addUserOption(option => option.setName("member").setDescription("Member receiving the role.").setRequired(true))
-    .addRoleOption(option => option.setName("role").setDescription("Approved qualification or unit role.").setRequired(true)),
+    .addRoleOption(option => option.setName("role").setDescription("Approved qualification or unit role.").setRequired(true))
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
     .setName("remove-role")
     .setDescription("Remove an approved BCSO qualification or unit role after review.")
     .addUserOption(option => option.setName("member").setDescription("Member losing the role.").setRequired(true))
-    .addRoleOption(option => option.setName("role").setDescription("Approved qualification or unit role.").setRequired(true)),
+    .addRoleOption(option => option.setName("role").setDescription("Approved qualification or unit role.").setRequired(true))
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
     .setName("department-record")
     .setDescription("Create the approved PAB department-record format from one mobile workflow.")
@@ -39,7 +49,8 @@ export const commands = [
     .addStringOption(option => option.setName("callsign").setDescription("Member callsign, for example C-907.").setRequired(true))
     .addRoleOption(option => option.setName("added-role").setDescription("Role added, if applicable."))
     .addRoleOption(option => option.setName("removed-role").setDescription("Role removed, if applicable."))
-    .addRoleOption(option => option.setName("cc-role").setDescription("Additional role to notify, if applicable.")),
+    .addRoleOption(option => option.setName("cc-role").setDescription("Additional role to notify, if applicable."))
+    .addStringOption(option => option.setName("source-link").setDescription("Optional link to the original division record request.")),
   new SlashCommandBuilder()
     .setName("correct-record")
     .setDescription("Post an immutable PAB correction that links to an existing record.")
@@ -58,7 +69,8 @@ export const commands = [
         { name: "Return to duty", value: "Return to duty" },
         { name: "Transfer", value: "Transfer" },
         { name: "Separation", value: "Separation" }
-      )),
+      ))
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
     .setName("inactivity-review")
     .setDescription("Create a private PAB inactivity review for staff follow-up.")

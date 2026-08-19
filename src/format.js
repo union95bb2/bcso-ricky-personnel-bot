@@ -21,6 +21,16 @@ export const TRAINING_TIME_CHOICES = Array.from({ length: 24 }, (_, hour) => {
   return { name: value, value };
 });
 
+export const TRAINING_DIVISION_CHOICES = [
+  { name: "BCSO / POST Academy", value: "BCSO / POST Academy" },
+  { name: "FTO", value: "FTO" },
+  { name: "SAR", value: "SAR" },
+  { name: "SEB", value: "SEB" },
+  { name: "TED", value: "TED" },
+  { name: "DET", value: "DET" },
+  { name: "Other / see notes", value: "Other" }
+];
+
 export function resolveTrainingTimeZone(value, fallback = {}) {
   return TRAINING_TIME_ZONES.find(zone => zone.value === value) || {
     value: fallback.label || "MST",
@@ -112,4 +122,30 @@ export function splitTimeRange(value, timeZoneLabel = "") {
   const suffix = timeZoneLabel ? new RegExp(`\\s*\\(?${escapeRegExp(timeZoneLabel)}\\)?$`, "i") : null;
   const stripZone = part => clean(part, 40).replace(suffix, "").trim();
   return [normalizeClockTime(stripZone(start)), normalizeClockTime(stripZone(end))];
+}
+
+export function durationLabel(start, end) {
+  const parse = value => {
+    const match = normalizeClockTime(value).match(/^(\d+):(\d{2}) (AM|PM)$/);
+    if (!match) return null;
+    let hour = Number(match[1]) % 12;
+    if (match[3] === "PM") hour += 12;
+    return hour * 60 + Number(match[2]);
+  };
+  const startMinutes = parse(start);
+  const endMinutes = parse(end);
+  if (startMinutes === null || endMinutes === null) return "Not calculated";
+  if (startMinutes === endMinutes) return "Not calculated";
+  const minutes = (endMinutes - startMinutes + 1440) % 1440;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (!remainder) return `${hours} hour${hours === 1 ? "" : "s"}`;
+  if (!hours) return `${remainder} minutes`;
+  return `${hours}h ${remainder}m`;
+}
+
+export function parseDiscordMessageLink(value, guildId) {
+  const match = String(value || "").trim().match(/^https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)\/?$/i);
+  if (!match || match[1] !== String(guildId)) return null;
+  return { guildId: match[1], channelId: match[2], messageId: match[3], messageLink: match[0] };
 }

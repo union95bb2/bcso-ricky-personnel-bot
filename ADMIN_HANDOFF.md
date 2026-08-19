@@ -6,7 +6,7 @@ This bot is a private BCSO Personnel Administration Bureau (PAB) workflow system
 
 It can create approved-format records, use real Discord member/role mentions, manage only explicitly allow-listed qualification roles, and process a rank promotion only after Command approval. It logs a durable local receipt for every successful bot-posted record.
 
-All date-bearing forms use `MM/DD/YYYY`; inactivity review uses `MM/DD/YYYY - MM/DD/YYYY`. The training time field uses `h:mm AM/PM - h:mm AM/PM` in the configured timezone label (for example, `4:00 PM - 5:00 PM MST`). Invalid dates or times are rejected before a preview is created.
+All date-bearing forms use `MM/DD/YYYY`; promotion, role-award/removal, personnel-status, and training commands offer a **Today** prefill or manual entry; inactivity review uses `MM/DD/YYYY - MM/DD/YYYY`. The training time field uses `h:mm AM/PM - h:mm AM/PM` in the configured timezone label (for example, `4:00 PM - 5:00 PM MST`). Invalid dates or times are rejected before a preview is created, and training duration is derived from the validated range.
 
 It has no Internal Affairs case workflow, complaint intake, evidence collection, investigation, finding, sanction, disciplinary review, or staff-direct-message feature. Its separate inactivity-review workflow is a neutral PAB staff-attention record only; it creates no finding and makes no role, access, or disciplinary change. Leave, return, transfer, and separation functions create records only; they do not change roles or access.
 

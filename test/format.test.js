@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clean, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone, TRAINING_TIME_CHOICES } from "../src/format.js";
+import { clean, durationLabel, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone, TRAINING_DIVISION_CHOICES, TRAINING_TIME_CHOICES } from "../src/format.js";
 
 test("clean trims and preserves ordinary text", () => {
   assert.equal(clean("  Academy Complete  "), "Academy Complete");
@@ -47,6 +47,18 @@ test("training time dropdown choices cover one hourly day", () => {
   assert.equal(TRAINING_TIME_CHOICES[23].value, "11:00 PM");
 });
 
+test("training division choices cover the live PAB program categories", () => {
+  assert.deepEqual(TRAINING_DIVISION_CHOICES.map(choice => choice.value), ["BCSO / POST Academy", "FTO", "SAR", "SEB", "TED", "DET", "Other"]);
+});
+
+test("training duration is derived consistently from the selected range", () => {
+  assert.equal(durationLabel("4:00 PM", "5:00 PM"), "1 hour");
+  assert.equal(durationLabel("4:00 PM", "4:30 PM"), "30 minutes");
+  assert.equal(durationLabel("11:30 PM", "12:15 AM"), "45 minutes");
+  assert.equal(durationLabel("4:00 PM", "4:00 PM"), "Not calculated");
+  assert.equal(durationLabel("not a time", "5:00 PM"), "Not calculated");
+});
+
 test("dates normalize to the shared MM/DD/YYYY format", () => {
   assert.equal(normalizeDate("8/6/2026"), "08/06/2026");
   assert.equal(normalizeDate("08-06-2026"), "08/06/2026");
@@ -54,6 +66,17 @@ test("dates normalize to the shared MM/DD/YYYY format", () => {
   assert.equal(normalizeDate("02/30/2026"), "");
   assert.equal(normalizeDateRange("8/1/2026 – 8/17/2026"), "08/01/2026 - 08/17/2026");
   assert.equal(normalizeDateRange("08-01-2026 - 08-17-2026"), "08/01/2026 - 08/17/2026");
+});
+
+test("source links are restricted to the configured BCSO guild", () => {
+  assert.deepEqual(parseDiscordMessageLink("https://discord.com/channels/guild/channel/message", "guild"), null);
+  assert.deepEqual(parseDiscordMessageLink("https://discord.com/channels/1539383172536467516/123/456", "1539383172536467516"), {
+    guildId: "1539383172536467516",
+    channelId: "123",
+    messageId: "456",
+    messageLink: "https://discord.com/channels/1539383172536467516/123/456"
+  });
+  assert.equal(parseDiscordMessageLink("https://discord.com/channels/other/123/456", "1539383172536467516"), null);
 });
 
 test("times normalize to h:mm AM/PM", () => {

@@ -12,11 +12,11 @@ Read-only workflow reference captured from the visible BCSO Discord process on 2
 
 ## Training-log fields observed
 
-The live training records consistently provide a division/program, trainee name and Discord ID, trainer name, trainer rank, session duration, factual trainer feedback, pass/fail or other session result, required CC, and a signed trainer/division line. Ricky's guided training form already captures the trainer, trainee, date, time zone, training completed, outcome, notes, and signer; the division/program and duration should be added when a server adopts the division-request workflow.
+The live training records consistently provide a division/program, trainee name and Discord ID, trainer name, trainer rank, session duration, factual trainer feedback, pass/fail or other session result, required CC, and a signed trainer/division line. Ricky's guided training form now captures the trainer, trainee, division/program, date, time zone, training completed, outcome, notes, and signer; duration is derived from the validated start/end range and the PAB role is included in the final ping set.
 
 ## Ricky parity and boundary
 
-Ricky currently implements the PAB reformatting and approval surface through `/department-record`, `/training-log`, `/promotion`, `/promotion-check`, `/award-role`, `/remove-role`, and the correction/audit commands. It uses Discord member and role selectors so the target ping is generated from a real server object, and it previews before posting.
+Ricky currently implements the PAB reformatting and approval surface through `/department-record`, `/training-log`, `/promotion`, `/promotion-check`, `/award-role`, `/remove-role`, and the correction/audit commands. It uses Discord member and role selectors so the target ping is generated from a real server object, supports source-request links on department records, and previews before posting.
 
 Ricky does **not** read or copy source-message content from division request channels. That is intentional: the bot does not use Message Content Intent, and the activity ledger stores only human message IDs/timestamps in explicitly approved channels. A PAB member still enters the factual source information into the guided form. An optional source-link field can be added later if Command wants a traceable link back to the request.
 
