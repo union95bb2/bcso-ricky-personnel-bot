@@ -263,7 +263,7 @@ story += [table([
     ["PAB", "Staff allowed to submit/approve ordinary PAB workflows.", "Checked for command authorization."],
     ["Command", "Staff allowed to approve promotions.", "Required at the promotion approval step."],
     ["Actual bot/controller role", "The role assigned to Ricky that Discord uses for hierarchy.", "Must be above every rank/award role Ricky must change."],
-    ["Rank roles", "Deputy, Corporal, and every rank used by promotion.", "Only roles in RANK_ROLE_IDS are removed/replaced by promotion."],
+    ["Rank roles", "Complete BCSO matrix: DST / Deputy Sheriff Trainee, Deputy, Senior Deputy, Corporal, Sergeant, Staff Sergeant, 2nd Lieutenant, 1st Lieutenant, Captain, Major, Commander, Division Chief, Chief Deputy, Assistant Sheriff, UnderSheriff, Sheriff.", "Startup requires every canonical key in RANK_ROLE_IDS; only those roles are removed/replaced by promotion."],
     ["Qualification/unit roles", "FTO, certifications, divisions, awards.", "Only IDs in AWARDABLE_ROLE_IDS may be added/removed."],
     ["Category separators", "Visual labels only.", "Permissions 0; never assign to members or map to bot actions."],
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
@@ -412,7 +412,7 @@ story += bullets([
 story += [P("Current validation baseline", "H2Manual")]
 story += [table([
     ["Check", "Expected result"],
-    ["npm test", "37 tests passed in the current release baseline."],
+    ["npm test", "38 tests passed in the current release baseline."],
     ["npm run preflight:demo", "Demo IDs and protected credentials pass validation."],
     ["DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy", "Candidate deployment configuration passes without printing secrets."],
     ["/setup-status + /pab-health", "All IDs/channels/permissions/hierarchy ready in the target guild."],

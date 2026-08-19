@@ -39,7 +39,7 @@ The complete browser screenshot set is in [`artifacts/command-tests/`](artifacts
 
 ## Code and deployment checks
 
-- `npm test`: **37 passed**.
+- `npm test`: **38 passed**.
 - `git diff --check`: passed.
 - `npm run preflight`: intentionally reports missing live `.env` IDs; the protected `.env` is not the demo configuration. Demo readiness was verified through `/setup-status` and `/pab-health`.
 - A guild-bound interaction guard was added so an old deployment configured for another guild ignores this guild’s interactions instead of racing the active instance.
@@ -53,7 +53,7 @@ After the Discord matrix, the release gates were tightened so these conditions f
 - `npm run start:demo`: **passed** the live startup readiness gate after checking the configured guild, all destination/activity channels, required bot permissions, configured roles, and role hierarchy.
 - Startup also verified the exact 19-command guild registration, rejecting missing or stale command definitions.
 - A second simultaneous `npm run start:demo`: **refused before Discord login** by the same-volume process lock.
-- `npm test`: **37 passed** after adding renewal, birthday, and roster-comparison regression tests.
+- `npm test`: **38 passed** after adding renewal, birthday, roster-comparison, and complete-rank-matrix regression tests.
 
 ## New feature validation — 2026-08-19
 

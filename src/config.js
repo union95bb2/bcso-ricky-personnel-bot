@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { resolve } from "node:path";
+import { REQUIRED_RANK_KEYS } from "./rank-matrix.js";
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -97,6 +98,7 @@ export function configurationIssues(keys) {
     }
     if (key === "rankRoleIds") {
       for (const [rank, id] of Object.entries(value)) if (!/^\d{17,20}$/.test(id)) issues.push(`${label}.${rank} is not a valid Discord role ID`);
+      for (const rank of REQUIRED_RANK_KEYS) if (!value[rank]) issues.push(`${label}.${rank} is missing from the BCSO rank matrix`);
       continue;
     }
     if (key === "awardableRoleIds") {

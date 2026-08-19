@@ -85,12 +85,8 @@ These names are based on the visible live BCSO layout and remain TEST ONLY place
 
 ## 3) Role map to mirror permissions behavior
 
-- Create these in addition to the existing test structure:
-  - `PAB`
-  - `Command`
-  - `Deputy`
-  - `Corporal`
-  - `Test FTO`
+- Preserve the full BCSO rank matrix in the sandbox: `DST` / `Deputy Sheriff Trainee`, `Deputy`, `Senior Deputy`, `Corporal`, `Sergeant`, `Staff Sergeant`, `2nd Lieutenant`, `1st Lieutenant`, `Captain`, `Major`, `Commander`, `Division Chief`, `Chief Deputy`, `Assistant Sheriff`, `UnderSheriff`, and `Sheriff`.
+- Keep these workflow-only roles separate: `PAB`, `Command`, and `Test FTO`.
 - Keep the bot's actual assigned highest role above `Deputy`, `Corporal`, and any role it may manage in hierarchy checks. Confirm the name in `/pab-health` rather than assuming it is `Ricky Controller`.
 - In the current demo, `Test FTO` (`1539385272255520900`) is the only role in `AWARDABLE_ROLE_IDS`. Selecting PAB, Command, Deputy, Corporal, or the bot/integration role is intentionally rejected.
 

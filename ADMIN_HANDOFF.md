@@ -64,10 +64,10 @@ Use normal text channels for first deployment. Forum/thread routing can be intro
 4. Protect `.env` and `data/` so only the bot host administrator can read them. Never send the bot token in Discord.
 5. Run `npm run preflight:deploy`. It reports missing or malformed IDs without exposing secrets and checks the cutover host for duplicate Ricky containers. Use `npm run preflight:demo` for the TEST ONLY configuration.
 
-`RANK_ROLE_IDS` is a JSON object. It must contain every rank that the bot is allowed to remove during promotion:
+`RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky manages during promotion, including DST / Deputy Sheriff Trainee:
 
 ```env
-RANK_ROLE_IDS={"Deputy":"123456789012345678","Senior Deputy":"234567890123456789","Corporal":"345678901234567890"}
+RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","2nd Lieutenant":"789012345678901234","1st Lieutenant":"890123456789012345","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
 ```
 
 `AWARDABLE_ROLE_IDS` is a comma-separated allow-list of non-rank unit/certification roles only.

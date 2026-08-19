@@ -72,10 +72,10 @@ When the protected `.env` contains Ricky's token and client ID, start that prese
 
 ## Required configuration
 
-`RANK_ROLE_IDS` is the guardrail for role updates. Use exact rank names as you want PAB to type in the promotion form:
+`RANK_ROLE_IDS` is the guardrail for role updates. Ricky now validates the complete BCSO rank matrix, including `DST` (Deputy Sheriff Trainee), before startup:
 
 ```env
-RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901"}
+RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","2nd Lieutenant":"789012345678901234","1st Lieutenant":"890123456789012345","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
 ```
 
 The bot removes only roles listed in this map. It will leave qualifications, units, PAB, FTO, and other non-rank roles alone.
