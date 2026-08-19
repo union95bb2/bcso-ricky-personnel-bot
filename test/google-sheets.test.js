@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
 import { compareRosterRows, GoogleRosterSheet } from "../src/google-sheets.js";
 
 function member(id, roles = []) {
@@ -42,4 +43,19 @@ test("disabled Google roster staging cannot read even when an ID is preloaded", 
   assert.equal(sheet.status().enabled, false);
   await assert.rejects(sheet.rows(), /Google Sheets is not configured/);
   assert.equal(fetchCalls, 0);
+});
+
+test("Google sheet row parsing preserves zero-valued evidence", async () => {
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const sheet = new GoogleRosterSheet({
+    enabled: true,
+    spreadsheetId: "sheet",
+    serviceAccountJson: JSON.stringify({ client_email: "bot@example.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }) }),
+    fetchImpl: async (url) => {
+      if (url.includes("oauth2.googleapis.com")) return { ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) };
+      return { ok: true, json: async () => ({ values: [["discord_id", "reports"], ["1", 0]] }) };
+    }
+  });
+  const rows = await sheet.rows();
+  assert.deepEqual(rows, [{ discord_id: "1", reports: "0" }]);
 });

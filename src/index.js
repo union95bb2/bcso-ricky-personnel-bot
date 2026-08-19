@@ -22,6 +22,7 @@ import { PabStore } from "./store.js";
 import { ADMIN_COMMANDS, PAB_COMMANDS, SELF_SERVICE_COMMANDS, WORKFLOW_CHANNELS, WORKFLOW_REQUIREMENTS } from "./workflow-spec.js";
 import { acquireProcessLock } from "./process-lock.js";
 import { GoogleRosterSheet, compareRosterRows } from "./google-sheets.js";
+import { evaluatePromotionEligibility, promotionEligibilityLines } from "./promotion-eligibility.js";
 import { logError } from "./logger.js";
 import { memberThreadName, sendRecord } from "./record-destinations.js";
 
@@ -32,6 +33,12 @@ const rosterSheet = new GoogleRosterSheet({
   enabled: config.googleSheetsEnabled,
   spreadsheetId: config.googleSheetsSpreadsheetId,
   range: config.googleSheetsRange,
+  serviceAccountJson: config.googleSheetsServiceAccountJson
+});
+const promotionTestsSheet = new GoogleRosterSheet({
+  enabled: config.googlePromotionTestsEnabled,
+  spreadsheetId: config.googlePromotionTestsSpreadsheetId,
+  range: config.googlePromotionTestsRange,
   serviceAccountJson: config.googleSheetsServiceAccountJson
 });
 let releaseProcessLock;
@@ -321,14 +328,16 @@ function recordEmbed(title, color, fields, footer = "Ricky PAB") {
 }
 
 function promotionCheckEmbed(data, title = "BCSO Promotion Eligibility Check") {
-  return recordEmbed(title, BLUE, [
+  const fields = [
     { name: "Member", value: data.memberLabel, inline: false },
     { name: "Rank under review", value: data.rank, inline: true },
     { name: "Requested rank", value: data.requestedRank, inline: true },
     { name: "Eligibility summary", value: data.eligibility, inline: false },
     { name: "Supporting reference", value: data.reference, inline: false },
     { name: "PAB recommendation", value: data.recommendation, inline: false }
-    ], "Ricky PAB — This is not promotion approval");
+  ];
+  if (data.googleEligibility) fields.push({ name: "Google promotion evaluation (read-only)", value: clean(data.googleEligibility.join("\n"), 1024), inline: false });
+  return recordEmbed(title, BLUE, fields, "Ricky PAB — This is not promotion approval");
 }
 
 function statusEmbed(data, title = "BCSO Personnel Status Record") {
@@ -802,7 +811,7 @@ async function runHealthCheck(interaction) {
       { name: "Configuration", value: missing.length ? `Missing: ${missing.join(", ")}` : "All required IDs and allow-lists are present.", inline: false },
       { name: "Bot permissions", value: botPermissions, inline: false },
       { name: "Channels", value: clean(channelChecks.join("\n"), 1024), inline: false },
-      { name: "Optional integrations", value: `Birthday notices: ${config.birthdayChannelId ? "configured" : "disabled"}\nService milestones: ${config.serviceMilestonesChannelId ? "configured" : "disabled"}\nGoogle roster comparison: ${config.googleSheetsEnabled ? (rosterSheet.configured ? "enabled/configured" : "enabled/incomplete") : (config.googleSheetsSpreadsheetId ? "staged (disabled)" : "disabled")}`, inline: false },
+      { name: "Optional integrations", value: `Birthday notices: ${config.birthdayChannelId ? "configured" : "disabled"}\nService milestones: ${config.serviceMilestonesChannelId ? "configured" : "disabled"}\nGoogle roster comparison: ${config.googleSheetsEnabled ? (rosterSheet.configured ? "enabled/configured" : "enabled/incomplete") : (config.googleSheetsSpreadsheetId ? "staged (disabled)" : "disabled")}\nGoogle promotion evaluation: ${config.googlePromotionTestsEnabled ? (promotionTestsSheet.configured ? "enabled/configured" : "enabled/incomplete") : (config.googlePromotionTestsSpreadsheetId ? "staged (disabled)" : "disabled")}`, inline: false },
       { name: "Role hierarchy", value: clean(`${hierarchySummary}\n\n${roleChecks.join("\n") || "No rank/award roles configured yet."}`, 1024), inline: false }
     ], "Read-only check — no settings, roles, or messages were changed")]
   });
@@ -1084,14 +1093,33 @@ async function handleModal(interaction) {
     const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "promotion-check-draft" ? null : "This form expired. Run the command again.");
     if (draft.error) return modalReply(interaction, { content: draft.error });
     const member = await interaction.guild.members.fetch(draft.action.data.memberId);
+    const rank = clean(interaction.fields.getTextInputValue("rank"), 80);
+    const requestedRank = clean(interaction.fields.getTextInputValue("requested-rank"), 80);
+    let googleEligibility;
+    if (!config.googlePromotionTestsEnabled) {
+      googleEligibility = ["Google promotion evaluation: staged/disabled. No sheet was read."];
+    } else if (!promotionTestsSheet.configured) {
+      googleEligibility = ["Google promotion evaluation: enabled but not configured. Set the protected spreadsheet ID and service-account JSON."];
+    } else {
+      try {
+        const [promotionRows, rosterRows] = await Promise.all([
+          promotionTestsSheet.rows(),
+          rosterSheet.configured ? rosterSheet.rows() : Promise.resolve([])
+        ]);
+        googleEligibility = promotionEligibilityLines(evaluatePromotionEligibility({ rows: promotionRows, rosterRows, member, memberRank: rankNameForMember(member), currentRank: rank, requestedRank }));
+      } catch (error) {
+        googleEligibility = [`Google promotion evaluation could not be read: ${error instanceof Error ? error.message : "unknown error"}`];
+      }
+    }
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
-      rank: clean(interaction.fields.getTextInputValue("rank"), 80),
-      requestedRank: clean(interaction.fields.getTextInputValue("requested-rank"), 80),
+      rank,
+      requestedRank,
       eligibility: normalizeMultiline(interaction.fields.getTextInputValue("eligibility")),
       reference: normalizeMultiline(interaction.fields.getTextInputValue("reference")),
-      recommendation: normalizeMultiline(interaction.fields.getTextInputValue("recommendation"))
+      recommendation: normalizeMultiline(interaction.fields.getTextInputValue("recommendation")),
+      googleEligibility
     };
     const id = pending.create({ type: "promotion-check", createdBy: interaction.user.id, data });
     const embed = promotionCheckEmbed(data, "Preview — BCSO Promotion Eligibility Check");

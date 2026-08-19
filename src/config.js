@@ -55,6 +55,9 @@ export const config = {
   googleSheetsSpreadsheetId: optional("GOOGLE_SHEETS_SPREADSHEET_ID"),
   googleSheetsRange: process.env.GOOGLE_SHEETS_RANGE?.trim() || "Roster!A:Z",
   googleSheetsServiceAccountJson: optional("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON"),
+  googlePromotionTestsEnabled: process.env.GOOGLE_PROMOTION_TESTS_ENABLED?.trim().toLowerCase() === "true",
+  googlePromotionTestsSpreadsheetId: optional("GOOGLE_PROMOTION_TESTS_SPREADSHEET_ID"),
+  googlePromotionTestsRange: process.env.GOOGLE_PROMOTION_TESTS_RANGE?.trim() || "'BCSO Promotion Evaluation Roster'!A:Z",
   brandEmoji: process.env.BCSO_BRAND_EMOJI?.trim() || "",
   dataPath: resolve(process.env.PAB_DATA_PATH?.trim() || "data/pab.sqlite")
 };

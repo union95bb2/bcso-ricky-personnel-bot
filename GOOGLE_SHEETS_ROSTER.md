@@ -42,3 +42,30 @@ GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON={...service account JSON...}
 6. A server administrator runs `/roster-sync` and reviews the report with PAB/Command.
 
 The service account uses the read-only Sheets scope. A public link alone does not give Ricky Bot an identity; protected service-account JSON is still required when the integration is enabled. If the roster is wrong, correct the authoritative roster and/or Discord through the normal human workflow; Ricky Bot will not turn a spreadsheet discrepancy into an automatic role change.
+
+## Promotion-evaluation evidence
+
+`/promotion-check` can also read a separate promotion-evaluation sheet and place a compact evidence summary in the private PAB preview. This is an advisory answer, not an approval: PAB and Command still review the record, and Ricky Bot never changes a role because a row says `Eligible` or `Pending`.
+
+The supplied evaluation sheet uses these columns (the long title in column A is accepted as the employee/deputy field):
+
+| Header | Purpose |
+| --- | --- |
+| Employee / Deputy | Match by Discord ID when present, otherwise callsign or name. Values such as `(C-110) W. Dorfman` are supported. |
+| `Current Rank` | Compared with the rank entered in the review form. |
+| `Rank Sought` | Compared with the requested rank and the configured next-rank sequence. |
+| `Hours of Service` | Displayed as evidence only; no minimum is invented by Ricky. |
+| `Reports Made ...` | Displayed as activity evidence only. |
+| `Disciplinary Actions` and `Disciplinary Details / Date` | A value other than `None`/`No` is flagged for human review. This is not an IA or discipline decision. |
+| `PAB Recommendation` | `Pending`/blank remains human review; explicit positive or negative wording is shown as evidence. |
+| `Supervisor Comments` | Displayed as a reference when present. |
+
+Prepare the second source with protected variables (the service-account JSON is shared with the roster source):
+
+```text
+GOOGLE_PROMOTION_TESTS_ENABLED=false
+GOOGLE_PROMOTION_TESTS_SPREADSHEET_ID=the-promotion-evaluation-sheet-id
+GOOGLE_PROMOTION_TESTS_RANGE='BCSO Promotion Evaluation Roster'!A:Z
+```
+
+Keep the flag `false` while preparing. When the owner is ready, share both sheets with the service-account email, set the flag to `true`, restart Ricky Bot, and run `/promotion-check`. The preview will say whether the row was found, whether ranks align, whether the requested rank is the next configured rank, and whether the sheet still needs PAB review. A missing or stale row never blocks a human from documenting a review; it is reported as missing evidence instead.

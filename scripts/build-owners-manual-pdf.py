@@ -218,7 +218,7 @@ cmd_rows = [
     ["/personnel-history", "PAB", "Indexed member history with direct links to up to 50 bot-posted records.", "No"],
     ["/training-log", "PAB", "Guided trainer/trainee/division/date/time-zone/time form; preview then post.", "No"],
     ["/department-record", "PAB", "Branded department record with callsign, optional role fields, CC, and source link.", "No"],
-    ["/promotion-check", "PAB", "Documents a human eligibility review in private PAB queue; not approval.", "No"],
+    ["/promotion-check", "PAB", "Documents a human eligibility review; optionally adds a read-only Google promotion-evaluation row/rank/evidence comparison. Not approval.", "No"],
     ["/promotion", "PAB then Command", "Creates promotion request; Command approval is the role-change control point.", "Only after Command approval"],
     ["/award-role", "PAB", "Adds one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
     ["/remove-role", "PAB", "Removes one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
@@ -320,8 +320,8 @@ story += bullets([
     "Every request pings the PAB role. Promotions use two gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])
-story += [P("Google Sheet roster comparison", "H2Manual")]
-story += [P("Configure a Viewer-only service account, spreadsheet ID, and range, share the sheet with that service-account email, and leave GOOGLE_SHEETS_ENABLED=false while preparing the mapping. When the server owner is ready, set it to true, restart Ricky Bot, and use /roster-sync as a server administrator. The expected header row includes discord_id and may include callsign, display_name, rank, role, and status. See GOOGLE_SHEETS_ROSTER.md for the exact setup. Ricky Bot reports differences for human review and never changes a Discord role from spreadsheet data.")]
+story += [P("Google Sheet comparison and promotion evidence", "H2Manual")]
+story += [P("Configure a Viewer-only service account, spreadsheet IDs, and ranges, share both sheets with that service-account email, and leave GOOGLE_SHEETS_ENABLED=false and GOOGLE_PROMOTION_TESTS_ENABLED=false while preparing. When the server owner is ready, enable one or both flags, restart Ricky Bot, and run /roster-sync or /promotion-check. The roster source expects discord_id and may include callsign, display_name, rank, role, and status. The promotion-evaluation source accepts the supplied BCSO sheet's Employee / Deputy, Current Rank, Rank Sought, Hours of Service, Reports Made, Disciplinary Actions, PAB Recommendation, and Supervisor Comments columns. Ricky matches by Discord ID, callsign, or name, reports rank sequence and evidence status, and never changes a Discord role or makes an IA/discipline decision from spreadsheet data. See GOOGLE_SHEETS_ROSTER.md for exact variables and columns.")]
 
 # 7 setup
 story += [PageBreak(), P("7. Installation and configuration", "H1Manual")]
@@ -383,6 +383,7 @@ trouble_rows = [
     ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again."],
     ["Preview already being processed", "The single-use approval was already claimed or the UI is stale.", "Refresh the PAB queue, verify the destination receipt, and do not approve the same preview again."],
     ["Google roster comparison failed", "The sheet is not configured, inaccessible, or not shared with the service account.", "Set the protected Google variables, share the sheet with the service-account email, verify the range, and rerun /roster-sync."],
+    ["Promotion evaluation says staged, missing, or pending", "The optional promotion sheet is disabled, not shared/configured, or its PAB recommendation is not final.", "Set GOOGLE_PROMOTION_TESTS_ENABLED=true only after sharing the sheet and setting the protected ID/range. Treat missing, Pending, or non-clear evidence as human PAB review; Ricky never approves from the sheet."],
     ["Something went wrong in a form", "Discord did not receive an acknowledgement, the bot stopped, or a network/permission error occurred.", "Retry once, then inspect structured process logs. Ricky should return a specific validation or permission message; verify the bot is online and run /pab-health."],
     ["Commands missing or stale", "Guild registration was not run after a command change.", "Run the target guild register command, then restart through the release gate."],
     ["Second process refuses to start", "The process lock is working.", "Stop the old instance cleanly; never run two Ricky Bot processes for one token/guild."],
@@ -399,6 +400,7 @@ story += bullets([
     "Unapproved previews expire after PENDING_ACTION_TTL_MINUTES, reminders are deduplicated, and expired rows are eventually purged. Renewing never bypasses final permission or hierarchy checks.",
     "Opt-in birthday data stores month/day only. Delivery markers prevent duplicate annual notices.",
     "Google Sheets credentials are read-only and belong only in the protected host environment; the service-account JSON must never be committed.",
+    "Promotion-evaluation evidence is advisory. Hours, reports, discipline fields, and PAB recommendation are displayed for PAB review; Ricky does not turn them into an IA finding, disciplinary action, approval, or role change.",
     "Activity tracking stores member ID, timestamp, source channel, and source event ID. It does not store message content and is limited to ACTIVITY_CHANNEL_IDS.",
     "The bot does not import IA, complaint, discipline, personnel-jacket, or historical roster data.",
     "Use Docker or a supervised process with one persistent data directory. Back up the SQLite file under the approved personnel-record procedure.",
@@ -439,7 +441,7 @@ story += [P("Use /inactivity-review for neutral staff follow-up. Leave last-know
 story += [P("Correction", "H2Manual")]
 story += [P("Copy Message Link from the original, run /correct-record, state the factual correction, approve, and preserve the original record.")]
 story += [P("Admin diagnostics", "H2Manual")]
-story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup. /roster-sync = read-only Google comparison. /my-birthday and /remove-birthday = member-controlled opt-in.")]
+story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup. /roster-sync = read-only Google comparison. /promotion-check = human review plus optional read-only promotion-evaluation evidence. /my-birthday and /remove-birthday = member-controlled opt-in.")]
 story += [Spacer(1, 0.2 * inch), HRFlowable(width="100%", thickness=1, color=GOLD), Spacer(1, 0.1 * inch)]
 story += [P("This document is an operating manual for Ricky Bot. Server-specific policy, retention, role names, and authorization decisions remain under the server owner's control.", "SmallManual")]
 

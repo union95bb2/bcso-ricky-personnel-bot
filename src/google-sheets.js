@@ -84,7 +84,9 @@ export class GoogleRosterSheet {
     const values = Array.isArray(payload.values) ? payload.values : [];
     if (!values.length) return [];
     const headers = values[0].map(value => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_"));
-    return values.slice(1).filter(row => row.some(value => String(value || "").trim())).map(row => Object.fromEntries(headers.map((header, index) => [header, String(row[index] || "").trim()])));
+    return values.slice(1)
+      .filter(row => row.some(value => String(value ?? "").trim()))
+      .map(row => Object.fromEntries(headers.map((header, index) => [header, String(row[index] ?? "").trim()])));
   }
 }
 
