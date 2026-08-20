@@ -10,6 +10,14 @@ const webRoot = join(root, "web", "rms");
 const mime = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml" };
 
 function csvSet(value) { return new Set(String(value || "").split(",").map(item => item.trim()).filter(Boolean)); }
+function roleMap(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return Object.fromEntries(Object.entries(parsed).map(([name, id]) => [name, String(id)]));
+  } catch {
+    return {};
+  }
+}
 function hash(value) { return createHash("sha256").update(value).digest("hex"); }
 function token() { return randomBytes(32).toString("base64url"); }
 function cookies(request) { return Object.fromEntries((request.headers.cookie || "").split(";").map(part => part.trim().split("=")).filter(pair => pair.length === 2).map(([key, ...rest]) => [key, decodeURIComponent(rest.join("="))])); }
@@ -45,6 +53,7 @@ function configFromEnv(env = process.env) {
     pabRoleId: env.PAB_ROLE_ID || "",
     commandRoleId: env.COMMAND_ROLE_ID || "",
     adminRoleIds: csvSet(env.RMS_ADMIN_ROLE_IDS),
+    rankRoleIds: roleMap(env.RANK_ROLE_IDS),
     devLogin: env.RMS_DEV_LOGIN === "true"
   };
 }
@@ -99,6 +108,39 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
     return "member";
   }
 
+  function callsignFromLabel(value) {
+    const match = String(value || "").match(/\bC-?\d{1,4}\b/i);
+    return match ? match[0].replace(/^C(?=\d)/i, "C-").toUpperCase() : null;
+  }
+
+  function rankFromRoles(roles) {
+    const roleSet = new Set(roles || []);
+    return Object.entries(config.rankRoleIds || {}).find(([, id]) => roleSet.has(id))?.[0] || null;
+  }
+
+  async function syncRoster(account) {
+    const members = await discordFetch(`/guilds/${config.guildId}/members?limit=1000`);
+    let count = 0;
+    for (const guildMember of members) {
+      if (guildMember.user?.bot) continue;
+      const user = guildMember.user || {};
+      const displayName = guildMember.nick || user.global_name || user.username || user.id;
+      store.upsertMember({
+        guildId: account.guildId,
+        discordId: user.id,
+        callsign: callsignFromLabel(guildMember.nick || displayName),
+        displayName,
+        rank: rankFromRoles(guildMember.roles),
+        status: "active",
+        joinedAt: guildMember.joined_at ? Date.parse(guildMember.joined_at) : null,
+        source: "discord-sync"
+      });
+      count += 1;
+    }
+    const auditId = store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "roster_sync", entityType: "guild", entityId: account.guildId, metadata: { count, source: "discord" } });
+    return { count, auditId };
+  }
+
   function authorized(request, response, required = "member") {
     const account = accountFor(request);
     if (!account) { jsonResponse(response, 401, { error: "Sign in with Discord to use the RMS." }); return null; }
@@ -139,6 +181,11 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       return textResponse(response, 302, "", { location: "/" });
     }
     if (url.pathname === "/api/health") return jsonResponse(response, 200, { ok: true, service: "Ricky RMS", time: new Date().toISOString() });
+    if (url.pathname === "/api/sync" && request.method === "POST") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      try { return jsonResponse(response, 200, await syncRoster(account)); } catch (error) { return jsonResponse(response, 502, { error: `Discord roster sync failed: ${error instanceof Error ? error.message : "unknown error"}` }); }
+    }
     if (url.pathname === "/api/summary") {
       const account = authorized(request, response, "pab");
       if (!account) return;

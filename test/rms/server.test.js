@@ -52,3 +52,27 @@ test("RMS PAB API supports personnel, records, and summary workflows", async () 
   assert.equal(JSON.parse(records.body).records[0].member.callsign, "C-907");
   app.store.close();
 });
+
+test("RMS Discord roster sync imports human members and maps rank roles", async () => {
+  const store = new RmsStore(":memory:");
+  const app = createRmsServer({
+    config: { guildId: "g", clientId: "c", clientSecret: "s", botToken: "b", redirectUri: "http://localhost/auth/callback", sessionSecret: "secret", port: 0, bind: "127.0.0.1", dataPath: ":memory:", pabRoleId: "pab", commandRoleId: "command", adminRoleIds: new Set(), rankRoleIds: { "Deputy Sheriff Trainee": "rank-dst" } },
+    store,
+    fetchImpl: async url => ({ ok: true, json: async () => url.includes("/members?") ? [
+      { user: { id: "u1", username: "tyler", global_name: "Tyler M", bot: false }, nick: "C-907 | Tyler M", roles: ["rank-dst"], joined_at: "2026-08-01T00:00:00.000Z" },
+      { user: { id: "bot", username: "ricky", bot: true }, nick: "Ricky", roles: [], joined_at: "2026-08-01T00:00:00.000Z" }
+    ] : [] })
+  });
+  const account = store.upsertAccount({ guildId: "g", discordId: "actor", accessLevel: "pab" });
+  const rawSession = "session-token";
+  store.createSession(createHash("sha256").update(`secret:${rawSession}`).digest("hex"), account.id, Date.now() + 60_000);
+  const response = responseMock();
+  await app.handleRequest(request("/api/sync", { method: "POST", cookie: rawSession, body: {} }), response);
+  assert.equal(response.status, 200);
+  assert.equal(JSON.parse(response.body).count, 1);
+  const member = store.memberByDiscordId("g", "u1");
+  assert.equal(member.callsign, "C-907");
+  assert.equal(member.rank, "Deputy Sheriff Trainee");
+  assert.equal(store.auditTrail("g", 10)[0].action, "roster_sync");
+  app.store.close();
+});

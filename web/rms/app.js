@@ -67,6 +67,27 @@ async function loadMembers() {
   try { const data = await api(`/api/members?q=${encodeURIComponent($("member-search").value)}&limit=100`); renderMembers(data.members); } catch (error) { showError(error); }
 }
 
+async function syncRoster() {
+  if (!isPab()) return;
+  const button = $("sync-roster-button");
+  button.disabled = true;
+  button.textContent = "Syncing…";
+  clearError();
+  try {
+    const result = await api("/api/sync", { method: "POST", body: "{}" });
+    button.textContent = `Synced ${result.count} members`;
+    await loadMembers();
+    await loadSummary();
+    window.setTimeout(() => { button.textContent = "Sync Discord roster"; }, 2500);
+  } catch (error) {
+    button.textContent = "Sync failed";
+    showError(error);
+    window.setTimeout(() => { button.textContent = "Sync Discord roster"; }, 2500);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function openMember(id) {
   clearError();
   try {
@@ -139,7 +160,7 @@ async function boot() {
     $("identity").textContent = data.member ? `${data.member.callsign || "No callsign"} · ${data.member.displayName}` : `Discord member ${data.account.discordId}`;
     $("access-level").textContent = data.account.accessLevel.toUpperCase();
     if (!isPab()) { document.querySelectorAll("[data-pab-only]").forEach(node => node.classList.add("hidden")); }
-    $("new-member-button").classList.toggle("hidden", !isPab()); $("new-record-button").classList.toggle("hidden", !isPab());
+    $("new-member-button").classList.toggle("hidden", !isPab()); $("new-record-button").classList.toggle("hidden", !isPab()); $("sync-roster-button").classList.toggle("hidden", !isPab());
     await loadSummary();
     await loadMembers();
     showView("home");
@@ -151,6 +172,7 @@ $("member-search").addEventListener("input", () => { clearTimeout(searchTimer); 
 $("member-status-filter").addEventListener("change", () => renderMembers(currentMembers));
 $("record-type-filter").addEventListener("change", loadRecords); $("record-status-filter").addEventListener("change", loadRecords); $("refresh-records").addEventListener("click", loadRecords);
 $("refresh-approvals").addEventListener("click", loadApprovals); $("refresh-audit").addEventListener("click", loadAudit);
+$("sync-roster-button").addEventListener("click", syncRoster);
 $("new-member-button").addEventListener("click", () => openForm("member-form-panel")); $("new-record-button").addEventListener("click", () => { $("record-form").elements.effectiveDate.value = today(); openForm("record-form-panel"); });
 $("close-member").addEventListener("click", () => $("member-panel").classList.add("hidden")); document.querySelectorAll(".close-form").forEach(button => button.addEventListener("click", closeForms));
 $("member-form").addEventListener("submit", saveMember); $("record-form").addEventListener("submit", saveRecord);

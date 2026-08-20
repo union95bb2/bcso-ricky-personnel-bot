@@ -19,6 +19,7 @@ button { cursor: pointer; }
 .site-wrap { max-width: 1160px; min-height: 100vh; margin: 20px auto 0; background: #eef1f3; border: 1px solid #7e919f; box-shadow: 0 2px 9px #26384466; }
 .masthead { min-height: 88px; padding: 15px 23px; display: flex; align-items: center; gap: 13px; color: #fff; background: linear-gradient(#477ca6 0, #2c608b 45%, #173a5b 100%); border-bottom: 1px solid #102a43; box-shadow: inset 0 1px #88aac3, 0 2px 4px #1c354a66; }
 .agency-mark { width: 52px; height: 52px; display: grid; place-content: center; text-align: center; border: 2px solid #edcf8f; border-radius: 7px; color: #f7dfaa; background: linear-gradient(#305f83, #102f4b); box-shadow: inset 0 1px #a4c3d8, 0 1px 2px #112b42; font-size: 12px; font-weight: 700; letter-spacing: .08em; line-height: 1; }
+.agency-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .agency-mark span { display: block; margin-top: 2px; color: #fff; font-size: 11px; }
 .masthead-copy { flex: 1; }
 .agency-name { color: #e1ebf2; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; text-shadow: 0 1px #173a5b; }
@@ -50,6 +51,7 @@ p { margin: 0 0 11px; }
 .user-strip #identity { flex: 1; color: #fff; font-weight: 700; }
 .user-strip .gov-button { color: #e9f1f6; background: linear-gradient(#547794, #2d516b); border-color: #94acbb; text-shadow: 0 1px #29455b; }
 .page-heading { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin: 5px 0 17px; }
+.heading-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
 .page-heading p { color: var(--muted); }
 .last-refresh { color: var(--muted); font-size: 11px; }
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -105,7 +107,7 @@ footer { padding: 14px 25px 20px; color: var(--muted); border-top: 1px solid var
 body { background: #e8e5dc; }
 .site-wrap { max-width: 1040px; margin-top: 0; background: #f0efe9; }
 .masthead { min-height: 126px; padding: 20px 30px 32px; align-items: flex-start; background: linear-gradient(110deg, #06345f 0%, #0b5589 58%, #0a3965 100%); border-bottom: 0; box-shadow: inset 0 1px #4f87ae, 0 2px 3px #1a344a80; }
-.agency-mark { width: 66px; height: 66px; margin-top: 3px; border-radius: 50%; background: linear-gradient(#2d719e, #0a355a); font-size: 14px; }
+.agency-mark { width: 66px; height: 66px; margin-top: 3px; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; font-size: 14px; overflow: hidden; }
 .masthead-copy { padding-top: 1px; }
 .agency-name { font-size: 15px; text-transform: none; letter-spacing: 0; }
 .masthead h1 { margin: -1px 0 0; font: 32px Georgia, "Times New Roman", serif; letter-spacing: -.02em; }

@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BCSO Personnel Records System</title>
-  <link rel="stylesheet" href="/styles.css?v=79b83e1">
+  <link rel="stylesheet" href="/styles.css?v=roster-sync-1">
 </head>
 <body>
   <div class="site-wrap">
     <header class="masthead">
-      <div class="agency-mark" aria-label="Blaine County Sheriff's Office">BCSO<span>★</span></div>
+      <div class="agency-mark" aria-label="BCSO Personnel Administration Bureau"><img src="/bcso-pab-badge.png" alt="BCSO PAB badge"></div>
       <div class="masthead-copy">
         <div class="agency-name">Blaine County Sheriff's Office</div>
         <h1>Personnel Records System</h1>
-        <div class="masthead-subtitle">Ricky RMS · Personnel Administration Bureau · Internal use only</div>
+        <div class="masthead-subtitle">Personnel Administration Bureau · Ricky RMS · Internal use only</div>
       </div>
       <div class="system-id">SYSTEM RMS-01<br><span>AUTHORIZED ACCESS</span></div>
     </header>
@@ -70,7 +70,7 @@
         </div>
 
         <div id="view-directory" class="view hidden">
-          <div class="page-heading"><div><div class="section-kicker">RMS-02 / PERSONNEL</div><h2>Personnel directory</h2><p>Search by callsign, name, or Discord member ID. Select a row to open the personnel jacket.</p></div><button id="new-member-button" class="gov-button primary">Add personnel</button></div>
+          <div class="page-heading"><div><div class="section-kicker">RMS-02 / PERSONNEL</div><h2>Personnel directory</h2><p>Search by callsign, name, or Discord member ID. Select a row to open the personnel jacket.</p></div><div class="heading-actions"><button id="sync-roster-button" class="gov-button">Sync Discord roster</button><button id="new-member-button" class="gov-button primary">Add personnel</button></div></div>
           <section class="gov-panel"><div class="toolbar"><label for="member-search">Search directory</label><input id="member-search" class="gov-input" placeholder="C-110, Dorfman, or Discord ID" autocomplete="off"><select id="member-status-filter" class="gov-input"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="leave">Leave</option><option value="separated">Separated</option></select></div><div id="member-results" class="table-wrap"><p class="muted">Enter a search term.</p></div></section>
         </div>
 
@@ -97,6 +97,6 @@
     </main>
     <footer>BCSO Personnel Administration Bureau · RMS-01 · Use of this system is logged</footer>
   </div>
-  <script src="/app.js?v=79b83e1"></script>
+  <script src="/app.js?v=roster-sync-1"></script>
 </body>
 </html>
