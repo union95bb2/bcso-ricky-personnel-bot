@@ -79,6 +79,25 @@ test("RMS PAB API supports personnel, records, and summary workflows", async () 
   app.store.close();
 });
 
+test("RMS exposes PAB-only inactivity review and record search", async () => {
+  const store = new RmsStore(":memory:");
+  const app = createRmsServer({ config: { guildId: "g", clientId: "c", clientSecret: "s", botToken: "b", redirectUri: "http://localhost/auth/callback", sessionSecret: "secret", port: 0, bind: "127.0.0.1", dataPath: ":memory:", pabRoleId: "pab", commandRoleId: "command", adminRoleIds: new Set() }, store, fetchImpl: async () => { throw new Error("network should not be called"); } });
+  const account = store.upsertAccount({ guildId: "g", discordId: "actor", accessLevel: "pab" });
+  const inactive = store.upsertMember({ guildId: "g", discordId: "u1", callsign: "C-907", displayName: "Tyler M", status: "inactive" });
+  store.createRecord({ guildId: "g", memberId: inactive.id, recordType: "training", effectiveDate: "2026-08-01", createdBy: "actor", data: { summary: "Last classroom" } });
+  const rawSession = "session-token";
+  store.createSession(createHash("sha256").update(`secret:${rawSession}`).digest("hex"), account.id, Date.now() + 60_000);
+  const search = responseMock();
+  await app.handleRequest(request("/api/records?q=classroom", { cookie: rawSession }), search);
+  assert.equal(search.status, 200);
+  assert.equal(JSON.parse(search.body).records.length, 1);
+  const inactivity = responseMock();
+  await app.handleRequest(request("/api/inactivity", { cookie: rawSession }), inactivity);
+  assert.equal(inactivity.status, 200);
+  assert.equal(JSON.parse(inactivity.body).reviews[0].member.callsign, "C-907");
+  app.store.close();
+});
+
 test("RMS Discord roster sync imports human members and maps rank roles", async () => {
   const store = new RmsStore(":memory:");
   const app = createRmsServer({

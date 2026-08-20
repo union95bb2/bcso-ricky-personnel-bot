@@ -82,6 +82,7 @@ p { margin: 0 0 11px; }
 .status { display: inline-block; padding: 2px 5px; border: 1px solid currentColor; border-radius: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
 .status-finalized, .status-active, .status-approved { color: var(--green); }
 .status-draft, .status-leave { color: #87631b; }
+.status-inactive { color: #87631b; }
 .status-void, .status-rejected, .status-separated { color: var(--red); }
 .mono { font-family: Consolas, "Courier New", monospace; font-size: 10px; }
 .muted { color: var(--muted); }
@@ -110,10 +111,12 @@ p { margin: 0 0 11px; }
 .error-title { margin-bottom: 3px; font-weight: 700; }
 .error-reference { margin-top: 4px; color: var(--muted); font: 10px Consolas, "Courier New", monospace; }
 .error #retry-request { position: absolute; top: 17px; right: 17px; }
+.approval-countdown { color: var(--green); font-size: 10px; }
+.approval-countdown.expired { color: var(--red); font-weight: 700; }
 footer { padding: 14px 25px 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 10px; text-align: center; }
 @media (max-width: 900px) { .site-wrap { margin-top: 0; } .masthead { padding: 14px 18px; } main { padding: 20px 18px 35px; } .stat-grid { grid-template-columns: repeat(2, 1fr); } .columns { grid-template-columns: 1fr; } .member-summary { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .masthead h1 { font-size: 20px; } .system-id { display: none; } .main-nav { padding: 6px 7px 0; } .nav-link { flex: 1 1 50%; } .page-heading { align-items: flex-start; flex-direction: column; } .stat-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .form-grid label.wide, .form-actions { grid-column: auto; } .member-summary { grid-template-columns: repeat(2, 1fr); } .user-strip { align-items: flex-start; flex-wrap: wrap; } }
-@media print { body { background: #fff; } .site-wrap { margin: 0; border: 0; box-shadow: none; } .masthead, .main-nav, .user-strip, #view-home, #view-directory, #view-records, #view-approvals, #view-audit, #member-form-panel, #record-form-panel, #error, footer, #close-member, #print-member, .panel-actions { display: none !important; } main { padding: 0; } #app, #member-panel { display: block !important; } #member-panel { border: 0; box-shadow: none; } .record-detail { display: none !important; } }
+@media print { body { background: #fff; } .site-wrap { margin: 0; border: 0; box-shadow: none; } .masthead, .main-nav, .user-strip, #view-home, #view-directory, #view-records, #view-inactivity, #view-approvals, #view-audit, #member-form-panel, #record-form-panel, #error, footer, #close-member, #print-member, .panel-actions { display: none !important; } main { padding: 0; } #app, #member-panel { display: block !important; } #member-panel { border: 0; box-shadow: none; } .record-detail { display: none !important; } }
 
 /* 2010-era county portal treatment for the home page. */
 body { background: #e8e5dc; }
@@ -141,6 +144,7 @@ main { padding: 20px 18px 42px; }
 .service-tile span { margin-top: 2px; font-size: 10px; }
 .service-tile.green { background: linear-gradient(#68b83e, #318b18); }
 .service-tile.blue { background: linear-gradient(#2c95c7, #126188); }
+.service-tile.gold { background: linear-gradient(#e3b54f, #a87918); }
 .service-tile.gray { background: linear-gradient(#888, #5b5b5b); }
 .popular-links { margin: 0; padding: 10px 9px 11px 31px; color: #222; background: #f8f7f1; border: 1px solid #c3c3b8; font-size: 11px; font-weight: 700; }
 .popular-links li { padding: 4px 0; }

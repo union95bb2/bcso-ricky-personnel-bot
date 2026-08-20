@@ -5,6 +5,7 @@ const dateTimeText = value => value ? new Date(value).toLocaleString("en-US", { 
 const today = () => new Date().toISOString().slice(0, 10);
 let currentAccount = null;
 let currentMembers = [];
+let currentRecords = [];
 let searchTimer;
 let activeView = "home";
 
@@ -38,6 +39,7 @@ function showView(view) {
   document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
   if (view === "directory") loadMembers();
   if (view === "records") loadRecords();
+  if (view === "inactivity") loadInactivity();
   if (view === "approvals") loadApprovals();
   if (view === "audit") loadAudit();
 }
@@ -72,11 +74,29 @@ function recordLabel(record) {
 }
 
 function renderRecords(records, targetId = "records-results", compact = false) {
+  if (targetId === "records-results") currentRecords = records || [];
   const target = $(targetId);
   if (!records?.length) { target.innerHTML = '<p class="muted">No records match the current register.</p>'; return; }
   target.innerHTML = `<table class="data-table"><thead><tr><th>Date</th><th>Member</th><th>Type</th><th>Summary</th><th>Status</th></tr></thead><tbody>${records.map(record => `<tr class="clickable" data-member="${esc(record.memberId)}"><td>${esc(dateText(record.effectiveDate))}</td><td><strong>${esc(record.member.callsign || "—")}</strong><br>${esc(record.member.displayName)}</td><td><span class="record-tag">${esc(record.recordType)}</span></td><td>${esc(recordLabel(record))}</td><td><span class="status status-${esc(record.status)}">${esc(record.status)}</span></td></tr>`).join("")}</tbody></table>`;
   target.querySelectorAll("[data-member]").forEach(row => row.addEventListener("click", () => openMember(row.dataset.member)));
   if (compact) target.querySelector("table")?.classList.add("compact");
+}
+
+function renderInactivity(reviews) {
+  const target = $("inactivity-results");
+  if (!reviews?.length) { target.innerHTML = '<p class="muted">No inactive personnel are currently queued for review.</p>'; return; }
+  target.innerHTML = `<table class="data-table"><thead><tr><th>Personnel</th><th>Rank</th><th>Status</th><th>Last recorded activity</th><th>Last inactivity review</th><th>Action</th></tr></thead><tbody>${reviews.map(review => `<tr><td><strong>${esc(review.member.callsign || "—")}</strong><br>${esc(review.member.displayName)}</td><td>${esc(review.member.rank || "Unassigned")}</td><td><span class="status status-${esc(review.member.status)}">${esc(review.member.status)}</span></td><td>${review.lastActivity ? `${esc(dateText(review.lastActivity.date))} · ${esc(review.lastActivity.type)}<br>${esc(review.lastActivity.summary || "No summary")}` : "No RMS activity recorded"}</td><td>${esc(dateText(review.lastReviewDate))}</td><td><button class="gov-button small open-inactivity-member" data-member="${esc(review.member.id)}">Open jacket</button></td></tr>`).join("")}</tbody></table>`;
+  target.querySelectorAll("[data-member]").forEach(button => button.addEventListener("click", () => openMember(button.dataset.member)));
+}
+
+function csvCell(value) { return `"${String(value ?? "").replaceAll('"', '""')}"`; }
+function exportRecords() {
+  if (!currentRecords.length) { showError(new Error("There are no records to export.")); return; }
+  const rows = [["Effective date", "Callsign", "Member", "Record type", "Status", "Summary", "Record ID"], ...currentRecords.map(record => [record.effectiveDate, record.member.callsign, record.member.displayName, record.recordType, record.status, recordLabel(record), record.id])];
+  const blob = new Blob([rows.map(row => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a"); link.href = url; link.download = `ricky-rms-records-${today()}.csv`; link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function renderMembers(members) {
@@ -142,7 +162,12 @@ function showRecordDetail(record) {
 
 async function loadRecords() {
   if (!isPab()) { $("records-results").innerHTML = '<p class="muted">PAB access is required to view the records register.</p>'; return; }
-  try { const query = new URLSearchParams({ limit: "500" }); if ($("record-type-filter").value) query.set("type", $("record-type-filter").value); if ($("record-status-filter").value) query.set("status", $("record-status-filter").value); const data = await api(`/api/records?${query}`); renderRecords(data.records); fillRecordMemberSelect(currentMembers); } catch (error) { showError(error); }
+  try { const query = new URLSearchParams({ limit: "500" }); if ($("record-search").value.trim()) query.set("q", $("record-search").value.trim()); if ($("record-type-filter").value) query.set("type", $("record-type-filter").value); if ($("record-status-filter").value) query.set("status", $("record-status-filter").value); const data = await api(`/api/records?${query}`); renderRecords(data.records); fillRecordMemberSelect(currentMembers); } catch (error) { showError(error); }
+}
+
+async function loadInactivity() {
+  if (!isPab()) { $("inactivity-results").innerHTML = '<p class="muted">PAB access is required to view activity review.</p>'; return; }
+  try { const data = await api("/api/inactivity"); renderInactivity(data.reviews); } catch (error) { showError(error); }
 }
 
 function fillRecordMemberSelect(members = currentMembers) {
@@ -157,9 +182,20 @@ async function loadApprovals() {
   if (!isPab()) { $("approval-results").innerHTML = '<p class="muted">PAB access is required to view the approval queue.</p>'; return; }
   try {
     const data = await api("/api/approvals");
-    $("approval-results").innerHTML = data.approvals.length ? `<table class="data-table"><thead><tr><th>Requested</th><th>Workflow</th><th>Stage</th><th>Requested by</th><th>Action</th></tr></thead><tbody>${data.approvals.map(approval => `<tr><td>${esc(dateTimeText(approval.requestedAt))}</td><td>${esc(approval.workflowType)}</td><td>${esc(approval.stage)}</td><td class="mono">${esc(approval.requestedBy)}</td><td class="action-cell"><button class="gov-button small approve-button" data-approval="${esc(approval.id)}" data-decision="approved">Approve</button><button class="gov-button small reject-button" data-approval="${esc(approval.id)}" data-decision="rejected">Reject</button></td></tr>`).join("")}</tbody></table>` : '<p class="muted">There are no open approvals.</p>';
+    $("approval-results").innerHTML = data.approvals.length ? `<table class="data-table"><thead><tr><th>Requested</th><th>Workflow</th><th>Stage</th><th>Requested by</th><th>Decision window</th><th>Action</th></tr></thead><tbody>${data.approvals.map(approval => `<tr><td>${esc(dateTimeText(approval.requestedAt))}</td><td>${esc(approval.workflowType)}</td><td>${esc(approval.stage)}</td><td class="mono">${esc(approval.requestedBy)}</td><td>${approval.expiresAt ? `<span class="approval-countdown" data-expires="${esc(approval.expiresAt)}">${esc(dateTimeText(approval.expiresAt))}</span>` : '<span class="muted">No expiry</span>'}</td><td class="action-cell"><button class="gov-button small approve-button" data-approval="${esc(approval.id)}" data-decision="approved">Approve</button><button class="gov-button small reject-button" data-approval="${esc(approval.id)}" data-decision="rejected">Reject</button></td></tr>`).join("")}</tbody></table>` : '<p class="muted">There are no open approvals.</p>';
+    updateApprovalCountdowns();
     $("approval-results").querySelectorAll("[data-approval]").forEach(button => button.addEventListener("click", () => decideApproval(button.dataset.approval, button.dataset.decision)));
   } catch (error) { showError(error); }
+}
+
+function updateApprovalCountdowns() {
+  document.querySelectorAll(".approval-countdown").forEach(node => {
+    const remaining = Number(node.dataset.expires) - Date.now();
+    if (remaining <= 0) { node.textContent = "Expired — refresh queue"; node.classList.add("expired"); return; }
+    const hours = Math.floor(remaining / 3_600_000);
+    const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+    node.textContent = `${dateTimeText(node.dataset.expires)} · ${hours}h ${minutes}m remaining`;
+  });
 }
 
 async function decideApproval(id, status) {
@@ -211,7 +247,10 @@ document.querySelectorAll("[data-view]").forEach(button => button.addEventListen
 $("member-search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadMembers, 250); });
 $("member-status-filter").addEventListener("change", () => renderMembers(currentMembers));
 $("record-type-filter").addEventListener("change", loadRecords); $("record-status-filter").addEventListener("change", loadRecords); $("refresh-records").addEventListener("click", loadRecords);
+$("record-search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadRecords, 250); }); $("export-records").addEventListener("click", exportRecords);
+$("refresh-inactivity").addEventListener("click", loadInactivity);
 $("refresh-approvals").addEventListener("click", loadApprovals); $("refresh-audit").addEventListener("click", loadAudit);
+window.setInterval(updateApprovalCountdowns, 30_000);
 $("sync-roster-button").addEventListener("click", syncRoster);
 $("refresh-dashboard").addEventListener("click", refreshDashboard);
 $("retry-request").addEventListener("click", retryActiveView);

@@ -262,8 +262,8 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
     if (url.pathname === "/api/records" && request.method === "GET") {
       const account = authorized(request, response, "pab");
       if (!account) return;
-      const records = store.records(account.guildId, { memberId: url.searchParams.get("memberId") || null, recordType: url.searchParams.get("type") || null, status: url.searchParams.get("status") || null, limit: Number(url.searchParams.get("limit") || 100) });
-      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "records", metadata: { count: records.length } });
+      const records = store.records(account.guildId, { memberId: url.searchParams.get("memberId") || null, recordType: url.searchParams.get("type") || null, status: url.searchParams.get("status") || null, query: url.searchParams.get("q") || "", limit: Number(url.searchParams.get("limit") || 100) });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "records", metadata: { count: records.length, query: url.searchParams.get("q") || "" } });
       return jsonResponse(response, 200, { records });
     }
     if (url.pathname === "/api/records" && request.method === "POST") {
@@ -280,6 +280,13 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       if (body.recordType === "promotion") store.addPromotionRecord({ recordId: record.id, fromRank: detail.fromRank || "unknown", toRank: detail.toRank || "unknown", promotionDate: detail.promotionDate || record.effectiveDate, reason: detail.reason || null, authorizationReference: detail.authorizationReference || null });
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "create", entityType: "record", entityId: record.id, metadata: { recordType: body.recordType, memberId: member.id } });
       return jsonResponse(response, 201, { record: store.recordById(record.id) });
+    }
+    if (url.pathname === "/api/inactivity") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const reviews = store.inactivityQueue(account.guildId, Math.min(Number(url.searchParams.get("limit") || 100), 500));
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "inactivity_review", metadata: { count: reviews.length } });
+      return jsonResponse(response, 200, { reviews });
     }
     const memberMatch = url.pathname.match(/^\/api\/members\/([^/]+)$/);
     if (memberMatch) {

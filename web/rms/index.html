@@ -21,6 +21,7 @@
       <button class="nav-link active" data-view="home">Home</button>
       <button class="nav-link" data-view="directory">Personnel directory</button>
       <button class="nav-link" data-view="records">Records register</button>
+      <button class="nav-link" data-view="inactivity">Activity review</button>
       <button class="nav-link" data-view="approvals">Approval queue</button>
       <button class="nav-link" data-view="audit">Audit log</button>
     </nav>
@@ -47,6 +48,7 @@
               <div class="rail-title">Personnel services</div>
               <button class="service-tile green" data-view="directory"><strong>Personnel directory</strong><span>Search member jackets</span></button>
               <button class="service-tile blue" data-view="records"><strong>Records register</strong><span>Training and personnel entries</span></button>
+              <button class="service-tile gold" data-view="inactivity"><strong>Activity review</strong><span>Review inactive personnel</span></button>
               <button class="service-tile gray" data-view="approvals"><strong>PAB approvals</strong><span>Review the open queue</span></button>
               <div class="rail-title popular-title">Quick links</div>
               <ol class="popular-links"><li>Personnel directory</li><li>Training records</li><li>Promotion register</li><li>Inactivity reviews</li><li>Audit log</li></ol>
@@ -76,7 +78,12 @@
 
         <div id="view-records" class="view hidden">
           <div class="page-heading"><div><div class="section-kicker">RMS-03 / REGISTER</div><h2>Records register</h2><p>Chronological register of finalized and working personnel records.</p></div><button id="new-record-button" class="gov-button primary">Enter a record</button></div>
-          <section class="gov-panel"><div class="toolbar"><label for="record-type-filter">Record type</label><select id="record-type-filter" class="gov-input"><option value="">All types</option><option>training</option><option>promotion</option><option>qualification</option><option>inactivity</option><option>award</option><option>department</option><option>status</option><option>note</option></select><select id="record-status-filter" class="gov-input"><option value="">All statuses</option><option>finalized</option><option>draft</option><option>void</option></select><button id="refresh-records" class="gov-button small">Refresh</button></div><div id="records-results" class="table-wrap"><p class="muted">Loading records…</p></div></section>
+          <section class="gov-panel"><div class="toolbar"><label for="record-search">Search register</label><input id="record-search" class="gov-input" placeholder="Member, type, or record text" autocomplete="off"><label for="record-type-filter">Record type</label><select id="record-type-filter" class="gov-input"><option value="">All types</option><option>training</option><option>promotion</option><option>qualification</option><option>inactivity</option><option>award</option><option>department</option><option>status</option><option>note</option></select><select id="record-status-filter" class="gov-input"><option value="">All statuses</option><option>finalized</option><option>draft</option><option>void</option></select><button id="refresh-records" class="gov-button small">Refresh</button><button id="export-records" class="gov-button small">Export CSV</button></div><div id="records-results" class="table-wrap"><p class="muted">Loading records…</p></div></section>
+        </div>
+
+        <div id="view-inactivity" class="view hidden">
+          <div class="page-heading"><div><div class="section-kicker">RMS-06 / ACTIVITY</div><h2>Inactivity review</h2><p>Review factual activity status and last recorded RMS activity. This does not make discipline findings or automatic personnel decisions.</p></div></div>
+          <section class="gov-panel"><div class="toolbar"><span class="toolbar-label">Inactive personnel requiring staff review</span><button id="refresh-inactivity" class="gov-button small">Refresh activity</button></div><div id="inactivity-results" class="table-wrap"><p class="muted">Loading activity review…</p></div></section>
         </div>
 
         <div id="view-approvals" class="view hidden">

@@ -75,7 +75,8 @@ The RMS dashboard is deliberately built like an older public-sector records appl
 
 - **Home (RMS-01):** current personnel totals, record totals, open approvals, recent entries, and system notices.
 - **Personnel directory (RMS-02):** search callsign, display name, or Discord ID; filter status; open a member's personnel jacket.
-- **Records register (RMS-03):** filter training, promotion, qualification, inactivity, award, department, status, or note records; open the member jacket from any row; enter a new official record. Clicking a jacket timeline row opens read-only structured detail.
+- **Records register (RMS-03):** search member names, callsigns, record types, or record text; filter training, promotion, qualification, inactivity, award, department, status, or note records; open the member jacket from any row; enter a new official record; export the current filtered register as CSV. Clicking a jacket timeline row opens read-only structured detail.
+- **Activity review (RMS-06):** list members whose administrative status is `inactive`, show their latest recorded RMS activity and most recent inactivity review, and open the jacket for factual staff review. This view does not impose discipline, make an IA finding, or automatically change a member's status.
 - **Approval queue (RMS-04):** review open PAB and Command requests; approve or reject with an optional note; decisions are written to the audit log.
 - **Audit log (RMS-05):** command/admin read-only view of login, search, record, approval, and import activity.
 

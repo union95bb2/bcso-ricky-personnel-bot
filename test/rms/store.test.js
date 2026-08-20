@@ -49,3 +49,19 @@ test("RMS directory and register provide operational summaries and filters", () 
   assert.equal(store.memberStats("g").leave, 1);
   store.close();
 });
+
+test("RMS record search and inactivity queue remain factual and member-scoped", () => {
+  const store = new RmsStore(":memory:");
+  const inactive = store.upsertMember({ guildId: "g", discordId: "u1", callsign: "C-907", displayName: "Tyler M", rank: "Deputy Sheriff Trainee", status: "inactive" });
+  const active = store.upsertMember({ guildId: "g", discordId: "u2", callsign: "C-110", displayName: "W. Dorfman", rank: "Corporal" });
+  store.createRecord({ guildId: "g", memberId: inactive.id, recordType: "training", effectiveDate: "2026-08-01", createdBy: "u", data: { summary: "Last ride-along" } });
+  store.createRecord({ guildId: "g", memberId: inactive.id, recordType: "inactivity", effectiveDate: "2026-08-18", createdBy: "u", data: { summary: "PAB review opened" } });
+  store.createRecord({ guildId: "g", memberId: active.id, recordType: "promotion", effectiveDate: "2026-08-19", createdBy: "u", data: { summary: "Promoted" } });
+  assert.equal(store.records("g", { query: "ride-along" }).length, 1);
+  const queue = store.inactivityQueue("g");
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].member.callsign, "C-907");
+  assert.equal(queue[0].lastActivity.type, "inactivity");
+  assert.equal(queue[0].lastReviewDate, "2026-08-18");
+  store.close();
+});

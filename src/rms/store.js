@@ -211,12 +211,17 @@ export class RmsStore {
     return { total: Number(row.total || 0), training: Number(row.training || 0), promotion: Number(row.promotion || 0), inactivity: Number(row.inactivity || 0), finalized: Number(row.finalized || 0) };
   }
 
-  records(guildId, { memberId = null, recordType = null, status = null, limit = 100 } = {}) {
+  records(guildId, { memberId = null, recordType = null, status = null, query = "", limit = 100 } = {}) {
     const clauses = ["r.guild_id = ?"];
     const values = [guildId];
     if (memberId) { clauses.push("r.member_id = ?"); values.push(memberId); }
     if (recordType) { clauses.push("r.record_type = ?"); values.push(recordType); }
     if (status) { clauses.push("r.status = ?"); values.push(status); }
+    if (String(query).trim()) {
+      const term = `%${String(query).trim().replace(/[%_]/g, "\\$&")} %`.replace(/ %$/, "%");
+      clauses.push("(m.callsign LIKE ? ESCAPE '\\' OR m.display_name LIKE ? ESCAPE '\\' OR r.record_type LIKE ? ESCAPE '\\' OR r.data_json LIKE ? ESCAPE '\\')");
+      values.push(term, term, term, term);
+    }
     values.push(Math.min(Math.max(Number(limit) || 100, 1), 500));
     const rows = this.#db.prepare(`
       SELECT r.id, r.guild_id, r.member_id, r.record_type, r.status, r.effective_date,
@@ -276,6 +281,20 @@ export class RmsStore {
 
   memberTimeline(guildId, memberId, limit = 100) {
     return this.records(guildId, { memberId, limit }).map(item => ({ ...item, member: { discordId: item.member.discordId, callsign: item.member.callsign, displayName: item.member.displayName }, detail: this.recordById(item.id)?.detail || null }));
+  }
+
+  inactivityQueue(guildId, limit = 100) {
+    const members = this.#db.prepare("SELECT * FROM rms_members WHERE guild_id = ? AND status = 'inactive' ORDER BY display_name LIMIT ?").all(guildId, Math.min(Math.max(Number(limit) || 100, 1), 500));
+    return members.map(row => {
+      const member = this.#member(row);
+      const latest = this.records(guildId, { memberId: member.id, limit: 1 })[0] || null;
+      const latestReview = this.records(guildId, { memberId: member.id, recordType: "inactivity", limit: 1 })[0] || null;
+      return {
+        member,
+        lastActivity: latest ? { date: latest.effectiveDate, type: latest.recordType, summary: latest.data?.summary || latest.detail?.outcome || null } : null,
+        lastReviewDate: latestReview?.effectiveDate || null
+      };
+    });
   }
 
   createApproval({ recordId = null, sourceActionId = null, guildId, workflowType, stage, requestedBy, expiresAt = null, notes = null }) {
