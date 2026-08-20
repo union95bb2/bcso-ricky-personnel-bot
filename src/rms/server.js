@@ -237,7 +237,7 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       const requested = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\//, "");
       const file = resolve(webRoot, normalize(requested));
       if (!file.startsWith(webRoot)) return textResponse(response, 404, "Not found");
-      try { return textResponse(response, 200, await readFile(file), { "content-type": mime[extname(file)] || "application/octet-stream", "cache-control": "no-cache" }); } catch { return textResponse(response, 404, "Not found"); }
+      try { return textResponse(response, 200, await readFile(file), { "content-type": mime[extname(file)] || "application/octet-stream", "cache-control": "no-store, max-age=0" }); } catch { return textResponse(response, 404, "Not found"); }
     }
     return jsonResponse(response, 404, { error: "Not found" });
   }
