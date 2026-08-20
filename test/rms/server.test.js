@@ -28,6 +28,8 @@ test("RMS health endpoint is available without an account and static dashboard i
   await app.handleRequest({ url: "/", headers: {}, method: "GET" }, page);
   assert.equal(page.status, 200);
   assert.match(String(page.body), /Ricky RMS/);
+  assert.match(String(page.body), /rel="icon"/);
+  assert.match(String(page.body), /rms-favicon-1/);
   assert.match(String(page.body), /retry-request/);
   assert.match(String(page.body), /check-eligibility/);
   assert.match(String(page.body), /expiring-records/);
