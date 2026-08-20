@@ -191,6 +191,8 @@ story += [table([
     ["Training, department, qualification, rank-request, status, activity-review, announcement, correction, search, audit export, live-role snapshot.", "IA complaints, investigations, evidence, findings, sanctions, discipline decisions, personnel-jacket history, automatic removals, automatic inactivity discipline."],
 ], [3.5 * inch, 3.5 * inch])]
 story += [P("The separate inactivity-review workflow is allowed because it is a neutral staff-attention record. It reports activity evidence and follow-up; it does not make a disciplinary finding or alter access/roles.")]
+story += [P("Silent departures", "H2Manual")]
+story += [P("Ricky Bot also listens for Discord's GuildMemberRemove event. When a human member leaves, is kicked, or is banned, Ricky posts a staff-only BCSO Departure Notice, pings PAB, records the roles and last Ricky-tracked activity it can see, and marks the RMS member separated when RMS is enabled. Discord does not provide the reason, so Ricky labels the event 'left or was removed' and never infers misconduct, changes roles, removes access, or makes a disciplinary decision. Configure DEPARTURE_LOG_CHANNEL_ID for a dedicated destination; otherwise Ricky falls back to the audit log and then PAB approvals channel.")]
 
 # 2
 story += [P("2. What is installed", "H1Manual")]
