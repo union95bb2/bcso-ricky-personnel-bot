@@ -78,3 +78,20 @@ test("RMS Discord roster sync imports human members and maps rank roles", async 
   assert.equal(store.auditTrail("g", 10)[0].action, "roster_sync");
   app.store.close();
 });
+
+test("RMS account access refreshes from current Discord roles on page load", async () => {
+  const store = new RmsStore(":memory:");
+  const app = createRmsServer({
+    config: { guildId: "g", clientId: "c", clientSecret: "s", botToken: "b", redirectUri: "http://localhost/auth/callback", sessionSecret: "secret", port: 0, bind: "127.0.0.1", dataPath: ":memory:", pabRoleId: "pab", commandRoleId: "command", adminRoleIds: new Set(), rankRoleIds: {} },
+    store,
+    fetchImpl: async () => ({ ok: true, json: async () => ({ user: { id: "actor" }, roles: ["pab"] }) })
+  });
+  const account = store.upsertAccount({ guildId: "g", discordId: "actor", accessLevel: "member" });
+  const rawSession = "session-token";
+  store.createSession(createHash("sha256").update(`secret:${rawSession}`).digest("hex"), account.id, Date.now() + 60_000);
+  const response = responseMock();
+  await app.handleRequest(request("/api/me", { cookie: rawSession }), response);
+  assert.equal(response.status, 200);
+  assert.equal(JSON.parse(response.body).account.accessLevel, "pab");
+  app.store.close();
+});

@@ -151,6 +151,17 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
     return account;
   }
 
+  async function refreshAccountAccess(account) {
+    try {
+      const guildMember = await discordFetch(`/guilds/${config.guildId}/members/${account.discordId}`);
+      const accessLevel = accessForGuildMember(guildMember);
+      if (accessLevel !== account.accessLevel) return store.upsertAccount({ guildId: account.guildId, discordId: account.discordId, accessLevel });
+    } catch {
+      // Keep the last known access level if Discord is temporarily unavailable.
+    }
+    return account;
+  }
+
   async function route(request, response) {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     if (url.pathname === "/auth/login") {
@@ -196,8 +207,9 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       return jsonResponse(response, 200, { members: store.memberStats(account.guildId), records: store.recordStats(account.guildId), pendingApprovals: approvals.length, recentRecords: store.records(account.guildId, { limit: 12 }), generatedAt: Date.now() });
     }
     if (url.pathname === "/api/me") {
-      const account = authorized(request, response);
+      let account = authorized(request, response);
       if (!account) return;
+      account = await refreshAccountAccess(account);
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "account", entityId: account.id });
       const member = store.memberByDiscordId(account.guildId, account.discordId);
       return jsonResponse(response, 200, { account, member });
