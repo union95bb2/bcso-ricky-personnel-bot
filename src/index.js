@@ -600,13 +600,21 @@ async function showPromotionModal(interaction) {
   const managementIssue = memberManagementError(interaction, member);
   if (managementIssue) return interaction.reply({ content: managementIssue, ephemeral: true });
   const choices = rankRoleEntries(config.rankRoleIds).map(({ rank }) => rank).join(", ") || "Configure RANK_ROLE_IDS first";
+  // Discord limits TextInput placeholders to 100 characters. The complete
+  // rank ladder can exceed that, which used to make /promotion throw before
+  // acknowledging the interaction (Discord then showed “application did not
+  // respond”). Keep the useful hint short and leave the full validation to
+  // the modal submit handler.
+  const rankPlaceholder = choices.length > 90
+    ? "Configured rank name (for example: Deputy or Corporal)"
+    : choices;
   const modal = new ModalBuilder().setCustomId(`promotion-modal:${member.id}`).setTitle("BCSO promotion record");
   const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
   if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
     new ActionRowBuilder().addComponents(effectiveDate),
-    new ActionRowBuilder().addComponents(input("from-rank", "Current rank", TextInputStyle.Short, { placeholder: choices, maxLength: 80 })),
-    new ActionRowBuilder().addComponents(input("to-rank", "New rank", TextInputStyle.Short, { placeholder: choices, maxLength: 80 })),
+    new ActionRowBuilder().addComponents(input("from-rank", "Current rank", TextInputStyle.Short, { placeholder: rankPlaceholder, maxLength: 80 })),
+    new ActionRowBuilder().addComponents(input("to-rank", "New rank", TextInputStyle.Short, { placeholder: rankPlaceholder, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "Sheriff / Undersheriff / Command member", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("reason", "Reason or approval reference", TextInputStyle.Paragraph, { placeholder: "Completed POST Academy and probationary requirements", maxLength: 1000 }))
   );
