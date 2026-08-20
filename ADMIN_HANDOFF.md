@@ -8,7 +8,7 @@ It can create approved-format records, use real Discord member/role mentions, ma
 
 All date-bearing forms use `MM/DD/YYYY`; promotion, role-award/removal, personnel-status, and training commands offer a **Today** prefill or manual entry; inactivity review uses `MM/DD/YYYY - MM/DD/YYYY`. The training time field uses `h:mm AM/PM - h:mm AM/PM` in the configured timezone label (for example, `4:00 PM - 5:00 PM MST`). Invalid dates or times are rejected before a preview is created, and training duration is derived from the validated range.
 
-It has no Internal Affairs case workflow, complaint intake, evidence collection, investigation, finding, sanction, disciplinary review, or staff-direct-message feature. Its separate inactivity-review workflow is a neutral PAB staff-attention record only; it creates no finding and makes no role, access, or disciplinary change. Leave, return, transfer, and separation functions create records only; they do not change roles or access.
+It has no Internal Affairs case workflow, complaint intake, evidence collection, investigation, finding, sanction, disciplinary review, or staff-direct-message feature. Its separate inactivity-review workflow is a neutral PAB staff-attention record only; it creates no finding and makes no role, access, or disciplinary change. Manual leave, return, transfer, and separation functions create records only; they do not change roles or access. In addition, Ricky listens for Discord member removals so a member who leaves without saying anything is still logged for human follow-up. That event is deliberately unable to determine whether the removal was a voluntary leave, kick, or ban, and it does not impose discipline or change roles.
 
 ## Required Discord configuration
 
@@ -51,6 +51,7 @@ Create a private PAB records category or map these variables to approved existin
 | `PERSONNEL_RECORDS_CHANNEL_ID` | `#personnel-records` | Read-only to ordinary members |
 | `PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID` | `#promotion-announcements` | Department-visible |
 | `AUDIT_LOG_CHANNEL_ID` | `#pab-audit-log` | PAB/Command only |
+| `DEPARTURE_LOG_CHANNEL_ID` | `#pab-departures` (optional) | PAB/Command only; falls back to `AUDIT_LOG_CHANNEL_ID` |
 | `PAB_APPROVALS_CHANNEL_ID` | `#pab-approvals` | PAB/Command only |
 | `QUALIFICATIONS_RECORDS_CHANNEL_ID` | `#qualification-records` | Read-only to ordinary members |
 | `PAB_ANNOUNCEMENTS_CHANNEL_ID` | `#pab-announcements` | Department-visible |
@@ -107,6 +108,7 @@ PAB/Command:
 - `/member-profile` — current Discord role snapshot only; no personnel jacket, complaint history, IA record, or prior bot-record history.
 - `/inactivity-review` — private neutral staff-attention review; it cannot change roles, access, or discipline a member.
 - `ACTIVITY_CHANNEL_IDS` — approved Discord channels whose human message timestamps may supply the last-known-activity field; message content is never stored.
+- `DEPARTURE_LOG_CHANNEL_ID` — optional staff-only destination for automatic member-departure notices. If blank, Ricky uses `AUDIT_LOG_CHANNEL_ID`, then `PAB_APPROVALS_CHANNEL_ID`.
 
 Technical errors are written as structured JSON to Ricky's process error stream. Each entry includes the timestamp, failure scope, interaction ID, guild/user identifiers, command or custom ID, and stack when available; form contents and tokens are not logged. Use `docker compose logs -f --tail=100` or the configured service manager's log viewer. The Discord PAB audit channel is a personnel-action ledger, not a technical error sink.
 

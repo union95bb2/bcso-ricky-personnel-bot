@@ -26,6 +26,7 @@ import { evaluatePromotionEligibility, promotionEligibilityLines } from "./promo
 import { logError } from "./logger.js";
 import { memberThreadName, sendRecord } from "./record-destinations.js";
 import { RmsStore } from "./rms/store.js";
+import { departureEmbed, departureNoticeContent } from "./departure.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
@@ -974,6 +975,68 @@ async function postDailyNotices(readyClient) {
   }
 }
 
+/**
+ * Discord emits GuildMemberRemove when a human leaves, is kicked, or is
+ * banned.  Discord does not include the reason, so Ricky records the event
+ * as an administrative notice and leaves all roster, RMS, and personnel
+ * decisions to PAB/Command review.
+ */
+async function handleGuildMemberRemove(member) {
+  if (!member?.guild || member.guild.id !== config.guildId || member.user?.bot) return;
+  const destinationId = config.departureLogChannelId || config.auditLogChannelId || config.pabApprovalsChannelId;
+  const label = member.displayName || member.user?.globalName || member.user?.username || member.id;
+  const lastActivity = store.lastActivity(member.id, { guildId: member.guild.id, until: Date.now() });
+  const roleLabels = [...(member.roles?.cache?.values?.() || [])]
+    .filter(role => role.id !== member.guild.id && !role.managed)
+    .map(role => role.name);
+  if (!destinationId) {
+    logError("guild-member-remove", new Error("No departure, audit, or PAB approvals channel is configured"), { guildId: member.guild.id, memberId: member.id });
+    return;
+  }
+
+  try {
+    const channel = await fetchChannel(destinationId);
+    const roles = config.pabRoleId ? [config.pabRoleId] : [];
+    const message = await channel.send({
+      content: departureNoticeContent({ pabRoleId: config.pabRoleId, memberLabel: label }),
+      allowedMentions: { roles },
+      embeds: [departureEmbed({
+        memberLabel: label,
+        userTag: member.user?.tag || member.user?.username || member.id,
+        roleLabels,
+        lastActivity,
+        event: "left or was removed"
+      })]
+    });
+    store.record({
+      type: "member-departure",
+      actorId: "system",
+      memberId: member.id,
+      message,
+      data: { memberLabel: label, userTag: member.user?.tag || member.user?.username || member.id, roleLabels, lastActivity }
+    });
+    if (rms) {
+      const rmsMember = rms.memberByDiscordId(member.guild.id, member.id);
+      if (rmsMember) {
+        rms.updateMember(rmsMember.id, { status: "separated" });
+        const record = rms.createRecord({
+          guildId: member.guild.id,
+          memberId: rmsMember.id,
+          recordType: "departure",
+          status: "finalized",
+          createdBy: "system",
+          sourceChannelId: message?.channelId || destinationId,
+          sourceMessageId: message?.id || null,
+          data: { memberLabel: label, userTag: member.user?.tag || member.user?.username || member.id, roleLabels, lastActivity, event: "left or was removed" }
+        });
+        rms.audit({ guildId: member.guild.id, actorDiscordId: "system", action: "member_departure", entityType: "record", entityId: record.id, metadata: { discordId: member.id, destinationId } });
+      }
+    }
+  } catch (error) {
+    logError("guild-member-remove", error, { guildId: member.guild.id, memberId: member.id, destinationId });
+  }
+}
+
 async function syncRmsMembers(guild) {
   if (!rms) return;
   const members = [...(await guild.members.fetch()).values()].filter(member => !member.user.bot);
@@ -1469,6 +1532,9 @@ client.on(Events.MessageCreate, message => {
   } catch (error) {
     console.error(`Activity event could not be recorded: ${error instanceof Error ? error.message : "unknown error"}`);
   }
+});
+client.on(Events.GuildMemberRemove, member => {
+  handleGuildMemberRemove(member).catch(error => logError("guild-member-remove", error, { guildId: member?.guild?.id, memberId: member?.id }));
 });
 
 client.on(Events.InteractionCreate, async interaction => {

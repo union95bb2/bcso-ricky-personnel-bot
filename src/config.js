@@ -38,6 +38,7 @@ export const config = {
   personnelJacketsForumChannelId: optional("PERSONNEL_JACKETS_FORUM_CHANNEL_ID"),
   promotionsAnnouncementsChannelId: optional("PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID"),
   auditLogChannelId: optional("AUDIT_LOG_CHANNEL_ID"),
+  departureLogChannelId: optional("DEPARTURE_LOG_CHANNEL_ID"),
   pabApprovalsChannelId: optional("PAB_APPROVALS_CHANNEL_ID"),
   qualificationsRecordsChannelId: optional("QUALIFICATIONS_RECORDS_CHANNEL_ID"),
   pabAnnouncementsChannelId: optional("PAB_ANNOUNCEMENTS_CHANNEL_ID"),
