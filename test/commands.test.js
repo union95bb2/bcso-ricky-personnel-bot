@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { commands } from "../src/commands.js";
 import { commandCoverage } from "../src/workflow-spec.js";
 
@@ -19,6 +20,16 @@ test("every command has a safe description and valid Discord name", () => {
     assert.match(command.name, /^[a-z0-9-]{1,32}$/);
     assert.ok(command.description.length >= 5);
   }
+});
+
+test("pab-health acknowledges before its live Discord checks", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  const start = source.indexOf("async function runHealthCheck");
+  const end = source.indexOf("async function runRosterSync", start);
+  const handler = source.slice(start, end);
+  assert.match(handler, /await interaction\.deferReply\(\{ ephemeral: true \}\)/);
+  assert.match(handler, /return interaction\.editReply\(/);
+  assert.doesNotMatch(handler, /return interaction\.reply\(/);
 });
 
 test("role-changing and date-bearing forms expose the same Today/manual control", () => {

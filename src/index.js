@@ -799,6 +799,10 @@ function recordSearchEmbed(records, queryLabel) {
 }
 
 async function runHealthCheck(interaction) {
+  // The live check performs many Discord fetches. Acknowledge the command
+  // before those network calls so Discord does not show “The application did
+  // not respond” when the diagnostic takes longer than the initial window.
+  await interaction.deferReply({ ephemeral: true });
   const configuredChannels = [
     ["Training records", config.trainingRecordsChannelId], ["Personnel records", config.personnelRecordsChannelId],
     ["Promotion announcements", config.promotionsAnnouncementsChannelId], ["PAB audit log", config.auditLogChannelId],
@@ -854,8 +858,7 @@ async function runHealthCheck(interaction) {
     }
     else roleChecks.push(`✓ ${label}: found`);
   }
-  return interaction.reply({
-    ephemeral: true,
+  return interaction.editReply({
     embeds: [recordEmbed("Ricky Live Health Check", missing.length ? 0xb45309 : GREEN, [
       { name: "Configuration", value: missing.length ? `Missing: ${missing.join(", ")}` : "All required IDs and allow-lists are present.", inline: false },
       { name: "Bot permissions", value: botPermissions, inline: false },

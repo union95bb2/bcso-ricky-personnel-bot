@@ -2,9 +2,18 @@
 
 Test environment: `BCSO Bot Demo | TEST ONLY` (`1539383172536467516`), 2026-08-18, through the logged-in Discord client. The test used one controlled local Ricky process after an older `bcso-personnel-bot` container on `picam` was stopped. The old container was not deleted and its data volume was left intact.
 
+## Current sandbox follow-up — 2026-08-20
+
+The TEST ONLY guild currently has the complete 20-command guild registration and Ricky's actual assigned `BCSO Personnel Bot` role remains above the configured demo rank and qualification roles. The live audit found two Discord-side items that must be corrected before calling the sandbox healthy:
+
+- Grant Ricky Bot `Attach Files` in the bot role/integration permissions. The current bot role has the other required baseline permissions but not `Attach Files`.
+- Make the `PAB` and `Command` roles mentionable, or grant Ricky Bot `Mention Everyone` if that is the server's approved least-privilege choice. Restricted approval pings are intentionally blocked when those roles are non-mentionable.
+
+The sandbox bot container was stopped during this follow-up, so Discord showed **The application did not respond** for `/pab-health`. The source now defers the health interaction before its multi-channel and role checks, then edits the deferred reply; restart the sandbox instance with the reviewed source before repeating the live command matrix. The separate documented sandbox guild is not currently reachable by this bot; the verified target for this run is the `BCSO Bot Demo | TEST ONLY` guild.
+
 ## Result
 
-The original 16 production workflow commands were exercised through their real Discord surface. The current source registers 19 commands: the three additions (`/my-birthday`, `/remove-birthday`, and `/roster-sync`) are covered by automated tests and require optional birthday/Google configuration for a live Discord pass. Form commands were taken from command picker → member/role selector → guided form → preview/approval → destination record. Role-changing tests used the clean sandbox member `Rickya128`; the member was restored to Deputy after the promotion test.
+The original production workflow commands were exercised through their real Discord surface. The current source and TEST ONLY guild register 20 commands; the optional birthday and Google-roster surfaces remain covered by automated tests and require optional configuration for a live Discord pass. Form commands were taken from command picker → member/role selector → guided form → preview/approval → destination record. Role-changing tests used the clean sandbox member `Rickya128`; the member was restored to Deputy after the promotion test.
 
 | Command | Result | What was verified |
 | --- | --- | --- |
