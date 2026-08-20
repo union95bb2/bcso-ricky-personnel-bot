@@ -9,6 +9,7 @@
     "start:demo": "node scripts/start-demo.mjs",
     "start:rms": "node scripts/start-rms.mjs",
     "migrate:rms": "node scripts/migrate-pab-to-rms.mjs",
+    "seed:rms:demo": "node scripts/seed-rms-demo.mjs",
     "register:demo": "node scripts/register-demo.mjs",
     "register": "node src/register-commands.js",
     "role-audit": "node scripts/role-style-audit.mjs",
