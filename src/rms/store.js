@@ -175,6 +175,58 @@ export class RmsStore {
     return rows.map(row => this.#member(row));
   }
 
+  memberStats(guildId) {
+    const row = this.#db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS inactive,
+        SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) AS leave_count,
+        SUM(CASE WHEN status = 'separated' THEN 1 ELSE 0 END) AS separated
+      FROM rms_members WHERE guild_id = ?
+    `).get(guildId);
+    return { total: Number(row.total || 0), active: Number(row.active || 0), inactive: Number(row.inactive || 0), leave: Number(row.leave_count || 0), separated: Number(row.separated || 0) };
+  }
+
+  recordStats(guildId) {
+    const row = this.#db.prepare(`
+      SELECT COUNT(*) AS total,
+        SUM(CASE WHEN record_type = 'training' THEN 1 ELSE 0 END) AS training,
+        SUM(CASE WHEN record_type = 'promotion' THEN 1 ELSE 0 END) AS promotion,
+        SUM(CASE WHEN record_type = 'inactivity' THEN 1 ELSE 0 END) AS inactivity,
+        SUM(CASE WHEN status = 'finalized' THEN 1 ELSE 0 END) AS finalized
+      FROM rms_records WHERE guild_id = ?
+    `).get(guildId);
+    return { total: Number(row.total || 0), training: Number(row.training || 0), promotion: Number(row.promotion || 0), inactivity: Number(row.inactivity || 0), finalized: Number(row.finalized || 0) };
+  }
+
+  records(guildId, { memberId = null, recordType = null, status = null, limit = 100 } = {}) {
+    const clauses = ["r.guild_id = ?"];
+    const values = [guildId];
+    if (memberId) { clauses.push("r.member_id = ?"); values.push(memberId); }
+    if (recordType) { clauses.push("r.record_type = ?"); values.push(recordType); }
+    if (status) { clauses.push("r.status = ?"); values.push(status); }
+    values.push(Math.min(Math.max(Number(limit) || 100, 1), 500));
+    const rows = this.#db.prepare(`
+      SELECT r.id, r.guild_id, r.member_id, r.record_type, r.status, r.effective_date,
+        r.created_by, r.source_record_id, r.data_json, r.created_at, r.updated_at,
+        m.discord_id, m.callsign, m.display_name, m.rank, m.status AS member_status
+      FROM rms_records r JOIN rms_members m ON m.id = r.member_id
+      WHERE ${clauses.join(" AND ")}
+      ORDER BY COALESCE(r.effective_date, '0000-00-00') DESC, r.created_at DESC LIMIT ?
+    `).all(...values);
+    return rows.map(row => ({ id: row.id, guildId: row.guild_id, memberId: row.member_id, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, createdBy: row.created_by, sourceRecordId: row.source_record_id, data: parse(row.data_json), detail: this.recordById(row.id)?.detail || null, createdAt: row.created_at, updatedAt: row.updated_at, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name, rank: row.rank, status: row.member_status } }));
+  }
+
+  updateMember(id, { callsign, displayName, rank, status, hireDate, timeZone } = {}) {
+    const existing = this.#db.prepare("SELECT * FROM rms_members WHERE id = ?").get(id);
+    if (!existing) return null;
+    const timestamp = now();
+    this.#db.prepare(`UPDATE rms_members SET callsign = ?, display_name = ?, rank = ?, status = ?, hire_date = ?, time_zone = ?, updated_at = ? WHERE id = ?`)
+      .run(callsign ?? existing.callsign, displayName ?? existing.display_name, rank ?? existing.rank, status ?? existing.status, hireDate ?? existing.hire_date, timeZone ?? existing.time_zone, timestamp, id);
+    return this.memberById(id);
+  }
+
   createRecord({ guildId, memberId, recordType, status = "finalized", effectiveDate = null, createdBy, sourceChannelId = null, sourceMessageId = null, sourceRecordId = null, data = {} }) {
     const id = randomUUID();
     const timestamp = now();
@@ -212,7 +264,7 @@ export class RmsStore {
   }
 
   memberTimeline(guildId, memberId, limit = 100) {
-    return this.#db.prepare("SELECT r.*, m.discord_id, m.callsign, m.display_name FROM rms_records r JOIN rms_members m ON m.id = r.member_id WHERE r.guild_id = ? AND r.member_id = ? ORDER BY COALESCE(r.effective_date, '0000-00-00') DESC, r.created_at DESC LIMIT ?").all(guildId, memberId, limit).map(row => ({ id: row.id, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, createdBy: row.created_by, data: parse(row.data_json), createdAt: row.created_at, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name } }));
+    return this.records(guildId, { memberId, limit }).map(item => ({ ...item, member: { discordId: item.member.discordId, callsign: item.member.callsign, displayName: item.member.displayName }, detail: this.recordById(item.id)?.detail || null }));
   }
 
   createApproval({ recordId = null, sourceActionId = null, guildId, workflowType, stage, requestedBy, expiresAt = null, notes = null }) {
@@ -254,6 +306,11 @@ export class RmsStore {
     const timestamp = now();
     const result = this.#db.prepare("UPDATE rms_approvals SET status = ?, decided_by = ?, decided_at = ?, notes = COALESCE(?, notes) WHERE id = ? AND status = 'pending'").run(status, decidedBy, timestamp, notes, id);
     return result.changes ? this.approvalById(id) : null;
+  }
+
+  updateRecordStatus(id, status) {
+    const result = this.#db.prepare("UPDATE rms_records SET status = ?, updated_at = ? WHERE id = ?").run(status, now(), id);
+    return result.changes ? this.recordById(id) : null;
   }
 
   upsertAccount({ guildId, discordId, accessLevel = "member" }) {

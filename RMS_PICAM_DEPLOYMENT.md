@@ -62,6 +62,18 @@ docker compose --profile rms up -d --build ricky-rms
 curl -fsS http://127.0.0.1:8788/api/health
 ```
 
+## Dashboard operations
+
+The RMS dashboard is deliberately built like an older public-sector records application rather than a consumer dashboard. It uses a dense register, fixed section codes, form-based entry, status labels, and a plain audit trail.
+
+- **Home (RMS-01):** current personnel totals, record totals, open approvals, recent entries, and system notices.
+- **Personnel directory (RMS-02):** search callsign, display name, or Discord ID; filter status; open a member's personnel jacket.
+- **Records register (RMS-03):** filter training, promotion, qualification, inactivity, award, department, status, or note records; open the member jacket from any row; enter a new official record.
+- **Approval queue (RMS-04):** review open PAB and Command requests; approve or reject with an optional note; decisions are written to the audit log.
+- **Audit log (RMS-05):** command/admin read-only view of login, search, record, approval, and import activity.
+
+The web entry forms are for structured RMS records. Discord remains the controlled workflow for role changes, public announcements, and final rank application. RMS does not decide subjective discipline, create IA findings, or remove roles because a record was entered. Inactivity reviews remain factual staff-attention records only.
+
 ## Account and access model
 
 RMS accounts are individual Discord identities. There are no shared passwords. On every login Ricky verifies that the Discord identity is currently a member of the configured guild, derives access from current Discord roles, and records the login.
@@ -77,4 +89,4 @@ Every login, search, profile view, approval-queue view, and audit view is record
 
 Do not delete `data/pab.sqlite` during the RMS pilot. The existing PiCam backup job should include the RMS data directory, and a SQLite-consistent backup should be taken before migrations or schema upgrades. Stop `ricky-rms` before copying `rms.sqlite` for a manual rollback backup.
 
-The first release is intentionally read/search oriented. Discord remains the controlled write path until RMS record writes and approval state are validated in the sandbox.
+RMS record writes and approval decisions are available to PAB and Command accounts in the sandbox. Role changes remain in Ricky's Discord approval workflow. Back up `data/rms.sqlite` before schema upgrades or bulk imports.

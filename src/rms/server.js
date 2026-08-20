@@ -19,6 +19,13 @@ function jsonResponse(response, status, payload, headers = {}) {
   response.end(body);
 }
 function textResponse(response, status, body, headers = {}) { response.writeHead(status, headers); response.end(body); }
+async function readJson(request) {
+  if (request.body && typeof request.body === "object") return request.body;
+  let raw = "";
+  for await (const chunk of request) raw += chunk;
+  if (!raw.trim()) return {};
+  try { return JSON.parse(raw); } catch { throw new Error("Request body must be valid JSON."); }
+}
 function safeId(value) { return /^[a-f0-9-]{20,40}$/i.test(String(value || "")); }
 function levelAtLeast(level, required) { return ["member", "pab", "command", "admin"].indexOf(level) >= ["member", "pab", "command", "admin"].indexOf(required); }
 function configFromEnv(env = process.env) {
@@ -132,12 +139,27 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       return textResponse(response, 302, "", { location: "/" });
     }
     if (url.pathname === "/api/health") return jsonResponse(response, 200, { ok: true, service: "Ricky RMS", time: new Date().toISOString() });
+    if (url.pathname === "/api/summary") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const approvals = store.pendingApprovals(account.guildId);
+      return jsonResponse(response, 200, { members: store.memberStats(account.guildId), records: store.recordStats(account.guildId), pendingApprovals: approvals.length, recentRecords: store.records(account.guildId, { limit: 12 }), generatedAt: Date.now() });
+    }
     if (url.pathname === "/api/me") {
       const account = authorized(request, response);
       if (!account) return;
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "account", entityId: account.id });
       const member = store.memberByDiscordId(account.guildId, account.discordId);
       return jsonResponse(response, 200, { account, member });
+    }
+    if (url.pathname === "/api/members" && request.method === "POST") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const body = await readJson(request);
+      if (!body.discordId || !body.displayName) return jsonResponse(response, 400, { error: "discordId and displayName are required." });
+      const member = store.upsertMember({ guildId: account.guildId, discordId: String(body.discordId).trim(), callsign: body.callsign || null, displayName: String(body.displayName).trim(), rank: body.rank || null, status: body.status || "active", hireDate: body.hireDate || null, timeZone: body.timeZone || null, source: body.source || "rms" });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "create_or_update", entityType: "member", entityId: member.id, metadata: { source: member.source } });
+      return jsonResponse(response, 201, { member });
     }
     if (url.pathname === "/api/members") {
       const account = authorized(request, response, "pab");
@@ -146,12 +168,41 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "member", metadata: { query: url.searchParams.get("q") || "", count: members.length } });
       return jsonResponse(response, 200, { members });
     }
+    if (url.pathname === "/api/records" && request.method === "GET") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const records = store.records(account.guildId, { memberId: url.searchParams.get("memberId") || null, recordType: url.searchParams.get("type") || null, status: url.searchParams.get("status") || null, limit: Number(url.searchParams.get("limit") || 100) });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "records", metadata: { count: records.length } });
+      return jsonResponse(response, 200, { records });
+    }
+    if (url.pathname === "/api/records" && request.method === "POST") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const body = await readJson(request);
+      const member = store.memberById(body.memberId);
+      const allowedTypes = new Set(["training", "promotion", "inactivity", "qualification", "award", "department", "status", "note"]);
+      if (!member || member.guildId !== account.guildId) return jsonResponse(response, 400, { error: "A valid RMS member is required." });
+      if (!allowedTypes.has(body.recordType)) return jsonResponse(response, 400, { error: `recordType must be one of: ${[...allowedTypes].join(", ")}.` });
+      const record = store.createRecord({ guildId: account.guildId, memberId: member.id, recordType: body.recordType, status: body.status || "finalized", effectiveDate: body.effectiveDate || new Date().toISOString().slice(0, 10), createdBy: account.discordId, sourceRecordId: body.sourceRecordId || null, data: body.data && typeof body.data === "object" ? body.data : {} });
+      const detail = body.detail && typeof body.detail === "object" ? body.detail : {};
+      if (body.recordType === "training") store.addTrainingRecord({ recordId: record.id, trainerDiscordId: detail.trainerDiscordId || account.discordId, division: detail.division || null, trainingDate: detail.trainingDate || record.effectiveDate, startTime: detail.startTime || null, endTime: detail.endTime || null, timeZone: detail.timeZone || null, trainingType: detail.trainingType || null, outcome: detail.outcome || null, notes: detail.notes || null });
+      if (body.recordType === "promotion") store.addPromotionRecord({ recordId: record.id, fromRank: detail.fromRank || "unknown", toRank: detail.toRank || "unknown", promotionDate: detail.promotionDate || record.effectiveDate, reason: detail.reason || null, authorizationReference: detail.authorizationReference || null });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "create", entityType: "record", entityId: record.id, metadata: { recordType: body.recordType, memberId: member.id } });
+      return jsonResponse(response, 201, { record: store.recordById(record.id) });
+    }
     const memberMatch = url.pathname.match(/^\/api\/members\/([^/]+)$/);
     if (memberMatch) {
       const account = authorized(request, response);
       if (!account) return;
       const member = store.memberById(memberMatch[1]);
       if (!member || member.guildId !== account.guildId) return jsonResponse(response, 404, { error: "Member not found." });
+      if (request.method === "PATCH") {
+        if (!levelAtLeast(account.accessLevel, "pab")) return jsonResponse(response, 403, { error: "PAB access is required to edit personnel." });
+        const body = await readJson(request);
+        const updated = store.updateMember(member.id, body);
+        store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "update", entityType: "member", entityId: member.id, metadata: { fields: Object.keys(body) } });
+        return jsonResponse(response, 200, { member: updated });
+      }
       if (account.accessLevel === "member" && member.discordId !== account.discordId) return jsonResponse(response, 403, { error: "Members may only view their own RMS profile." });
       const timeline = store.memberTimeline(account.guildId, member.id);
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "member", entityId: member.id });
@@ -163,6 +214,19 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       const approvals = store.pendingApprovals(account.guildId);
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "approval_queue", metadata: { count: approvals.length } });
       return jsonResponse(response, 200, { approvals });
+    }
+    const approvalDecision = url.pathname.match(/^\/api\/approvals\/([^/]+)\/decision$/);
+    if (approvalDecision && request.method === "POST") {
+      const existing = store.approvalById(approvalDecision[1]);
+      if (!existing) return jsonResponse(response, 404, { error: "Approval not found." });
+      const account = authorized(request, response, existing.stage === "command" ? "command" : "pab");
+      if (!account) return;
+      const body = await readJson(request);
+      if (!["approved", "rejected", "withdrawn"].includes(body.status)) return jsonResponse(response, 400, { error: "Decision must be approved, rejected, or withdrawn." });
+      const approval = store.decideApproval(existing.id, { status: body.status, decidedBy: account.discordId, notes: body.notes || null });
+      if (!approval) return jsonResponse(response, 409, { error: "Approval is no longer pending." });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: body.status, entityType: "approval", entityId: approval.id, metadata: { workflowType: approval.workflowType, stage: approval.stage } });
+      return jsonResponse(response, 200, { approval });
     }
     if (url.pathname === "/api/audit") {
       const account = authorized(request, response, "command");

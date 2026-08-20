@@ -34,3 +34,18 @@ test("RMS approval queue expires stale requests and supports renewal", () => {
   assert.equal(store.pendingApprovalBySourceId("g", "action-2").id, renewed.id);
   store.close();
 });
+
+test("RMS directory and register provide operational summaries and filters", () => {
+  const store = new RmsStore(":memory:");
+  const active = store.upsertMember({ guildId: "g", discordId: "u1", callsign: "C-110", displayName: "W. Dorfman", rank: "Corporal" });
+  store.upsertMember({ guildId: "g", discordId: "u2", callsign: "C-907", displayName: "Tyler M", status: "inactive" });
+  const record = store.createRecord({ guildId: "g", memberId: active.id, recordType: "promotion", effectiveDate: "2026-08-19", createdBy: "u" , data: { summary: "Promoted to Corporal" } });
+  store.addPromotionRecord({ recordId: record.id, fromRank: "Deputy", toRank: "Corporal", promotionDate: "2026-08-19" });
+  assert.deepEqual(store.memberStats("g"), { total: 2, active: 1, inactive: 1, leave: 0, separated: 0 });
+  assert.deepEqual(store.recordStats("g"), { total: 1, training: 0, promotion: 1, inactivity: 0, finalized: 1 });
+  assert.equal(store.records("g", { recordType: "promotion" }).length, 1);
+  assert.equal(store.records("g", { memberId: active.id })[0].detail.to_rank, "Corporal");
+  assert.equal(store.updateMember(active.id, { status: "leave" }).status, "leave");
+  assert.equal(store.memberStats("g").leave, 1);
+  store.close();
+});

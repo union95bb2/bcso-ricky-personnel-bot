@@ -3,30 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ricky RMS | BCSO Personnel Administration</title>
+  <title>BCSO Personnel Records System</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand"><div class="badge">PAB</div><div><span class="eyebrow">BCSO</span><h1>Ricky RMS</h1></div></div>
-      <div id="identity" class="identity"><a class="button primary" href="/auth/login">Sign in with Discord</a></div>
+  <div class="site-wrap">
+    <header class="masthead">
+      <div class="agency-mark" aria-label="Blaine County Sheriff's Office">BCSO<span>★</span></div>
+      <div class="masthead-copy">
+        <div class="agency-name">Blaine County Sheriff's Office</div>
+        <h1>Personnel Records System</h1>
+        <div class="masthead-subtitle">Ricky RMS · Personnel Administration Bureau · Internal use only</div>
+      </div>
+      <div class="system-id">SYSTEM RMS-01<br><span>AUTHORIZED ACCESS</span></div>
     </header>
+    <nav class="main-nav" aria-label="Main navigation">
+      <button class="nav-link active" data-view="home">Home</button>
+      <button class="nav-link" data-view="directory">Personnel directory</button>
+      <button class="nav-link" data-view="records">Records register</button>
+      <button class="nav-link" data-view="approvals">Approval queue</button>
+      <button class="nav-link" data-view="audit">Audit log</button>
+    </nav>
+
     <main>
-      <section id="signed-out" class="hero panel">
-        <div><span class="eyebrow">Personnel Administration Bureau</span><h2>The authoritative personnel record.</h2><p>Search member histories, review approval queues, and trace every action. Discord remains the workflow front door; Ricky RMS is the structured record.</p><a class="button primary" href="/auth/login">Continue with Discord</a></div>
-        <div class="hero-mark">RMS<span>01</span></div>
+      <section id="signed-out" class="notice-box signed-out">
+        <div class="notice-title">Restricted system</div>
+        <h2>Blaine County Sheriff's Office Personnel Records System</h2>
+        <p>This system contains official training, promotion, qualification, status, and activity records. Access is limited to authorized BCSO personnel and every view is logged.</p>
+        <a class="gov-button primary" href="/auth/login">Sign in with Discord</a>
       </section>
+
       <section id="app" class="hidden">
-        <div class="welcome"><div><span class="eyebrow">PAB CONTROL PANEL</span><h2 id="welcome-title">Good to see you.</h2><p id="welcome-subtitle">Your access and activity are recorded.</p></div><div id="access-pill" class="pill"></div></div>
-        <div class="metric-grid"><article class="metric panel"><span>Open approvals</span><strong id="approval-count">—</strong><small>Private queue awaiting review</small></article><article class="metric panel"><span>Member search</span><strong>RMS</strong><small>Structured, indexed timelines</small></article><article class="metric panel"><span>Audit coverage</span><strong>100%</strong><small>Reads, writes, approvals, imports</small></article></div>
-        <div class="layout-grid"><section class="panel section"><div class="section-head"><div><span class="eyebrow">PERSONNEL</span><h3>Member lookup</h3></div><input id="member-search" class="search" placeholder="Search callsign, name, or Discord ID"></div><div id="member-results" class="results"><p class="muted">Search the RMS to open a personnel timeline.</p></div></section><section class="panel section"><div class="section-head"><div><span class="eyebrow">WORK QUEUE</span><h3>PAB approvals</h3></div><button id="refresh-approvals" class="button ghost">Refresh</button></div><div id="approval-results" class="results"><p class="muted">Loading queue…</p></div></section></div>
-        <section id="timeline-panel" class="panel section hidden"><div class="section-head"><div><span class="eyebrow">PERSONNEL TIMELINE</span><h3 id="timeline-title">Member history</h3></div><button id="close-timeline" class="button ghost">Close</button></div><div id="timeline"></div></section>
-        <section id="audit-panel" class="panel section hidden"><div class="section-head"><div><span class="eyebrow">COMMAND AUDIT</span><h3>Recent activity</h3></div><button id="refresh-audit" class="button ghost">Refresh</button></div><div id="audit-results"></div></section>
+        <div class="user-strip">
+          <span id="identity">Not signed in</span>
+          <span>Access level: <strong id="access-level">—</strong></span>
+          <a class="gov-button small" href="/auth/logout">Sign out</a>
+        </div>
+
+        <div id="view-home" class="view">
+          <div class="page-heading"><div><div class="section-kicker">RMS-01 / HOME</div><h2>Personnel records overview</h2><p>Use the register below to locate a member, review a jacket, or enter a new official record.</p></div><div id="last-refresh" class="last-refresh">—</div></div>
+          <div class="stat-grid">
+            <div class="stat-box"><span>Personnel on file</span><strong id="stat-members">—</strong><small id="stat-members-sub">—</small></div>
+            <div class="stat-box"><span>Active personnel</span><strong id="stat-active">—</strong><small>Current status: active</small></div>
+            <div class="stat-box"><span>Records entered</span><strong id="stat-records">—</strong><small id="stat-records-sub">—</small></div>
+            <div class="stat-box"><span>Open approvals</span><strong id="stat-approvals">—</strong><small>Requires PAB or Command review</small></div>
+          </div>
+          <div class="columns">
+            <section class="gov-panel"><div class="panel-heading"><h3>Recent records</h3><button class="text-button" data-view="records">View register</button></div><div id="home-records" class="table-wrap"></div></section>
+            <section class="gov-panel"><div class="panel-heading"><h3>System notices</h3></div><ul class="notice-list"><li>RMS entries are permanent administrative records.</li><li>Use the approval queue for actions that require a second reviewer.</li><li>IA complaints and disciplinary findings are outside this system.</li></ul></section>
+          </div>
+        </div>
+
+        <div id="view-directory" class="view hidden">
+          <div class="page-heading"><div><div class="section-kicker">RMS-02 / PERSONNEL</div><h2>Personnel directory</h2><p>Search by callsign, name, or Discord member ID. Select a row to open the personnel jacket.</p></div><button id="new-member-button" class="gov-button primary">Add personnel</button></div>
+          <section class="gov-panel"><div class="toolbar"><label for="member-search">Search directory</label><input id="member-search" class="gov-input" placeholder="C-110, Dorfman, or Discord ID" autocomplete="off"><select id="member-status-filter" class="gov-input"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="leave">Leave</option><option value="separated">Separated</option></select></div><div id="member-results" class="table-wrap"><p class="muted">Enter a search term.</p></div></section>
+        </div>
+
+        <div id="view-records" class="view hidden">
+          <div class="page-heading"><div><div class="section-kicker">RMS-03 / REGISTER</div><h2>Records register</h2><p>Chronological register of finalized and working personnel records.</p></div><button id="new-record-button" class="gov-button primary">Enter a record</button></div>
+          <section class="gov-panel"><div class="toolbar"><label for="record-type-filter">Record type</label><select id="record-type-filter" class="gov-input"><option value="">All types</option><option>training</option><option>promotion</option><option>qualification</option><option>inactivity</option><option>award</option><option>department</option><option>status</option><option>note</option></select><select id="record-status-filter" class="gov-input"><option value="">All statuses</option><option>finalized</option><option>draft</option><option>void</option></select><button id="refresh-records" class="gov-button small">Refresh</button></div><div id="records-results" class="table-wrap"><p class="muted">Loading records…</p></div></section>
+        </div>
+
+        <div id="view-approvals" class="view hidden">
+          <div class="page-heading"><div><div class="section-kicker">RMS-04 / CONTROL</div><h2>Approval queue</h2><p>Review requests waiting for PAB or Command action. Decisions are recorded with the acting member and timestamp.</p></div></div>
+          <section class="gov-panel"><div class="toolbar"><span class="toolbar-label">Open requests</span><button id="refresh-approvals" class="gov-button small">Refresh queue</button></div><div id="approval-results" class="table-wrap"><p class="muted">Loading queue…</p></div></section>
+        </div>
+
+        <div id="view-audit" class="view hidden">
+          <div class="page-heading"><div><div class="section-kicker">RMS-05 / AUDIT</div><h2>Audit log</h2><p>Read-only history of RMS views, searches, entries, imports, and approvals.</p></div></div>
+          <section class="gov-panel"><div class="toolbar"><button id="refresh-audit" class="gov-button small">Refresh audit</button></div><div id="audit-results" class="table-wrap"><p class="muted">Command access is required to view the audit log.</p></div></section>
+        </div>
+
+        <section id="member-panel" class="gov-panel overlay-panel hidden"><div class="panel-heading"><div><div class="section-kicker">PERSONNEL JACKET</div><h3 id="member-title">Member record</h3></div><button id="close-member" class="gov-button small">Close</button></div><div id="member-summary" class="member-summary"></div><div id="member-timeline" class="table-wrap"></div></section>
+        <section id="member-form-panel" class="gov-panel form-panel hidden"><div class="panel-heading"><h3>Personnel entry</h3><button class="gov-button small close-form">Cancel</button></div><form id="member-form" class="form-grid"><label>Discord member ID<input name="discordId" class="gov-input" required></label><label>Display name<input name="displayName" class="gov-input" required></label><label>Callsign<input name="callsign" class="gov-input" placeholder="C-000"></label><label>Rank<input name="rank" class="gov-input" placeholder="Deputy Sheriff Trainee"></label><label>Status<select name="status" class="gov-input"><option>active</option><option>inactive</option><option>leave</option><option>separated</option></select></label><label>Hire date<input name="hireDate" class="gov-input" type="date"></label><label>Time zone<input name="timeZone" class="gov-input" placeholder="MST"></label><div class="form-actions"><button class="gov-button primary" type="submit">Save personnel</button><span id="member-form-message" class="form-message"></span></div></form></section>
+        <section id="record-form-panel" class="gov-panel form-panel hidden"><div class="panel-heading"><h3>Official record entry</h3><button class="gov-button small close-form">Cancel</button></div><form id="record-form" class="form-grid"><label>Member<select id="record-member" name="memberId" class="gov-input" required></select></label><label>Record type<select id="record-type" name="recordType" class="gov-input" required><option value="training">Training</option><option value="promotion">Promotion</option><option value="qualification">Qualification</option><option value="inactivity">Inactivity review</option><option value="award">Award</option><option value="department">Department assignment</option><option value="status">Status change</option><option value="note">Administrative note</option></select></label><label>Effective date<input name="effectiveDate" class="gov-input" type="date" required></label><label>Subject / summary<input name="summary" class="gov-input" required></label><label class="wide">Record detail<textarea name="notes" class="gov-input" rows="5" placeholder="Factual entry. Do not enter IA complaints or disciplinary findings."></textarea></label><label>From rank (promotion only)<input name="fromRank" class="gov-input"></label><label>To rank (promotion only)<input name="toRank" class="gov-input"></label><label>Training type (training only)<input name="trainingType" class="gov-input" placeholder="Classroom, practical, ride-along"></label><label>Time zone (training only)<input name="timeZone" class="gov-input" placeholder="MST"></label><div class="form-actions"><button class="gov-button primary" type="submit">Save official record</button><span id="record-form-message" class="form-message"></span></div></form></section>
       </section>
-      <div id="error" class="notice error hidden"></div>
+      <div id="error" class="notice-box error hidden"></div>
     </main>
-    <footer>Ricky RMS · BCSO Personnel Administration Bureau · Every view and action is auditable</footer>
+    <footer>BCSO Personnel Administration Bureau · RMS-01 · Use of this system is logged</footer>
   </div>
   <script src="/app.js"></script>
 </body>
