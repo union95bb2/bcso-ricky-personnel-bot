@@ -125,14 +125,17 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       if (guildMember.user?.bot) continue;
       const user = guildMember.user || {};
       const displayName = guildMember.nick || user.global_name || user.username || user.id;
+      const existing = store.memberByDiscordId(account.guildId, user.id);
       store.upsertMember({
         guildId: account.guildId,
         discordId: user.id,
-        callsign: callsignFromLabel(guildMember.nick || displayName),
+        callsign: callsignFromLabel(guildMember.nick || displayName) || existing?.callsign || null,
         displayName,
-        rank: rankFromRoles(guildMember.roles),
-        status: "active",
-        joinedAt: guildMember.joined_at ? Date.parse(guildMember.joined_at) : null,
+        rank: rankFromRoles(guildMember.roles) || existing?.rank || null,
+        status: existing?.status || "active",
+        hireDate: existing?.hireDate || null,
+        joinedAt: guildMember.joined_at ? Date.parse(guildMember.joined_at) : existing?.joinedAt || null,
+        timeZone: existing?.timeZone || null,
         source: "discord-sync"
       });
       count += 1;

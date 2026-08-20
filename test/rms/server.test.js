@@ -64,6 +64,7 @@ test("RMS Discord roster sync imports human members and maps rank roles", async 
     ] : [] })
   });
   const account = store.upsertAccount({ guildId: "g", discordId: "actor", accessLevel: "pab" });
+  store.upsertMember({ guildId: "g", discordId: "u1", displayName: "Tyler M", callsign: "C-907", rank: "Deputy", status: "inactive" });
   const rawSession = "session-token";
   store.createSession(createHash("sha256").update(`secret:${rawSession}`).digest("hex"), account.id, Date.now() + 60_000);
   const response = responseMock();
@@ -73,6 +74,7 @@ test("RMS Discord roster sync imports human members and maps rank roles", async 
   const member = store.memberByDiscordId("g", "u1");
   assert.equal(member.callsign, "C-907");
   assert.equal(member.rank, "Deputy Sheriff Trainee");
+  assert.equal(member.status, "inactive");
   assert.equal(store.auditTrail("g", 10)[0].action, "roster_sync");
   app.store.close();
 });
