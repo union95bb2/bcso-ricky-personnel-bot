@@ -1,6 +1,6 @@
 {
   "name": "bcso-personnel-bot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Ricky Bot: BCSO personnel, training, and promotion workflow bot.",

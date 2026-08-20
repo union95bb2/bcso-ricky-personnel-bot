@@ -149,7 +149,7 @@ def footer(canvas, doc):
     canvas.line(0.6 * inch, 0.48 * inch, width - 0.6 * inch, 0.48 * inch)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(0.6 * inch, 0.29 * inch, "Ricky Bot v1 | Owner's Manual | Technical reference")
+    canvas.drawString(0.6 * inch, 0.29 * inch, "Ricky Bot v1.1.0 | Owner's Manual | Technical reference")
     canvas.drawRightString(width - 0.6 * inch, 0.29 * inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -164,7 +164,7 @@ if logo.exists():
     story += [Spacer(1, 0.38 * inch), im, Spacer(1, 0.18 * inch)]
 story += [
     P("BCSO PERSONNEL ADMINISTRATION BUREAU", "CoverKicker"),
-    P("Ricky Bot v1", "CoverTitle"),
+    P("Ricky Bot v1.1.0", "CoverTitle"),
     P("Owner's Manual and Server Administrator Reference", "CoverTitle"),
     P("A technical operating guide for the Discord personnel workflow bot", "CoverSub"),
     Spacer(1, 0.15 * inch),
@@ -451,7 +451,7 @@ story += [P("This document is an operating manual for Ricky Bot. Server-specific
 doc = SimpleDocTemplate(
     str(OUT), pagesize=letter, rightMargin=0.6 * inch, leftMargin=0.6 * inch,
     topMargin=0.62 * inch, bottomMargin=0.68 * inch,
-    title="Ricky Bot v1 - Owner's Manual",
+    title="Ricky Bot v1.1.0 - Owner's Manual",
     author="BCSO Personnel Administration Bureau",
 )
 doc.build(story, onFirstPage=footer, onLaterPages=footer)

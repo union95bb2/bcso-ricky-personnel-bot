@@ -2,6 +2,8 @@
 
 This bot is a private BCSO Personnel Administration Bureau (PAB) workflow system for the FiveM roleplay server. It standardizes records and controlled role changes; Internal Affairs matters, conduct complaints, investigations, findings, and discipline are outside its scope.
 
+**Release:** Ricky Bot v1.1.0. This release adds silent-departure monitoring without changing existing command syntax or approval guardrails.
+
 ## What the bot will and will not do
 
 It can create approved-format records, use real Discord member/role mentions, manage only explicitly allow-listed qualification roles, and process a rank promotion only after Command approval. It logs a durable local receipt for every successful bot-posted record.
