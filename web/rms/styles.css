@@ -100,3 +100,51 @@ p { margin: 0 0 11px; }
 footer { padding: 14px 25px 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 10px; text-align: center; }
 @media (max-width: 900px) { .site-wrap { margin-top: 0; } .masthead { padding: 14px 18px; } main { padding: 20px 18px 35px; } .stat-grid { grid-template-columns: repeat(2, 1fr); } .columns { grid-template-columns: 1fr; } .member-summary { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .masthead h1 { font-size: 20px; } .system-id { display: none; } .main-nav { padding: 6px 7px 0; } .nav-link { flex: 1 1 50%; } .page-heading { align-items: flex-start; flex-direction: column; } .stat-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .form-grid label.wide, .form-actions { grid-column: auto; } .member-summary { grid-template-columns: repeat(2, 1fr); } .user-strip { align-items: flex-start; flex-wrap: wrap; } }
+
+/* 2010-era county portal treatment for the home page. */
+body { background: #e8e5dc; }
+.site-wrap { max-width: 1040px; margin-top: 0; background: #f0efe9; }
+.masthead { min-height: 126px; padding: 20px 30px 32px; align-items: flex-start; background: linear-gradient(110deg, #06345f 0%, #0b5589 58%, #0a3965 100%); border-bottom: 0; box-shadow: inset 0 1px #4f87ae, 0 2px 3px #1a344a80; }
+.agency-mark { width: 66px; height: 66px; margin-top: 3px; border-radius: 50%; background: linear-gradient(#2d719e, #0a355a); font-size: 14px; }
+.masthead-copy { padding-top: 1px; }
+.agency-name { font-size: 15px; text-transform: none; letter-spacing: 0; }
+.masthead h1 { margin: -1px 0 0; font: 32px Georgia, "Times New Roman", serif; letter-spacing: -.02em; }
+.masthead-subtitle { font: italic 15px Georgia, "Times New Roman", serif; color: #e4edf4; }
+.system-id { margin-top: 5px; }
+.main-nav { position: relative; z-index: 2; margin: -15px 0 0; padding: 0 19px; gap: 0; background: linear-gradient(#cf1430, #8a001b 62%, #5e0012); border-top: 1px solid #ef5c6f; border-bottom: 4px solid #4c0010; box-shadow: 0 2px 3px #43122466; }
+.nav-link { padding: 10px 14px; color: #fff; border: 0; border-right: 1px solid #e35c6c; border-radius: 0; background: transparent; text-shadow: 0 1px #650014; }
+.nav-link:hover, .nav-link.active { color: #fff; background: linear-gradient(#e13c52, #a00020); border-bottom: 0; }
+main { padding: 20px 18px 42px; }
+.page-heading { margin: 3px 0 13px; }
+.page-heading h2 { font-size: 23px; }
+.home-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr) 220px; gap: 10px; align-items: start; }
+.left-rail, .right-rail { min-width: 0; }
+.rail-title { padding: 8px 10px; color: #fff; background: linear-gradient(#174f7c, #062d54); border: 1px solid #062748; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.popular-title { margin-top: 12px; }
+.service-tile { width: 100%; min-height: 51px; display: block; padding: 7px 9px; color: #fff; border: 1px solid #fff; text-align: left; text-shadow: 0 1px #244; }
+.service-tile strong, .service-tile span { display: block; }
+.service-tile strong { font-size: 11px; text-transform: uppercase; }
+.service-tile span { margin-top: 2px; font-size: 10px; }
+.service-tile.green { background: linear-gradient(#68b83e, #318b18); }
+.service-tile.blue { background: linear-gradient(#2c95c7, #126188); }
+.service-tile.gray { background: linear-gradient(#888, #5b5b5b); }
+.popular-links { margin: 0; padding: 10px 9px 11px 31px; color: #222; background: #f8f7f1; border: 1px solid #c3c3b8; font-size: 11px; font-weight: 700; }
+.popular-links li { padding: 4px 0; }
+.center-column .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 5px; margin-bottom: 9px; }
+.center-column .stat-box { min-height: 70px; padding: 8px 10px; border-radius: 2px; box-shadow: none; }
+.center-column .stat-box strong { margin: 1px 0; font-size: 22px; }
+.center-column .stat-box span { font-size: 9px; }
+.center-column .stat-box small { font-size: 10px; }
+.gov-panel { border-radius: 2px; box-shadow: none; }
+.center-column .gov-panel { margin-bottom: 9px; padding: 11px 12px 14px; }
+.center-column .panel-heading { padding-bottom: 7px; margin-bottom: 8px; }
+.feature-box { min-height: 86px; margin-bottom: 9px; padding: 11px 10px; color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 1px #aeb4b4; text-shadow: 0 1px #2a3d4b; }
+.feature-box strong, .feature-box span { display: block; }
+.feature-box strong { font-size: 13px; text-transform: uppercase; }
+.feature-box span { margin-top: 7px; font-size: 11px; line-height: 1.3; }
+.feature-box.navy { background: linear-gradient(#2775a3, #03416f); }
+.feature-box.red { background: linear-gradient(#d41e36, #9e001d); }
+.feature-box.gold { color: #2d2a20; background: linear-gradient(#e6c067, #bc8a24); text-shadow: 0 1px #f5dd9d; }
+footer { background: #e2e0d8; }
+@media (max-width: 900px) { .home-layout { grid-template-columns: 170px minmax(0, 1fr); } .right-rail { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } }
+@media (max-width: 620px) { .masthead { min-height: 104px; padding: 15px; } .masthead h1 { font-size: 25px; } .masthead-subtitle { font-size: 12px; } .home-layout { grid-template-columns: 1fr; } .right-rail { display: block; } .center-column .stat-grid { grid-template-columns: 1fr 1fr; } }

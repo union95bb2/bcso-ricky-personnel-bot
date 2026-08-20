@@ -42,15 +42,30 @@
 
         <div id="view-home" class="view">
           <div class="page-heading"><div><div class="section-kicker">RMS-01 / HOME</div><h2>Personnel records overview</h2><p>Use the register below to locate a member, review a jacket, or enter a new official record.</p></div><div id="last-refresh" class="last-refresh">—</div></div>
-          <div class="stat-grid">
-            <div class="stat-box"><span>Personnel on file</span><strong id="stat-members">—</strong><small id="stat-members-sub">—</small></div>
-            <div class="stat-box"><span>Active personnel</span><strong id="stat-active">—</strong><small>Current status: active</small></div>
-            <div class="stat-box"><span>Records entered</span><strong id="stat-records">—</strong><small id="stat-records-sub">—</small></div>
-            <div class="stat-box"><span>Open approvals</span><strong id="stat-approvals">—</strong><small>Requires PAB or Command review</small></div>
-          </div>
-          <div class="columns">
-            <section class="gov-panel"><div class="panel-heading"><h3>Recent records</h3><button class="text-button" data-view="records">View register</button></div><div id="home-records" class="table-wrap"></div></section>
-            <section class="gov-panel"><div class="panel-heading"><h3>System notices</h3></div><ul class="notice-list"><li>RMS entries are permanent administrative records.</li><li>Use the approval queue for actions that require a second reviewer.</li><li>IA complaints and disciplinary findings are outside this system.</li></ul></section>
+          <div class="home-layout">
+            <aside class="left-rail">
+              <div class="rail-title">Personnel services</div>
+              <button class="service-tile green" data-view="directory"><strong>Personnel directory</strong><span>Search member jackets</span></button>
+              <button class="service-tile blue" data-view="records"><strong>Records register</strong><span>Training and personnel entries</span></button>
+              <button class="service-tile gray" data-view="approvals"><strong>PAB approvals</strong><span>Review the open queue</span></button>
+              <div class="rail-title popular-title">Quick links</div>
+              <ol class="popular-links"><li>Personnel directory</li><li>Training records</li><li>Promotion register</li><li>Inactivity reviews</li><li>Audit log</li></ol>
+            </aside>
+            <section class="center-column">
+              <div class="stat-grid">
+                <div class="stat-box"><span>Personnel on file</span><strong id="stat-members">—</strong><small id="stat-members-sub">—</small></div>
+                <div class="stat-box"><span>Active personnel</span><strong id="stat-active">—</strong><small>Current status: active</small></div>
+                <div class="stat-box"><span>Records entered</span><strong id="stat-records">—</strong><small id="stat-records-sub">—</small></div>
+                <div class="stat-box"><span>Open approvals</span><strong id="stat-approvals">—</strong><small>Requires review</small></div>
+              </div>
+              <section class="gov-panel"><div class="panel-heading"><h3>Recent personnel records</h3><button class="text-button" data-view="records">View register</button></div><div id="home-records" class="table-wrap"></div></section>
+              <section class="gov-panel"><div class="panel-heading"><h3>System notices</h3></div><ul class="notice-list"><li>RMS entries are permanent administrative records.</li><li>Use the approval queue for actions that require a second reviewer.</li><li>IA complaints and disciplinary findings are outside this system.</li></ul></section>
+            </section>
+            <aside class="right-rail">
+              <div class="feature-box navy"><strong>BCSO Personnel Administration Bureau</strong><span>Official personnel record access</span></div>
+              <div class="feature-box red"><strong>Need a record?</strong><span>Use the records register to enter a finalized training, promotion, or activity entry.</span></div>
+              <div class="feature-box gold"><strong>Access notice</strong><span>All sign-ins, searches, entries, and approvals are written to the audit log.</span></div>
+            </aside>
           </div>
         </div>
 
