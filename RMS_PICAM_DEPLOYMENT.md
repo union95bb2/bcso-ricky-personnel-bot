@@ -62,13 +62,20 @@ docker compose --profile rms up -d --build ricky-rms
 curl -fsS http://127.0.0.1:8788/api/health
 ```
 
+The health response now verifies the SQLite connection and includes the RMS
+version. A `503` means the application is reachable but its database is not;
+check the container logs and persistent `/app/data` mount before restarting.
+After an authenticated PAB login, `/api/status` provides the same database
+probe plus redacted Discord/OAuth configuration flags. It never returns tokens,
+role IDs, member records, or other personnel data.
+
 ## Dashboard operations
 
 The RMS dashboard is deliberately built like an older public-sector records application rather than a consumer dashboard. It uses a dense register, fixed section codes, form-based entry, status labels, and a plain audit trail.
 
 - **Home (RMS-01):** current personnel totals, record totals, open approvals, recent entries, and system notices.
 - **Personnel directory (RMS-02):** search callsign, display name, or Discord ID; filter status; open a member's personnel jacket.
-- **Records register (RMS-03):** filter training, promotion, qualification, inactivity, award, department, status, or note records; open the member jacket from any row; enter a new official record.
+- **Records register (RMS-03):** filter training, promotion, qualification, inactivity, award, department, status, or note records; open the member jacket from any row; enter a new official record. Clicking a jacket timeline row opens read-only structured detail.
 - **Approval queue (RMS-04):** review open PAB and Command requests; approve or reject with an optional note; decisions are written to the audit log.
 - **Audit log (RMS-05):** command/admin read-only view of login, search, record, approval, and import activity.
 
@@ -84,6 +91,11 @@ RMS accounts are individual Discord identities. There are no shared passwords. O
 - `admin`: operational administration and audit access.
 
 Every login, search, profile view, approval-queue view, and audit view is recorded. Future record writes and Discord approvals will write the same audit trail.
+
+If a request fails, the dashboard shows the HTTP status and a request reference
+when the server provides one. Use **Retry** to repeat the current view; do not
+duplicate an official record until the result is confirmed. A jacket can be
+printed from its read-only view for a controlled staff review.
 
 ## Rollback and backups
 
