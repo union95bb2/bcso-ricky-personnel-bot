@@ -12,6 +12,8 @@ The verified role-presentation audit is stored in [`scripts/role-style-manifest.
 
 Ricky RMS is the structured system of record for personnel data. Discord remains the intake, approval, and notification surface; the RMS stores normalized member profiles, typed training and promotion records, approval states, imports, and an append-only audit trail. The PAB dashboard provides individual Discord-account sign-in, member search, personnel timelines, and the approval queue. Members can view only their own profile; PAB, Command, and administrators receive progressively broader access from current Discord roles.
 
+After signing in with a PAB account, use **Personnel directory → Sync Discord roster** to import the current human members of the configured Discord guild. Ricky Bot skips bot accounts, derives a callsign from the member nickname when present, maps configured rank roles, upserts existing Discord IDs instead of duplicating them, and writes an auditable `roster_sync` event. The sync is intentionally manual and read-only with respect to Discord: it never changes Discord roles, nicknames, or permissions.
+
 The RMS is designed for the PiCam host and starts as a protected SQLite database plus Node dashboard. The existing PAB ledger is migrated idempotently with `npm run migrate:rms`. Google Sheets are migration/reference inputs, not the authoritative personnel database. See [`RMS_PICAM_DEPLOYMENT.md`](RMS_PICAM_DEPLOYMENT.md) for OAuth, backup, reverse-proxy, and rollback requirements. The RMS profile is staged until OAuth and host routing are configured.
 
 ## What it does
