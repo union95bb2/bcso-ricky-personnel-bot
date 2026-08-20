@@ -287,7 +287,7 @@ export class RmsStore {
     const members = this.#db.prepare("SELECT * FROM rms_members WHERE guild_id = ? AND status = 'inactive' ORDER BY display_name LIMIT ?").all(guildId, Math.min(Math.max(Number(limit) || 100, 1), 500));
     return members.map(row => {
       const member = this.#member(row);
-      const latest = this.records(guildId, { memberId: member.id, limit: 1 })[0] || null;
+      const latest = this.records(guildId, { memberId: member.id, limit: 100 }).find(record => record.recordType !== "inactivity") || null;
       const latestReview = this.records(guildId, { memberId: member.id, recordType: "inactivity", limit: 1 })[0] || null;
       return {
         member,

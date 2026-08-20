@@ -61,7 +61,7 @@ test("RMS record search and inactivity queue remain factual and member-scoped", 
   const queue = store.inactivityQueue("g");
   assert.equal(queue.length, 1);
   assert.equal(queue[0].member.callsign, "C-907");
-  assert.equal(queue[0].lastActivity.type, "inactivity");
+  assert.equal(queue[0].lastActivity.type, "training");
   assert.equal(queue[0].lastReviewDate, "2026-08-18");
   store.close();
 });
