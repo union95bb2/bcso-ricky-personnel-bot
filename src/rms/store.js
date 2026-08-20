@@ -143,6 +143,17 @@ export class RmsStore {
 
   close() { this.#db.close(); }
 
+  /**
+   * Lightweight database probe used by the public health endpoint. Keep this
+   * deliberately free of record counts or member data: health is safe to
+   * expose through the reverse proxy and should only answer whether SQLite is
+   * available.
+   */
+  health() {
+    this.#db.prepare("SELECT 1 AS ok").get();
+    return { ok: true };
+  }
+
   upsertMember({ guildId, discordId, callsign = null, displayName, rank = null, status = "active", hireDate = null, joinedAt = null, timeZone = null, source = "discord" }) {
     const timestamp = now();
     const existing = this.#db.prepare("SELECT id FROM rms_members WHERE guild_id = ? AND discord_id = ?").get(guildId, discordId);

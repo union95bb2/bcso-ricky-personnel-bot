@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
@@ -163,6 +163,8 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
   }
 
   async function route(request, response) {
+    const requestId = request.headers["x-request-id"] || randomUUID();
+    if (typeof response.setHeader === "function") response.setHeader("x-request-id", requestId);
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     if (url.pathname === "/auth/login") {
       const missing = requireConfig();
@@ -194,7 +196,34 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       response.setHeader("set-cookie", "rms_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
       return textResponse(response, 302, "", { location: "/" });
     }
-    if (url.pathname === "/api/health") return jsonResponse(response, 200, { ok: true, service: "Ricky RMS", time: new Date().toISOString() });
+    if (url.pathname === "/api/health") {
+      try {
+        store.health();
+        return jsonResponse(response, 200, { ok: true, service: "Ricky RMS", version: "1.0.0", database: "ok", time: new Date().toISOString() });
+      } catch (error) {
+        console.error(`[${requestId}] RMS health check failed`, error);
+        return jsonResponse(response, 503, { ok: false, service: "Ricky RMS", database: "unavailable", error: "RMS database is unavailable.", requestId });
+      }
+    }
+    if (url.pathname === "/api/status") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      try {
+        store.health();
+        return jsonResponse(response, 200, {
+          ok: true,
+          service: "Ricky RMS",
+          version: "1.0.0",
+          database: "ok",
+          discordConfigured: Boolean(config.guildId && config.botToken),
+          oauthConfigured: requireConfig().length === 0,
+          checkedAt: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error(`[${requestId}] RMS status check failed`, error);
+        return jsonResponse(response, 503, { ok: false, database: "unavailable", error: "RMS database is unavailable.", requestId });
+      }
+    }
     if (url.pathname === "/api/sync" && request.method === "POST") {
       const account = authorized(request, response, "pab");
       if (!account) return;
@@ -304,7 +333,13 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
     return jsonResponse(response, 404, { error: "Not found" });
   }
 
-  const server = createServer((request, response) => { route(request, response).catch(error => { console.error("RMS request failed", error); if (!response.headersSent) jsonResponse(response, 500, { error: "RMS request failed." }); }); });
+  const server = createServer((request, response) => {
+    route(request, response).catch(error => {
+      const requestId = (typeof response.getHeader === "function" && response.getHeader("x-request-id")) || randomUUID();
+      console.error(`[${requestId}] RMS request failed`, error);
+      if (!response.headersSent) jsonResponse(response, 500, { error: "RMS request failed.", requestId }, { "x-request-id": requestId });
+    });
+  });
   return { server, store, config, handleRequest: route, start: () => server.listen(config.port, config.bind), close: () => { server.close(); store.close(); } };
 }
 

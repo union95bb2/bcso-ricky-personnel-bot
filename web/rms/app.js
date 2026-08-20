@@ -6,21 +6,34 @@ const today = () => new Date().toISOString().slice(0, 10);
 let currentAccount = null;
 let currentMembers = [];
 let searchTimer;
+let activeView = "home";
 
 async function api(path, options = {}) {
   const response = await fetch(path, { credentials: "same-origin", headers: { accept: "application/json", ...(options.body ? { "content-type": "application/json" } : {}) }, ...options });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(payload.error || `Request failed (${response.status})`);
+    error.status = response.status;
+    error.requestId = payload.requestId || response.headers.get("x-request-id") || "";
+    throw error;
+  }
   return payload;
 }
 
-function showError(error) { $("error").textContent = error.message || String(error); $("error").classList.remove("hidden"); window.scrollTo({ top: 0, behavior: "smooth" }); }
-function clearError() { $("error").classList.add("hidden"); }
+function showError(error) {
+  const message = error.message || String(error);
+  $("error-message").textContent = message;
+  $("error-reference").textContent = error.requestId ? `Reference: ${error.requestId}${error.status ? ` · HTTP ${error.status}` : ""}` : "";
+  $("error").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function clearError() { $("error").classList.add("hidden"); $("error-message").textContent = ""; $("error-reference").textContent = ""; }
 function isPab() { return ["pab", "command", "admin"].includes(currentAccount?.accessLevel); }
 function isCommand() { return ["command", "admin"].includes(currentAccount?.accessLevel); }
 function setMessage(id, message, good = true) { const node = $(id); node.textContent = message; node.className = `form-message ${good ? "good" : "bad"}`; }
 
 function showView(view) {
+  activeView = view;
   document.querySelectorAll(".view").forEach(section => section.classList.toggle("hidden", section.id !== `view-${view}`));
   document.querySelectorAll(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.view === view));
   if (view === "directory") loadMembers();
@@ -38,6 +51,20 @@ function renderSummary(summary) {
   $("stat-approvals").textContent = summary.pendingApprovals;
   $("last-refresh").textContent = `Last refresh: ${dateTimeText(summary.generatedAt)}`;
   renderRecords(summary.recentRecords, "home-records", true);
+}
+
+async function refreshDashboard() {
+  clearError();
+  await Promise.all([loadSummary(), loadMembers()]);
+}
+
+function retryActiveView() {
+  clearError();
+  if (activeView === "directory") return loadMembers();
+  if (activeView === "records") return loadRecords();
+  if (activeView === "approvals") return loadApprovals();
+  if (activeView === "audit") return loadAudit();
+  return refreshDashboard();
 }
 
 function recordLabel(record) {
@@ -94,10 +121,23 @@ async function openMember(id) {
     const data = await api(`/api/members/${encodeURIComponent(id)}`);
     $("member-title").textContent = `${data.member.callsign || "No callsign"} · ${data.member.displayName}`;
     $("member-summary").innerHTML = `<div><span>Rank</span><strong>${esc(data.member.rank || "Unassigned")}</strong></div><div><span>Status</span><strong>${esc(data.member.status)}</strong></div><div><span>Hire date</span><strong>${esc(dateText(data.member.hireDate))}</strong></div><div><span>Time zone</span><strong>${esc(data.member.timeZone || "—")}</strong></div><div><span>Discord ID</span><strong class="mono">${esc(data.member.discordId)}</strong></div>`;
-    $("member-timeline").innerHTML = data.timeline.length ? `<table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Entry</th><th>Entered by</th></tr></thead><tbody>${data.timeline.map(item => `<tr><td>${esc(dateText(item.effectiveDate))}</td><td><span class="record-tag">${esc(item.recordType)}</span></td><td>${esc(recordLabel(item))}</td><td class="mono">${esc(item.createdBy)}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">No RMS records have been entered for this member.</p>';
+    const latest = data.timeline[0];
+    $("member-activity").innerHTML = `<strong>Last recorded activity:</strong> ${latest ? `${esc(dateText(latest.effectiveDate))} · ${esc(latest.recordType)} · ${esc(recordLabel(latest))}` : "No RMS activity has been recorded."}`;
+    $("member-timeline").innerHTML = data.timeline.length ? `<table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Entry</th><th>Entered by</th></tr></thead><tbody>${data.timeline.map(item => `<tr class="clickable" data-record="${esc(item.id)}"><td>${esc(dateText(item.effectiveDate))}</td><td><span class="record-tag">${esc(item.recordType)}</span></td><td>${esc(recordLabel(item))}</td><td class="mono">${esc(item.createdBy)}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">No RMS records have been entered for this member.</p>';
+    $("member-timeline").querySelectorAll("[data-record]").forEach(row => row.addEventListener("click", () => showRecordDetail(data.timeline.find(item => item.id === row.dataset.record))));
+    $("record-detail").classList.add("hidden");
     $("member-panel").classList.remove("hidden");
     $("member-panel").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) { showError(error); }
+}
+
+function showRecordDetail(record) {
+  if (!record) return;
+  const detail = record.detail || {};
+  const fields = Object.entries(detail).filter(([, value]) => value !== null && value !== undefined && value !== "").map(([key, value]) => `<div><span>${esc(key.replaceAll("_", " "))}</span><strong>${esc(value)}</strong></div>`).join("");
+  $("record-detail").innerHTML = `<div class="panel-heading"><h3>Record detail</h3><button id="close-record-detail" class="text-button">Close</button></div><div class="record-detail-grid"><div><span>Record type</span><strong>${esc(record.recordType)}</strong></div><div><span>Effective date</span><strong>${esc(dateText(record.effectiveDate))}</strong></div><div><span>Status</span><strong>${esc(record.status)}</strong></div><div><span>Record ID</span><strong class="mono">${esc(record.id)}</strong></div>${fields}</div><p class="record-detail-note">This view is read-only. Corrections must be entered through the approved RMS workflow.</p>`;
+  $("record-detail").classList.remove("hidden");
+  $("close-record-detail").addEventListener("click", () => $("record-detail").classList.add("hidden"));
 }
 
 async function loadRecords() {
@@ -149,7 +189,7 @@ async function saveRecord(event) {
   const fields = Object.fromEntries(new FormData(event.currentTarget).entries());
   const data = { summary: fields.summary, notes: fields.notes };
   const detail = { trainingType: fields.trainingType, timeZone: fields.timeZone, fromRank: fields.fromRank, toRank: fields.toRank, promotionDate: fields.effectiveDate, trainingDate: fields.effectiveDate, notes: fields.notes, outcome: fields.summary, trainerDiscordId: currentAccount?.discordId };
-  try { await api("/api/records", { method: "POST", body: JSON.stringify({ memberId: fields.memberId, recordType: fields.recordType, effectiveDate: fields.effectiveDate, data, detail }) }); setMessage("record-form-message", "Official record saved."); event.currentTarget.reset(); $("effective-date"); closeForms(); await loadRecords(); await loadSummary(); } catch (error) { setMessage("record-form-message", error.message, false); }
+  try { await api("/api/records", { method: "POST", body: JSON.stringify({ memberId: fields.memberId, recordType: fields.recordType, effectiveDate: fields.effectiveDate, data, detail }) }); setMessage("record-form-message", "Official record saved."); event.currentTarget.reset(); event.currentTarget.elements.effectiveDate.value = today(); closeForms(); await loadRecords(); await loadSummary(); } catch (error) { setMessage("record-form-message", error.message, false); }
 }
 
 async function boot() {
@@ -173,7 +213,9 @@ $("member-status-filter").addEventListener("change", () => renderMembers(current
 $("record-type-filter").addEventListener("change", loadRecords); $("record-status-filter").addEventListener("change", loadRecords); $("refresh-records").addEventListener("click", loadRecords);
 $("refresh-approvals").addEventListener("click", loadApprovals); $("refresh-audit").addEventListener("click", loadAudit);
 $("sync-roster-button").addEventListener("click", syncRoster);
+$("refresh-dashboard").addEventListener("click", refreshDashboard);
+$("retry-request").addEventListener("click", retryActiveView);
 $("new-member-button").addEventListener("click", () => openForm("member-form-panel")); $("new-record-button").addEventListener("click", () => { $("record-form").elements.effectiveDate.value = today(); openForm("record-form-panel"); });
-$("close-member").addEventListener("click", () => $("member-panel").classList.add("hidden")); document.querySelectorAll(".close-form").forEach(button => button.addEventListener("click", closeForms));
+$("close-member").addEventListener("click", () => $("member-panel").classList.add("hidden")); $("print-member").addEventListener("click", () => window.print()); document.querySelectorAll(".close-form").forEach(button => button.addEventListener("click", closeForms));
 $("member-form").addEventListener("submit", saveMember); $("record-form").addEventListener("submit", saveRecord);
 boot();

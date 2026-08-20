@@ -62,6 +62,7 @@ p { margin: 0 0 11px; }
 .columns { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16px; }
 .gov-panel { margin-bottom: 16px; padding: 15px 17px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; box-shadow: inset 0 1px #fff, 0 1px 3px #344c5c1c; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 9px; margin-bottom: 12px; border-bottom: 1px solid #c6d1d8; }
+.panel-actions { display: inline-flex; align-items: center; gap: 9px; }
 .text-button { border: 0; color: var(--blue); background: transparent; font-size: 11px; font-weight: 700; }
 .notice-list { margin: 0; padding-left: 18px; color: var(--muted); }
 .notice-list li { margin: 7px 0; }
@@ -91,6 +92,13 @@ p { margin: 0 0 11px; }
 .member-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding: 10px; margin-bottom: 13px; background: linear-gradient(#f4f8fa, #e8eef2); border: 1px solid #c0ccd4; border-radius: 3px; }
 .member-summary span { display: block; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .member-summary strong { display: block; margin-top: 3px; color: var(--blue-dark); font-size: 12px; }
+.member-activity { padding: 8px 10px; margin-bottom: 12px; color: #31566f; background: #f6f8f9; border: 1px solid #c0ccd4; border-left: 3px solid var(--gold); font-size: 11px; }
+.record-detail { margin-top: 13px; padding: 10px 12px; background: #f4f7f8; border: 1px solid #c0ccd4; border-top: 3px solid var(--blue); }
+.record-detail .panel-heading { margin-bottom: 9px; padding-bottom: 6px; }
+.record-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.record-detail-grid span { display: block; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.record-detail-grid strong { display: block; margin-top: 2px; color: var(--blue-dark); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.record-detail-note { margin: 11px 0 0; color: var(--muted); font-size: 10px; }
 .form-panel { border-top: 3px solid var(--blue); }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 15px; }
 .form-grid label { display: flex; flex-direction: column; gap: 4px; color: #31566f; font-size: 11px; font-weight: 700; }
@@ -98,10 +106,14 @@ p { margin: 0 0 11px; }
 .form-actions { display: flex; align-items: center; gap: 13px; padding-top: 7px; border-top: 1px solid #cbd5db; }
 .form-message { color: var(--green); font-size: 11px; }
 .form-message.bad { color: var(--red); }
-.error { margin-top: 17px; border-left-color: var(--red); color: var(--red); }
+.error { position: relative; margin-top: 17px; padding-right: 80px; border-left-color: var(--red); color: var(--red); }
+.error-title { margin-bottom: 3px; font-weight: 700; }
+.error-reference { margin-top: 4px; color: var(--muted); font: 10px Consolas, "Courier New", monospace; }
+.error #retry-request { position: absolute; top: 17px; right: 17px; }
 footer { padding: 14px 25px 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 10px; text-align: center; }
 @media (max-width: 900px) { .site-wrap { margin-top: 0; } .masthead { padding: 14px 18px; } main { padding: 20px 18px 35px; } .stat-grid { grid-template-columns: repeat(2, 1fr); } .columns { grid-template-columns: 1fr; } .member-summary { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .masthead h1 { font-size: 20px; } .system-id { display: none; } .main-nav { padding: 6px 7px 0; } .nav-link { flex: 1 1 50%; } .page-heading { align-items: flex-start; flex-direction: column; } .stat-grid { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .form-grid label.wide, .form-actions { grid-column: auto; } .member-summary { grid-template-columns: repeat(2, 1fr); } .user-strip { align-items: flex-start; flex-wrap: wrap; } }
+@media print { body { background: #fff; } .site-wrap { margin: 0; border: 0; box-shadow: none; } .masthead, .main-nav, .user-strip, #view-home, #view-directory, #view-records, #view-approvals, #view-audit, #member-form-panel, #record-form-panel, #error, footer, #close-member, #print-member, .panel-actions { display: none !important; } main { padding: 0; } #app, #member-panel { display: block !important; } #member-panel { border: 0; box-shadow: none; } .record-detail { display: none !important; } }
 
 /* 2010-era county portal treatment for the home page. */
 body { background: #e8e5dc; }

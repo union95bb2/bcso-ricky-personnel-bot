@@ -22,10 +22,36 @@ test("RMS health endpoint is available without an account and static dashboard i
   await app.handleRequest({ url: "/api/health", headers: {}, method: "GET" }, health);
   assert.equal(health.status, 200);
   assert.equal(JSON.parse(health.body).ok, true);
+  assert.equal(JSON.parse(health.body).database, "ok");
+  assert.equal(JSON.parse(health.body).version, "1.0.0");
   const page = responseMock();
   await app.handleRequest({ url: "/", headers: {}, method: "GET" }, page);
   assert.equal(page.status, 200);
   assert.match(String(page.body), /Ricky RMS/);
+  assert.match(String(page.body), /retry-request/);
+  app.store.close();
+});
+
+test("RMS status endpoint is restricted to PAB and reports safe diagnostics", async () => {
+  const store = new RmsStore(":memory:");
+  const app = createRmsServer({
+    config: { guildId: "g", clientId: "c", clientSecret: "s", botToken: "b", redirectUri: "http://localhost/auth/callback", sessionSecret: "secret", port: 0, bind: "127.0.0.1", dataPath: ":memory:", pabRoleId: "pab", commandRoleId: "command", adminRoleIds: new Set() },
+    store,
+    fetchImpl: async () => { throw new Error("network should not be called"); }
+  });
+  const member = store.upsertAccount({ guildId: "g", discordId: "member", accessLevel: "member" });
+  const pab = store.upsertAccount({ guildId: "g", discordId: "pab-user", accessLevel: "pab" });
+  const memberSession = "member-session";
+  const pabSession = "pab-session";
+  store.createSession(createHash("sha256").update(`secret:${memberSession}`).digest("hex"), member.id, Date.now() + 60_000);
+  store.createSession(createHash("sha256").update(`secret:${pabSession}`).digest("hex"), pab.id, Date.now() + 60_000);
+  const denied = responseMock();
+  await app.handleRequest(request("/api/status", { cookie: memberSession }), denied);
+  assert.equal(denied.status, 403);
+  const allowed = responseMock();
+  await app.handleRequest(request("/api/status", { cookie: pabSession }), allowed);
+  assert.equal(allowed.status, 200);
+  assert.deepEqual(JSON.parse(allowed.body), { ok: true, service: "Ricky RMS", version: "1.0.0", database: "ok", discordConfigured: true, oauthConfigured: true, checkedAt: JSON.parse(allowed.body).checkedAt });
   app.store.close();
 });
 
