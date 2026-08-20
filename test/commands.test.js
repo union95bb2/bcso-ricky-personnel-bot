@@ -32,6 +32,15 @@ test("pab-health acknowledges before its live Discord checks", async () => {
   assert.doesNotMatch(handler, /return interaction\.reply\(/);
 });
 
+test("promotion modal keeps the rank placeholder within Discord's limit", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  const start = source.indexOf("async function showPromotionModal");
+  const end = source.indexOf("async function showRoleAwardModal", start);
+  const handler = source.slice(start, end);
+  assert.match(handler, /const rankPlaceholder = choices\.length > 90/);
+  assert.match(handler, /placeholder: rankPlaceholder/);
+});
+
 test("role-changing and date-bearing forms expose the same Today/manual control", () => {
   for (const name of ["training-log", "promotion", "award-role", "remove-role", "personnel-status"]) {
     const date = commandMap.get(name).options.find(option => option.name === "date");
