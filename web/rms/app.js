@@ -53,6 +53,14 @@ function renderSummary(summary) {
   $("stat-approvals").textContent = summary.pendingApprovals;
   $("last-refresh").textContent = `Last refresh: ${dateTimeText(summary.generatedAt)}`;
   renderRecords(summary.recentRecords, "home-records", true);
+  renderExpiring(summary.expiringQualifications || []);
+}
+
+function renderExpiring(records) {
+  const target = $("expiring-records");
+  if (!records.length) { target.innerHTML = '<p class="muted">No expiring qualifications in the next 30 days.</p>'; return; }
+  target.innerHTML = `<table class="data-table compact"><thead><tr><th>Member</th><th>Record</th><th>Expires</th></tr></thead><tbody>${records.map(record => `<tr class="clickable" data-member="${esc(record.memberId)}"><td><strong>${esc(record.member.callsign || "—")}</strong><br>${esc(record.member.displayName)}</td><td>${esc(recordLabel(record))}</td><td><span class="status status-draft">${esc(dateText(record.expiresOn))}</span></td></tr>`).join("")}</tbody></table>`;
+  target.querySelectorAll("[data-member]").forEach(row => row.addEventListener("click", () => openMember(row.dataset.member)));
 }
 
 async function refreshDashboard() {
@@ -77,7 +85,7 @@ function renderRecords(records, targetId = "records-results", compact = false) {
   if (targetId === "records-results") currentRecords = records || [];
   const target = $(targetId);
   if (!records?.length) { target.innerHTML = '<p class="muted">No records match the current register.</p>'; return; }
-  target.innerHTML = `<table class="data-table"><thead><tr><th>Date</th><th>Member</th><th>Type</th><th>Summary</th><th>Status</th></tr></thead><tbody>${records.map(record => `<tr class="clickable" data-member="${esc(record.memberId)}"><td>${esc(dateText(record.effectiveDate))}</td><td><strong>${esc(record.member.callsign || "—")}</strong><br>${esc(record.member.displayName)}</td><td><span class="record-tag">${esc(record.recordType)}</span></td><td>${esc(recordLabel(record))}</td><td><span class="status status-${esc(record.status)}">${esc(record.status)}</span></td></tr>`).join("")}</tbody></table>`;
+  target.innerHTML = `<table class="data-table"><thead><tr><th>Date</th><th>Member</th><th>Type</th><th>Summary</th><th>Expires</th><th>Status</th></tr></thead><tbody>${records.map(record => `<tr class="clickable" data-member="${esc(record.memberId)}"><td>${esc(dateText(record.effectiveDate))}</td><td><strong>${esc(record.member.callsign || "—")}</strong><br>${esc(record.member.displayName)}</td><td><span class="record-tag">${esc(record.recordType)}</span></td><td>${esc(recordLabel(record))}</td><td>${esc(dateText(record.expiresOn))}</td><td><span class="status status-${esc(record.status)}">${esc(record.status)}</span></td></tr>`).join("")}</tbody></table>`;
   target.querySelectorAll("[data-member]").forEach(row => row.addEventListener("click", () => openMember(row.dataset.member)));
   if (compact) target.querySelector("table")?.classList.add("compact");
 }
@@ -139,15 +147,30 @@ async function openMember(id) {
   clearError();
   try {
     const data = await api(`/api/members/${encodeURIComponent(id)}`);
+    $("member-panel").dataset.memberId = data.member.id;
     $("member-title").textContent = `${data.member.callsign || "No callsign"} · ${data.member.displayName}`;
     $("member-summary").innerHTML = `<div><span>Rank</span><strong>${esc(data.member.rank || "Unassigned")}</strong></div><div><span>Status</span><strong>${esc(data.member.status)}</strong></div><div><span>Hire date</span><strong>${esc(dateText(data.member.hireDate))}</strong></div><div><span>Time zone</span><strong>${esc(data.member.timeZone || "—")}</strong></div><div><span>Discord ID</span><strong class="mono">${esc(data.member.discordId)}</strong></div>`;
     const latest = data.timeline[0];
     $("member-activity").innerHTML = `<strong>Last recorded activity:</strong> ${latest ? `${esc(dateText(latest.effectiveDate))} · ${esc(latest.recordType)} · ${esc(recordLabel(latest))}` : "No RMS activity has been recorded."}`;
+    $("eligibility-result").classList.add("hidden");
     $("member-timeline").innerHTML = data.timeline.length ? `<table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Entry</th><th>Entered by</th></tr></thead><tbody>${data.timeline.map(item => `<tr class="clickable" data-record="${esc(item.id)}"><td>${esc(dateText(item.effectiveDate))}</td><td><span class="record-tag">${esc(item.recordType)}</span></td><td>${esc(recordLabel(item))}</td><td class="mono">${esc(item.createdBy)}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">No RMS records have been entered for this member.</p>';
     $("member-timeline").querySelectorAll("[data-record]").forEach(row => row.addEventListener("click", () => showRecordDetail(data.timeline.find(item => item.id === row.dataset.record))));
     $("record-detail").classList.add("hidden");
     $("member-panel").classList.remove("hidden");
     $("member-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) { showError(error); }
+}
+
+async function checkEligibility() {
+  const memberId = $("member-panel").dataset.memberId;
+  if (!memberId) return;
+  const requestedRank = window.prompt("Requested rank for this advisory check (optional):", "");
+  if (requestedRank === null) return;
+  try {
+    const query = requestedRank.trim() ? `?requestedRank=${encodeURIComponent(requestedRank.trim())}` : "";
+    const result = await api(`/api/members/${encodeURIComponent(memberId)}/eligibility${query}`);
+    $("eligibility-result").innerHTML = `<strong>Advisory eligibility check: ${esc(result.recommendation)}</strong><span>${esc(result.blockers.length ? result.blockers.join(" ") : "No current RMS blockers found. PAB and Command still decide eligibility and promotion.")}</span><small>Evidence: ${esc(result.evidence.training)} training · ${esc(result.evidence.qualifications)} qualifications · ${esc(result.evidence.promotions)} promotions</small>`;
+    $("eligibility-result").classList.remove("hidden");
   } catch (error) { showError(error); }
 }
 
@@ -182,9 +205,10 @@ async function loadApprovals() {
   if (!isPab()) { $("approval-results").innerHTML = '<p class="muted">PAB access is required to view the approval queue.</p>'; return; }
   try {
     const data = await api("/api/approvals");
-    $("approval-results").innerHTML = data.approvals.length ? `<table class="data-table"><thead><tr><th>Requested</th><th>Workflow</th><th>Stage</th><th>Requested by</th><th>Decision window</th><th>Action</th></tr></thead><tbody>${data.approvals.map(approval => `<tr><td>${esc(dateTimeText(approval.requestedAt))}</td><td>${esc(approval.workflowType)}</td><td>${esc(approval.stage)}</td><td class="mono">${esc(approval.requestedBy)}</td><td>${approval.expiresAt ? `<span class="approval-countdown" data-expires="${esc(approval.expiresAt)}">${esc(dateTimeText(approval.expiresAt))}</span>` : '<span class="muted">No expiry</span>'}</td><td class="action-cell"><button class="gov-button small approve-button" data-approval="${esc(approval.id)}" data-decision="approved">Approve</button><button class="gov-button small reject-button" data-approval="${esc(approval.id)}" data-decision="rejected">Reject</button></td></tr>`).join("")}</tbody></table>` : '<p class="muted">There are no open approvals.</p>';
+    $("approval-results").innerHTML = data.approvals.length ? `<table class="data-table"><thead><tr><th>Requested</th><th>Workflow</th><th>Stage</th><th>Requested by</th><th>Decision window</th><th>Action</th></tr></thead><tbody>${data.approvals.map(approval => `<tr><td>${esc(dateTimeText(approval.requestedAt))}</td><td>${esc(approval.workflowType)}</td><td>${esc(approval.stage)}</td><td class="mono">${esc(approval.requestedBy)}</td><td>${approval.expiresAt ? `<span class="approval-countdown" data-expires="${esc(approval.expiresAt)}">${esc(dateTimeText(approval.expiresAt))}</span>` : '<span class="muted">No expiry</span>'}</td><td class="action-cell"><button class="gov-button small approve-button" data-approval="${esc(approval.id)}" data-decision="approved">Approve</button><button class="gov-button small reject-button" data-approval="${esc(approval.id)}" data-decision="rejected">Reject</button><button class="gov-button small renew-button" data-approval="${esc(approval.id)}">Renew 24h</button></td></tr>`).join("")}</tbody></table>` : '<p class="muted">There are no open approvals.</p>';
     updateApprovalCountdowns();
-    $("approval-results").querySelectorAll("[data-approval]").forEach(button => button.addEventListener("click", () => decideApproval(button.dataset.approval, button.dataset.decision)));
+    $("approval-results").querySelectorAll(".approve-button, .reject-button").forEach(button => button.addEventListener("click", () => decideApproval(button.dataset.approval, button.dataset.decision)));
+    $("approval-results").querySelectorAll(".renew-button").forEach(button => button.addEventListener("click", () => renewApproval(button.dataset.approval)));
   } catch (error) { showError(error); }
 }
 
@@ -202,6 +226,11 @@ async function decideApproval(id, status) {
   const notes = window.prompt(`${status === "approved" ? "Approval" : "Rejection"} note (optional):`, "");
   if (notes === null) return;
   try { await api(`/api/approvals/${encodeURIComponent(id)}/decision`, { method: "POST", body: JSON.stringify({ status, notes }) }); await loadApprovals(); await loadSummary(); } catch (error) { showError(error); }
+}
+
+async function renewApproval(id) {
+  if (!window.confirm("Renew this approval window for 24 hours?")) return;
+  try { await api(`/api/approvals/${encodeURIComponent(id)}/renew`, { method: "POST", body: "{}" }); await loadApprovals(); await loadSummary(); } catch (error) { showError(error); }
 }
 
 async function loadAudit() {
@@ -225,7 +254,7 @@ async function saveRecord(event) {
   const fields = Object.fromEntries(new FormData(event.currentTarget).entries());
   const data = { summary: fields.summary, notes: fields.notes };
   const detail = { trainingType: fields.trainingType, timeZone: fields.timeZone, fromRank: fields.fromRank, toRank: fields.toRank, promotionDate: fields.effectiveDate, trainingDate: fields.effectiveDate, notes: fields.notes, outcome: fields.summary, trainerDiscordId: currentAccount?.discordId };
-  try { await api("/api/records", { method: "POST", body: JSON.stringify({ memberId: fields.memberId, recordType: fields.recordType, effectiveDate: fields.effectiveDate, data, detail }) }); setMessage("record-form-message", "Official record saved."); event.currentTarget.reset(); event.currentTarget.elements.effectiveDate.value = today(); closeForms(); await loadRecords(); await loadSummary(); } catch (error) { setMessage("record-form-message", error.message, false); }
+  try { await api("/api/records", { method: "POST", body: JSON.stringify({ memberId: fields.memberId, recordType: fields.recordType, effectiveDate: fields.effectiveDate, expiresOn: fields.expiresOn || null, data, detail }) }); setMessage("record-form-message", "Official record saved."); event.currentTarget.reset(); event.currentTarget.elements.effectiveDate.value = today(); closeForms(); await loadRecords(); await loadSummary(); } catch (error) { setMessage("record-form-message", error.message, false); }
 }
 
 async function boot() {
@@ -254,6 +283,7 @@ window.setInterval(updateApprovalCountdowns, 30_000);
 $("sync-roster-button").addEventListener("click", syncRoster);
 $("refresh-dashboard").addEventListener("click", refreshDashboard);
 $("retry-request").addEventListener("click", retryActiveView);
+$("check-eligibility").addEventListener("click", checkEligibility);
 $("new-member-button").addEventListener("click", () => openForm("member-form-panel")); $("new-record-button").addEventListener("click", () => { $("record-form").elements.effectiveDate.value = today(); openForm("record-form-panel"); });
 $("close-member").addEventListener("click", () => $("member-panel").classList.add("hidden")); $("print-member").addEventListener("click", () => window.print()); document.querySelectorAll(".close-form").forEach(button => button.addEventListener("click", closeForms));
 $("member-form").addEventListener("submit", saveMember); $("record-form").addEventListener("submit", saveRecord);

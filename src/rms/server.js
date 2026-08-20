@@ -233,7 +233,7 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       const account = authorized(request, response, "pab");
       if (!account) return;
       const approvals = store.pendingApprovals(account.guildId);
-      return jsonResponse(response, 200, { members: store.memberStats(account.guildId), records: store.recordStats(account.guildId), pendingApprovals: approvals.length, recentRecords: store.records(account.guildId, { limit: 12 }), generatedAt: Date.now() });
+      return jsonResponse(response, 200, { members: store.memberStats(account.guildId), records: store.recordStats(account.guildId), pendingApprovals: approvals.length, expiringQualifications: store.expiringRecords(account.guildId, { days: 30, limit: 12 }), recentRecords: store.records(account.guildId, { limit: 12 }), generatedAt: Date.now() });
     }
     if (url.pathname === "/api/me") {
       let account = authorized(request, response);
@@ -266,6 +266,13 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "records", metadata: { count: records.length, query: url.searchParams.get("q") || "" } });
       return jsonResponse(response, 200, { records });
     }
+    if (url.pathname === "/api/records/expiring") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const records = store.expiringRecords(account.guildId, { days: Number(url.searchParams.get("days") || 30), limit: Number(url.searchParams.get("limit") || 100) });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "search", entityType: "expiring_records", metadata: { count: records.length } });
+      return jsonResponse(response, 200, { records });
+    }
     if (url.pathname === "/api/records" && request.method === "POST") {
       const account = authorized(request, response, "pab");
       if (!account) return;
@@ -274,7 +281,7 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       const allowedTypes = new Set(["training", "promotion", "inactivity", "qualification", "award", "department", "status", "note"]);
       if (!member || member.guildId !== account.guildId) return jsonResponse(response, 400, { error: "A valid RMS member is required." });
       if (!allowedTypes.has(body.recordType)) return jsonResponse(response, 400, { error: `recordType must be one of: ${[...allowedTypes].join(", ")}.` });
-      const record = store.createRecord({ guildId: account.guildId, memberId: member.id, recordType: body.recordType, status: body.status || "finalized", effectiveDate: body.effectiveDate || new Date().toISOString().slice(0, 10), createdBy: account.discordId, sourceRecordId: body.sourceRecordId || null, data: body.data && typeof body.data === "object" ? body.data : {} });
+      const record = store.createRecord({ guildId: account.guildId, memberId: member.id, recordType: body.recordType, status: body.status || "finalized", effectiveDate: body.effectiveDate || new Date().toISOString().slice(0, 10), expiresOn: body.expiresOn || null, createdBy: account.discordId, sourceRecordId: body.sourceRecordId || null, data: body.data && typeof body.data === "object" ? body.data : {} });
       const detail = body.detail && typeof body.detail === "object" ? body.detail : {};
       if (body.recordType === "training") store.addTrainingRecord({ recordId: record.id, trainerDiscordId: detail.trainerDiscordId || account.discordId, division: detail.division || null, trainingDate: detail.trainingDate || record.effectiveDate, startTime: detail.startTime || null, endTime: detail.endTime || null, timeZone: detail.timeZone || null, trainingType: detail.trainingType || null, outcome: detail.outcome || null, notes: detail.notes || null });
       if (body.recordType === "promotion") store.addPromotionRecord({ recordId: record.id, fromRank: detail.fromRank || "unknown", toRank: detail.toRank || "unknown", promotionDate: detail.promotionDate || record.effectiveDate, reason: detail.reason || null, authorizationReference: detail.authorizationReference || null });
@@ -306,12 +313,32 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "member", entityId: member.id });
       return jsonResponse(response, 200, { member, timeline });
     }
+    const eligibilityMatch = url.pathname.match(/^\/api\/members\/([^/]+)\/eligibility$/);
+    if (eligibilityMatch && request.method === "GET") {
+      const account = authorized(request, response, "pab");
+      if (!account) return;
+      const result = store.memberEligibility(account.guildId, eligibilityMatch[1], url.searchParams.get("requestedRank") || null);
+      if (!result) return jsonResponse(response, 404, { error: "Member not found." });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "eligibility_check", entityType: "member", entityId: eligibilityMatch[1], metadata: { requestedRank: result.requestedRank, recommendation: result.recommendation } });
+      return jsonResponse(response, 200, result);
+    }
     if (url.pathname === "/api/approvals") {
       const account = authorized(request, response, "pab");
       if (!account) return;
       const approvals = store.pendingApprovals(account.guildId);
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "approval_queue", metadata: { count: approvals.length } });
       return jsonResponse(response, 200, { approvals });
+    }
+    const approvalRenewal = url.pathname.match(/^\/api\/approvals\/([^/]+)\/renew$/);
+    if (approvalRenewal && request.method === "POST") {
+      const existing = store.approvalById(approvalRenewal[1]);
+      if (!existing) return jsonResponse(response, 404, { error: "Approval not found." });
+      const account = authorized(request, response, existing.stage === "command" ? "command" : "pab");
+      if (!account) return;
+      const approval = store.renewApproval(existing.id, Date.now() + 24 * 60 * 60 * 1000);
+      if (!approval) return jsonResponse(response, 409, { error: "Approval is no longer pending." });
+      store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "renew", entityType: "approval", entityId: approval.id, metadata: { stage: approval.stage, expiresAt: approval.expiresAt } });
+      return jsonResponse(response, 200, { approval });
     }
     const approvalDecision = url.pathname.match(/^\/api\/approvals\/([^/]+)\/decision$/);
     if (approvalDecision && request.method === "POST") {

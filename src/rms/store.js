@@ -48,6 +48,7 @@ export class RmsStore {
         record_type TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'finalized',
         effective_date TEXT,
+        expires_on TEXT,
         created_by TEXT NOT NULL,
         source_channel_id TEXT,
         source_message_id TEXT,
@@ -135,6 +136,7 @@ export class RmsStore {
     `);
     const recordColumns = this.#db.prepare("PRAGMA table_info(rms_records)").all().map(column => column.name);
     if (!recordColumns.includes("source_record_id")) this.#db.exec("ALTER TABLE rms_records ADD COLUMN source_record_id TEXT");
+    if (!recordColumns.includes("expires_on")) this.#db.exec("ALTER TABLE rms_records ADD COLUMN expires_on TEXT");
     this.#db.exec("CREATE UNIQUE INDEX IF NOT EXISTS rms_records_source_idx ON rms_records(guild_id, source_record_id) WHERE source_record_id IS NOT NULL");
     const approvalColumns = this.#db.prepare("PRAGMA table_info(rms_approvals)").all().map(column => column.name);
     if (!approvalColumns.includes("source_action_id")) this.#db.exec("ALTER TABLE rms_approvals ADD COLUMN source_action_id TEXT");
@@ -225,13 +227,13 @@ export class RmsStore {
     values.push(Math.min(Math.max(Number(limit) || 100, 1), 500));
     const rows = this.#db.prepare(`
       SELECT r.id, r.guild_id, r.member_id, r.record_type, r.status, r.effective_date,
-        r.created_by, r.source_record_id, r.data_json, r.created_at, r.updated_at,
+        r.expires_on, r.created_by, r.source_record_id, r.data_json, r.created_at, r.updated_at,
         m.discord_id, m.callsign, m.display_name, m.rank, m.status AS member_status
       FROM rms_records r JOIN rms_members m ON m.id = r.member_id
       WHERE ${clauses.join(" AND ")}
       ORDER BY COALESCE(r.effective_date, '0000-00-00') DESC, r.created_at DESC LIMIT ?
     `).all(...values);
-    return rows.map(row => ({ id: row.id, guildId: row.guild_id, memberId: row.member_id, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, createdBy: row.created_by, sourceRecordId: row.source_record_id, data: parse(row.data_json), detail: this.recordById(row.id)?.detail || null, createdAt: row.created_at, updatedAt: row.updated_at, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name, rank: row.rank, status: row.member_status } }));
+    return rows.map(row => ({ id: row.id, guildId: row.guild_id, memberId: row.member_id, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, expiresOn: row.expires_on, createdBy: row.created_by, sourceRecordId: row.source_record_id, data: parse(row.data_json), detail: this.recordById(row.id)?.detail || null, createdAt: row.created_at, updatedAt: row.updated_at, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name, rank: row.rank, status: row.member_status } }));
   }
 
   updateMember(id, { callsign, displayName, rank, status, hireDate, timeZone } = {}) {
@@ -243,11 +245,11 @@ export class RmsStore {
     return this.memberById(id);
   }
 
-  createRecord({ guildId, memberId, recordType, status = "finalized", effectiveDate = null, createdBy, sourceChannelId = null, sourceMessageId = null, sourceRecordId = null, data = {} }) {
+  createRecord({ guildId, memberId, recordType, status = "finalized", effectiveDate = null, expiresOn = null, createdBy, sourceChannelId = null, sourceMessageId = null, sourceRecordId = null, data = {} }) {
     const id = randomUUID();
     const timestamp = now();
-    this.#db.prepare(`INSERT INTO rms_records (id, guild_id, member_id, record_type, status, effective_date, created_by, source_channel_id, source_message_id, source_record_id, data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, guildId, memberId, recordType, status, effectiveDate, createdBy, sourceChannelId, sourceMessageId, sourceRecordId, json(data), timestamp, timestamp);
+    this.#db.prepare(`INSERT INTO rms_records (id, guild_id, member_id, record_type, status, effective_date, expires_on, created_by, source_channel_id, source_message_id, source_record_id, data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, guildId, memberId, recordType, status, effectiveDate, expiresOn, createdBy, sourceChannelId, sourceMessageId, sourceRecordId, json(data), timestamp, timestamp);
     return this.recordById(id);
   }
 
@@ -271,12 +273,40 @@ export class RmsStore {
       : row.record_type === "promotion"
         ? this.#db.prepare("SELECT * FROM rms_promotion_records WHERE record_id = ?").get(id)
         : null;
-    return { id: row.id, guildId: row.guild_id, memberId: row.member_id, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name, rank: row.rank, status: row.member_status }, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, createdBy: row.created_by, sourceChannelId: row.source_channel_id, sourceMessageId: row.source_message_id, sourceRecordId: row.source_record_id, data: parse(row.data_json), detail, createdAt: row.created_at, updatedAt: row.updated_at };
+    return { id: row.id, guildId: row.guild_id, memberId: row.member_id, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name, rank: row.rank, status: row.member_status }, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, expiresOn: row.expires_on, createdBy: row.created_by, sourceChannelId: row.source_channel_id, sourceMessageId: row.source_message_id, sourceRecordId: row.source_record_id, data: parse(row.data_json), detail, createdAt: row.created_at, updatedAt: row.updated_at };
   }
 
   recordBySourceId(guildId, sourceRecordId) {
     const row = this.#db.prepare("SELECT id FROM rms_records WHERE guild_id = ? AND source_record_id = ?").get(guildId, sourceRecordId);
     return row ? this.recordById(row.id) : null;
+  }
+
+  expiringRecords(guildId, { days = 30, limit = 100 } = {}) {
+    const start = new Date().toISOString().slice(0, 10);
+    const endDate = new Date(Date.now() + Math.max(Number(days) || 30, 1) * 86_400_000).toISOString().slice(0, 10);
+    const rows = this.#db.prepare(`SELECT r.id FROM rms_records r WHERE r.guild_id = ? AND r.status = 'finalized' AND r.expires_on IS NOT NULL AND r.expires_on >= ? AND r.expires_on <= ? ORDER BY r.expires_on ASC LIMIT ?`).all(guildId, start, endDate, Math.min(Math.max(Number(limit) || 100, 1), 500));
+    return rows.map(row => this.recordById(row.id));
+  }
+
+  memberEligibility(guildId, memberId, requestedRank = null) {
+    const member = this.memberById(memberId);
+    if (!member || member.guildId !== guildId) return null;
+    const records = this.records(guildId, { memberId, status: "finalized", limit: 500 });
+    const training = records.filter(record => record.recordType === "training");
+    const qualifications = records.filter(record => record.recordType === "qualification");
+    const promotions = records.filter(record => record.recordType === "promotion");
+    const blockers = [];
+    if (member.status !== "active") blockers.push(`Personnel status is ${member.status}.`);
+    if (!training.length) blockers.push("No finalized training record is on file.");
+    if (requestedRank && requestedRank === member.rank) blockers.push("Requested rank matches the current rank.");
+    return {
+      member,
+      requestedRank: requestedRank || null,
+      recommendation: blockers.length ? "needs-human-review" : "evidence-ready-for-human-review",
+      blockers,
+      evidence: { training: training.length, qualifications: qualifications.length, promotions: promotions.length, finalizedRecords: records.length },
+      evaluatedAt: now()
+    };
   }
 
   memberTimeline(guildId, memberId, limit = 100) {
@@ -330,6 +360,11 @@ export class RmsStore {
 
   renewApprovalsForSource(guildId, sourceActionId, expiresAt) {
     return this.#db.prepare("UPDATE rms_approvals SET expires_at = ?, notes = NULL WHERE guild_id = ? AND source_action_id = ? AND status = 'pending'").run(expiresAt, guildId, sourceActionId).changes;
+  }
+
+  renewApproval(id, expiresAt) {
+    const result = this.#db.prepare("UPDATE rms_approvals SET expires_at = ?, notes = NULL WHERE id = ? AND status = 'pending'").run(expiresAt, id);
+    return result.changes ? this.approvalById(id) : null;
   }
 
   decideApproval(id, { status, decidedBy, notes = null }) {

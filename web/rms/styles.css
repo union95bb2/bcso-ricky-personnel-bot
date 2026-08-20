@@ -89,11 +89,15 @@ p { margin: 0 0 11px; }
 .action-cell { white-space: nowrap; }
 .approve-button { color: #fff; border-color: #245b3c; background: linear-gradient(#4e986b, #2b6d49); text-shadow: 0 1px #285239; }
 .reject-button { color: #fff; border-color: #853232; background: linear-gradient(#ba5a5a, #963838); margin-left: 4px; text-shadow: 0 1px #703333; }
+.renew-button { margin-left: 4px; }
 .overlay-panel { border-top: 3px solid var(--gold); }
 .member-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding: 10px; margin-bottom: 13px; background: linear-gradient(#f4f8fa, #e8eef2); border: 1px solid #c0ccd4; border-radius: 3px; }
 .member-summary span { display: block; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .member-summary strong { display: block; margin-top: 3px; color: var(--blue-dark); font-size: 12px; }
 .member-activity { padding: 8px 10px; margin-bottom: 12px; color: #31566f; background: #f6f8f9; border: 1px solid #c0ccd4; border-left: 3px solid var(--gold); font-size: 11px; }
+.eligibility-result { display: grid; gap: 3px; padding: 9px 10px; margin-bottom: 12px; color: #31566f; background: #f6f8f9; border: 1px solid #c0ccd4; border-left: 3px solid var(--blue); font-size: 11px; }
+.eligibility-result strong { color: var(--blue-dark); text-transform: uppercase; }
+.eligibility-result small { color: var(--muted); }
 .record-detail { margin-top: 13px; padding: 10px 12px; background: #f4f7f8; border: 1px solid #c0ccd4; border-top: 3px solid var(--blue); }
 .record-detail .panel-heading { margin-bottom: 9px; padding-bottom: 6px; }
 .record-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }

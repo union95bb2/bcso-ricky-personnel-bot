@@ -29,6 +29,8 @@ test("RMS health endpoint is available without an account and static dashboard i
   assert.equal(page.status, 200);
   assert.match(String(page.body), /Ricky RMS/);
   assert.match(String(page.body), /retry-request/);
+  assert.match(String(page.body), /check-eligibility/);
+  assert.match(String(page.body), /expiring-records/);
   app.store.close();
 });
 
@@ -95,6 +97,31 @@ test("RMS exposes PAB-only inactivity review and record search", async () => {
   await app.handleRequest(request("/api/inactivity", { cookie: rawSession }), inactivity);
   assert.equal(inactivity.status, 200);
   assert.equal(JSON.parse(inactivity.body).reviews[0].member.callsign, "C-907");
+  app.store.close();
+});
+
+test("RMS exposes advisory eligibility, expiring records, and approval renewal", async () => {
+  const store = new RmsStore(":memory:");
+  const app = createRmsServer({ config: { guildId: "g", clientId: "c", clientSecret: "s", botToken: "b", redirectUri: "http://localhost/auth/callback", sessionSecret: "secret", port: 0, bind: "127.0.0.1", dataPath: ":memory:", pabRoleId: "pab", commandRoleId: "command", adminRoleIds: new Set() }, store, fetchImpl: async () => { throw new Error("network should not be called"); } });
+  const account = store.upsertAccount({ guildId: "g", discordId: "actor", accessLevel: "pab" });
+  const member = store.upsertMember({ guildId: "g", discordId: "u1", callsign: "C-110", displayName: "W. Dorfman", rank: "Deputy" });
+  store.createRecord({ guildId: "g", memberId: member.id, recordType: "training", effectiveDate: "2026-08-01", createdBy: "actor", data: { summary: "Academy complete" } });
+  store.createRecord({ guildId: "g", memberId: member.id, recordType: "qualification", effectiveDate: "2026-08-01", expiresOn: "2026-08-25", createdBy: "actor", data: { summary: "Pursuit qualification" } });
+  const approval = store.createApproval({ guildId: "g", workflowType: "qualification", stage: "pab", requestedBy: "actor", expiresAt: Date.now() + 60_000 });
+  const rawSession = "session-token";
+  store.createSession(createHash("sha256").update(`secret:${rawSession}`).digest("hex"), account.id, Date.now() + 60_000);
+  const eligibility = responseMock();
+  await app.handleRequest(request(`/api/members/${member.id}/eligibility?requestedRank=Corporal`, { cookie: rawSession }), eligibility);
+  assert.equal(eligibility.status, 200);
+  assert.equal(JSON.parse(eligibility.body).recommendation, "evidence-ready-for-human-review");
+  const expiring = responseMock();
+  await app.handleRequest(request("/api/records/expiring?days=30", { cookie: rawSession }), expiring);
+  assert.equal(expiring.status, 200);
+  assert.equal(JSON.parse(expiring.body).records[0].id, store.recordById(JSON.parse(expiring.body).records[0].id).id);
+  const renewal = responseMock();
+  await app.handleRequest(request(`/api/approvals/${approval.id}/renew`, { method: "POST", cookie: rawSession, body: {} }), renewal);
+  assert.equal(renewal.status, 200);
+  assert.ok(JSON.parse(renewal.body).approval.expiresAt > Date.now());
   app.store.close();
 });
 
