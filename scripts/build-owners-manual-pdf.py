@@ -214,6 +214,8 @@ cmd_rows = [
     ["Command", "Who uses it", "What it does", "Changes roles/access?"],
     ["/setup-status", "Server admin", "Reports required ID/map configuration without showing secrets.", "No"],
     ["/pab-health", "Server admin", "Read-only checks channels, permissions, bot hierarchy, managed roles, and administrator guardrails.", "No"],
+    ["/config-channel", "Server admin", "Preview and save one validated channel destination; persists to data/runtime-config.json.", "No"],
+    ["/config-activity", "Server admin", "Preview and add/remove an approved inactivity-review activity-source channel.", "No"],
     ["/pab-dashboard", "PAB", "Private queue, completed count, recent activity, and quick-workflow links.", "No"],
     ["/export-audit", "Server admin", "Private JSON export of the local receipt ledger.", "No"],
     ["/member-profile", "PAB", "Private live snapshot of current Discord roles and join date.", "No"],
@@ -353,6 +355,8 @@ story += [P("Example rank map", "H2Manual"), P('{"Deputy":"123456789012345678","
 story += [P("Release commands", "H2Manual"), P("npm ci\nnpm run preflight:deploy\nnpm run register\nnpm start", "CodeManual")]
 story += [P("Sandbox commands", "H2Manual"), P("npm run preflight:demo\nnpm run register:demo\nnpm run start:demo", "CodeManual")]
 story += [P("The startup gate checks the guild, every destination/activity channel, required permissions, role maps, role hierarchy, and the exact guild command set. A failed gate is a hard no-go.")]
+story += [P("Changing channel routing", "H2Manual")]
+story += [P("Server administrators can use /config-channel setting:<choice> channel:<channel> when a records, approvals, announcements, audit, birthday, milestone, departure, or Forum destination changes. Ricky checks the selected channel's guild, type, and live permissions, presents a confirmation preview with an explicit expiry countdown, and writes the approved override to data/runtime-config.json without a restart. Use /config-activity mode:add/remove channel:<channel> to manage the inactivity-review activity-source allow-list. These commands never modify role IDs, rank maps, tokens, or award allow-lists; run /pab-health after saving.", "SmallManual")]
 story += [P("Technical diagnostics", "H2Manual")]
 story += [P("Ricky emits structured JSON errors to the process error stream with a timestamp, scope, interaction ID, command/custom ID, Discord code, and stack when available. It never logs submitted form values or tokens. Use the deployment supervisor's log viewer (for example, docker compose logs -f --tail=100); the PAB audit channel is reserved for personnel-action receipts. Modal submissions are acknowledged before slow Discord fetches so mobile users receive a specific Ricky validation/error message instead of Discord's generic banner.", "SmallManual")]
 
@@ -382,7 +386,7 @@ trouble_rows = [
     ["Bot cannot manage that member", "Target is the server owner, at/above Ricky Bot, or protected by Discord hierarchy.", "Move the actual assigned Ricky Bot role above the target's highest role (including PAB when PAB members are targets), or use a human-admin path. Never test role changes on the owner."],
     ["Role is not eligible", "Role is not in AWARDABLE_ROLE_IDS, or is rank/managed/elevated.", "Use a harmless allow-listed qualification/unit role. Never add PAB, Command, rank, moderator, or Administrator roles."],
     ["Enter time as...", "Input does not match the validated range or selected zone.", "Use the dropdowns or h:mm AM/PM - h:mm AM/PM in the selected timezone."],
-    ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again."],
+    ["Preview expired", "The configured approval lifetime elapsed. The action failed closed.", "Use Renew before the deadline when more review time is needed, or rerun the command so current roles and facts are captured again. Routing previews are rerun with /config-channel or /config-activity."],
     ["Preview already being processed", "The single-use approval was already claimed or the UI is stale.", "Refresh the PAB queue, verify the destination receipt, and do not approve the same preview again."],
     ["Google roster comparison failed", "The sheet is not configured, inaccessible, or not shared with the service account.", "Set the protected Google variables, share the sheet with the service-account email, verify the range, and rerun /roster-sync."],
     ["Promotion evaluation says staged, missing, or pending", "The optional promotion sheet is disabled, not shared/configured, or its PAB recommendation is not final.", "Set GOOGLE_PROMOTION_TESTS_ENABLED=true only after sharing the sheet and setting the protected ID/range. Treat missing, Pending, or non-clear evidence as human PAB review; Ricky never approves from the sheet."],
@@ -422,7 +426,7 @@ story += bullets([
 story += [P("Current validation baseline", "H2Manual")]
 story += [table([
     ["Check", "Expected result"],
-    ["npm test", "38 tests passed in the current release baseline."],
+    ["npm test", "68 tests passed in the current release baseline."],
     ["npm run preflight:demo", "Demo IDs and protected credentials pass validation."],
     ["DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy", "Candidate deployment configuration passes without printing secrets."],
     ["/setup-status + /pab-health", "All IDs/channels/permissions/hierarchy ready in the target guild."],
@@ -443,7 +447,7 @@ story += [P("Use /inactivity-review for neutral staff follow-up. Leave last-know
 story += [P("Correction", "H2Manual")]
 story += [P("Copy Message Link from the original, run /correct-record, state the factual correction, approve, and preserve the original record.")]
 story += [P("Admin diagnostics", "H2Manual")]
-story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup. /roster-sync = read-only Google comparison. /promotion-check = human review plus optional read-only promotion-evaluation evidence. /my-birthday and /remove-birthday = member-controlled opt-in.")]
+story += [P("/setup-status = configuration. /pab-health = live permissions/hierarchy. /config-channel and /config-activity = administrator-confirmed routing changes. /pab-dashboard = queue. /find-record = receipt search. /export-audit = private backup. /roster-sync = read-only Google comparison. /promotion-check = human review plus optional read-only promotion-evaluation evidence. /my-birthday and /remove-birthday = member-controlled opt-in.")]
 story += [Spacer(1, 0.2 * inch), HRFlowable(width="100%", thickness=1, color=GOLD), Spacer(1, 0.1 * inch)]
 story += [P("This document is an operating manual for Ricky Bot. Server-specific policy, retention, role names, and authorization decisions remain under the server owner's control.", "SmallManual")]
 
