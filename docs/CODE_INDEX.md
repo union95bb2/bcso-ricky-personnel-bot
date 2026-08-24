@@ -6,6 +6,7 @@ This file is a persistent replacement for a temporary source index. It is safe t
 
 - `src/index.js` — Discord client, command routing, modals, approval buttons, record posting, health checks, activity tracking, and shutdown/error handling.
 - `src/commands.js` — guild slash-command definitions. Run `npm run register` after changing this file.
+- `src/cogs/admin-routing.js` — first cog-like feature boundary: owns the channel-routing command definitions, validation, previews, approval, and persistence. It is loaded by the existing JavaScript runtime without changing the bot language.
 - `src/config.js` — protected environment configuration plus runtime override loading and persistence.
 - `src/runtime-config.js` — allow-listed channel settings, Discord-ID validation, and atomic `data/runtime-config.json` read/write helpers.
 - `src/workflow-spec.js` — command coverage, admin/PAB/self-service classification, workflow requirements, and destination checks.
@@ -17,7 +18,7 @@ This file is a persistent replacement for a temporary source index. It is safe t
 
 ## Administrator routing controls
 
-`/config-channel` changes one allow-listed channel destination after Discord validates guild, channel type, and bot permissions. `/config-activity` adds or removes an approved activity-source channel. Both are server-administrator-only, use a confirmation button with a visible expiry countdown, append a configuration audit event, and write only to `data/runtime-config.json`. Tokens, role IDs, rank maps, and award allow-lists remain protected environment configuration.
+`/config-channel` changes one allow-listed channel destination after Discord validates guild, channel type, and bot permissions. `/config-activity` adds or removes an approved activity-source channel. Both are server-administrator-only, use a confirmation button with a visible expiry countdown, append a configuration audit event, and write only to `data/runtime-config.json`. Tokens, role IDs, rank maps, and award allow-lists remain protected environment configuration. The feature is implemented as a JavaScript cog-like module so future features can be added or disabled as independent units; a Python rewrite is not required.
 
 ## Tests and operations
 
