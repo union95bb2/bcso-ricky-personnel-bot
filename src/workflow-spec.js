@@ -1,4 +1,4 @@
-export const ADMIN_COMMANDS = new Set(["setup-status", "pab-health", "export-audit", "roster-sync"]);
+export const ADMIN_COMMANDS = new Set(["setup-status", "pab-health", "config-channel", "config-activity", "export-audit", "roster-sync"]);
 
 export const SELF_SERVICE_COMMANDS = new Set(["my-birthday", "remove-birthday"]);
 

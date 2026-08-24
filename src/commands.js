@@ -1,5 +1,6 @@
-import { SlashCommandBuilder } from "discord.js";
+import { ChannelType, SlashCommandBuilder } from "discord.js";
 import { TRAINING_DIVISION_CHOICES, TRAINING_TIME_CHOICES, TRAINING_TIME_ZONES } from "./format.js";
+import { ACTIVITY_CONFIG_CHOICES, CHANNEL_CONFIG_CHOICES } from "./runtime-config.js";
 
 const DATE_CHOICES = [
   { name: "Today (prefill)", value: "today" },
@@ -96,6 +97,16 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("pab-health")
     .setDescription("Run a read-only live check of configured channels, roles, and bot permissions."),
+  new SlashCommandBuilder()
+    .setName("config-channel")
+    .setDescription("Preview and save one Ricky channel routing setting (server admin only).")
+    .addStringOption(option => option.setName("setting").setDescription("Channel-backed setting to change.").setRequired(true).addChoices(...CHANNEL_CONFIG_CHOICES))
+    .addChannelOption(option => option.setName("channel").setDescription("New destination channel.").setRequired(true).addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum)),
+  new SlashCommandBuilder()
+    .setName("config-activity")
+    .setDescription("Preview and add/remove a Ricky activity-source channel (server admin only).")
+    .addStringOption(option => option.setName("mode").setDescription("Add or remove this activity source.").setRequired(true).addChoices(...ACTIVITY_CONFIG_CHOICES))
+    .addChannelOption(option => option.setName("channel").setDescription("Channel whose messages may be tracked for inactivity review.").setRequired(true).addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
   new SlashCommandBuilder()
     .setName("find-record")
     .setDescription("Search the PAB receipt ledger by member or PAB record ID.")

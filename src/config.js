@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { resolve } from "node:path";
 import { REQUIRED_RANK_KEYS } from "./rank-matrix.js";
+import { CHANNEL_CONFIG_FIELDS, isDiscordId, readRuntimeOverrides, writeRuntimeOverrides } from "./runtime-config.js";
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -61,9 +62,46 @@ export const config = {
   googlePromotionTestsRange: process.env.GOOGLE_PROMOTION_TESTS_RANGE?.trim() || "'BCSO Promotion Evaluation Roster'!A:Z",
   rmsEnabled: process.env.RMS_ENABLED?.trim().toLowerCase() === "true",
   rmsDataPath: resolve(process.env.RMS_DATA_PATH?.trim() || "data/rms.sqlite"),
+  runtimeConfigPath: resolve(process.env.RUNTIME_CONFIG_PATH?.trim() || "data/runtime-config.json"),
   brandEmoji: process.env.BCSO_BRAND_EMOJI?.trim() || "",
   dataPath: resolve(process.env.PAB_DATA_PATH?.trim() || "data/pab.sqlite")
 };
+
+const runtimeOverrides = readRuntimeOverrides(config.runtimeConfigPath);
+for (const key of Object.keys(CHANNEL_CONFIG_FIELDS)) {
+  if (isDiscordId(runtimeOverrides[key])) config[key] = String(runtimeOverrides[key]).trim();
+}
+if (Array.isArray(runtimeOverrides.activityChannelIds)) {
+  config.activityChannelIds = new Set(runtimeOverrides.activityChannelIds.filter(isDiscordId).map(value => String(value).trim()));
+}
+
+function updateRuntimeOverrides(mutator) {
+  const overrides = readRuntimeOverrides(config.runtimeConfigPath);
+  mutator(overrides);
+  writeRuntimeOverrides(config.runtimeConfigPath, overrides);
+}
+
+export function persistChannelConfig(key, channelId) {
+  if (!CHANNEL_CONFIG_FIELDS[key]) throw new Error(`Unsupported channel configuration key: ${key}`);
+  if (!isDiscordId(channelId)) throw new Error("The selected channel does not have a valid Discord ID.");
+  const value = String(channelId).trim();
+  updateRuntimeOverrides(overrides => { overrides[key] = value; });
+  config[key] = value;
+  return value;
+}
+
+export function persistActivityChannelConfig(mode, channelId) {
+  if (!isDiscordId(channelId)) throw new Error("The selected channel does not have a valid Discord ID.");
+  const value = String(channelId).trim();
+  const next = new Set(config.activityChannelIds);
+  if (mode === "add") next.add(value);
+  else if (mode === "remove") next.delete(value);
+  else throw new Error("Activity channel mode must be add or remove.");
+  const values = [...next];
+  updateRuntimeOverrides(overrides => { overrides.activityChannelIds = values; });
+  config.activityChannelIds = new Set(values);
+  return values;
+}
 
 function boundedNumber(value, fallback, minimum, maximum) {
   const parsed = Number(value);

@@ -59,3 +59,12 @@ test("real-server PAB intake fields are represented in the guided commands", () 
   assert.ok(department.options.some(option => option.name === "removed-role"));
   assert.ok(department.options.some(option => option.name === "cc-role"));
 });
+
+test("administrator routing commands expose bounded choices", () => {
+  const channel = commandMap.get("config-channel");
+  const activity = commandMap.get("config-activity");
+  assert.ok(channel);
+  assert.ok(activity);
+  assert.equal(channel.options.find(option => option.name === "setting").choices.length, 13);
+  assert.deepEqual(activity.options.find(option => option.name === "mode").choices.map(choice => choice.value), ["add", "remove"]);
+});
