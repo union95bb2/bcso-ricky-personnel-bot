@@ -34,7 +34,7 @@ Ricky now refuses to serve commands unless its configured guild is reachable and
 - View Channel, Send Messages, Embed Links, Read Message History, Manage Roles, and Attach Files;
 - every destination channel is in the configured guild and reachable with the required permissions;
 - every activity source is in the configured guild and viewable;
-- PAB and Command roles exist;
+- the existing `Personnel Administration Bureau` and `BCSO | Command Staff` authorization roles exist and are configured;
 - every configured rank and allow-listed role exists and is manageable by Ricky's actual highest assigned role.
 - all expected guild slash commands are registered before Ricky announces readiness.
 

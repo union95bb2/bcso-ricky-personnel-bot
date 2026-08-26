@@ -266,8 +266,8 @@ story += [P("Roles are a Discord server configuration concern, not a bot-code co
 story += [P("Required role model", "H2Manual")]
 story += [table([
     ["Role", "Purpose", "Bot behavior"],
-    ["PAB", "Staff allowed to submit/approve ordinary PAB workflows.", "Checked for command authorization."],
-    ["Command", "Staff allowed to approve promotions.", "Required at the promotion approval step."],
+    ["Personnel Administration Bureau", "Existing BCSO role used for PAB workflow authorization and routing.", "Configured as PAB_ROLE_ID; keep mentionable."],
+    ["BCSO | Command Staff", "Existing BCSO role used for final promotion approval and routing.", "Configured as COMMAND_ROLE_ID; keep mentionable."],
     ["Actual bot/controller role", "The role assigned to Ricky Bot that Discord uses for hierarchy.", "Must be above every rank/award role Ricky Bot must change; place it above PAB too when PAB members are targets."],
     ["Rank roles", "Complete BCSO matrix: DST / Deputy Sheriff Trainee, Deputy, Senior Deputy, Corporal, Sergeant, Staff Sergeant, 2nd Lieutenant, 1st Lieutenant, Captain, Major, Commander, Division Chief, Chief Deputy, Assistant Sheriff, UnderSheriff, Sheriff.", "Startup requires every canonical key in RANK_ROLE_IDS; only those roles are removed/replaced by promotion."],
     ["Qualification/unit roles", "FTO, certifications, divisions, awards.", "Only IDs in AWARDABLE_ROLE_IDS may be added/removed."],
@@ -275,7 +275,7 @@ story += [table([
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
 story += [P("Hierarchy rule", "H2Manual")]
 story += [callout("Move the actual assigned Ricky Bot role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. If PAB members may be promotion or qualification targets, move that same assigned role above PAB too; Discord otherwise refuses every role mutation on those members. This does not make PAB, Command, Administrator, or moderation roles editable because Ricky's allow-lists still block them. Moving an unassigned controller role does nothing. Ricky Bot can never manage the server owner.", RED)]
-story += [P("PAB and Command approval roles must be normal mentionable roles (or Ricky Bot must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
+story += [P("Use the existing full-name BCSO authorization roles rather than creating duplicate short PAB or Command roles. The Personnel Administration Bureau and BCSO | Command Staff roles must be normal mentionable roles (or Ricky Bot must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
 story += [P("Recommended records category", "H2Manual")]
 story += [table([
     ["Channel", "Ordinary members", "PAB/Command", "Ricky Bot"],

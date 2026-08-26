@@ -34,12 +34,12 @@ Enable **Server Members Intent**. Do not grant Administrator.
 
 Create or use these roles:
 
-- `PAB_ROLE_ID`: staff permitted to submit and approve ordinary PAB workflows.
-- `COMMAND_ROLE_ID`: staff permitted to approve promotions.
+- `PAB_ROLE_ID`: the existing `Personnel Administration Bureau` role; staff permitted to submit and approve ordinary PAB workflows.
+- `COMMAND_ROLE_ID`: the existing `BCSO | Command Staff` role; staff permitted to approve promotions.
 - `PSD_ROLE_ID` (optional): staff permitted to complete the PSD eligibility check in a promotion case. Command and administrators remain valid fallbacks.
 - `OOTS_ROLE_ID` (optional): role pinged when a complete promotion case is posted for OOTS review. If blank, Ricky posts the review without inventing a role mention.
 
-PAB and Command must be normal **mentionable** roles (or Ricky Bot must be granted Mention Everyone) so restricted approval role pings actually notify staff. `/pab-health` reports a non-mentionable, managed, or elevated approval role.
+Use the existing full-name BCSO roles rather than creating duplicate short workflow roles. Those roles must be normal **mentionable** roles (or Ricky Bot must be granted Mention Everyone) so restricted approval role pings actually notify staff. `/pab-health` reports a non-mentionable, managed, or elevated approval role.
 
 Place the **actual role assigned to Ricky Bot**—the role shown by `/pab-health` as Ricky Bot's highest assigned role—above every rank role and qualification/unit role listed in `RANK_ROLE_IDS` or `AWARDABLE_ROLE_IDS`. In the demo this is normally `BCSO Personnel Bot`; a separate `Ricky Controller` role has no effect unless it is assigned to the bot. Keep the bot role below the server owner; Discord never allows a bot to manage the owner. If PAB members can be promotion or qualification targets, place the actual Ricky Bot role above PAB as well (and above any other highest role those targets may have). This lets Ricky change only the configured rank/award roles; PAB and Command remain protected because they are never included in the role allow-lists. If server policy does not permit Ricky above PAB, those targets require a human-admin role change. Never include administrator, moderation, PAB, Command, or rank roles in `AWARDABLE_ROLE_IDS`.
 
