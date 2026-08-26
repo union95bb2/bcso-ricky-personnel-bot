@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PabStore } from "../src/store.js";
+import { completeCaseCheck, createPromotionCaseData } from "../src/promotion-cases.js";
 
 test("pending approvals are single-use and authorize before consumption", () => {
   const store = new PabStore(":memory:");
@@ -55,6 +56,22 @@ test("member forum thread mappings survive updates", () => {
   assert.equal(store.recordThread("guild-1", "forum-1", "member-1").threadId, "thread-1");
   store.saveRecordThread({ guildId: "guild-1", channelId: "forum-1", memberId: "member-1", threadId: "thread-2", threadName: "Personnel | Tyler M" });
   assert.equal(store.recordThread("guild-1", "forum-1", "member-1").threadId, "thread-2");
+  store.close();
+});
+
+test("promotion cases persist verification checks, ticket references, and an append-only event history", () => {
+  const store = new PabStore(":memory:");
+  const data = createPromotionCaseData({ memberId: "member-1", memberLabel: "<@member-1> — Deputy", fromRank: "Deputy", toRank: "Senior Deputy", createdBy: "pab-1" });
+  const id = store.createPromotionCase({ guildId: "guild-1", memberId: "member-1", createdBy: "pab-1", data });
+  store.updatePromotionCase(id, current => ({ ...current, ticketChannelId: "thread-1", ticketThreadId: "thread-1", ticketMessageId: "message-1" }));
+  store.updatePromotionCase(id, current => completeCaseCheck(current, "timeInRank", { value: "01/01/2026 → 07/01/2026 (181 calendar days)", source: "PAB record PAB-1234", reviewedBy: "pab-2" }));
+  store.addPromotionCaseEvent(id, { actorId: "pab-2", eventType: "check-completed", data: { key: "timeInRank" } });
+  const record = store.promotionCase(id);
+  assert.equal(record.ticketThreadId, "thread-1");
+  assert.equal(record.data.checks.timeInRank.state, "complete");
+  assert.equal(record.data.checks.timeInRank.reviewedBy, "pab-2");
+  assert.deepEqual(record.data.events.map(event => event.eventType), ["case-created", "check-completed"]);
+  assert.equal(store.listPromotionCases({ guildId: "guild-1" })[0].id, id);
   store.close();
 });
 

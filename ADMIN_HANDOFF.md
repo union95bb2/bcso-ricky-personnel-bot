@@ -2,7 +2,7 @@
 
 This bot is a private BCSO Personnel Administration Bureau (PAB) workflow system for the FiveM roleplay server. It standardizes records and controlled role changes; Internal Affairs matters, conduct complaints, investigations, findings, and discipline are outside its scope.
 
-**Release:** Ricky Bot v1.1.0. This release adds silent-departure monitoring without changing existing command syntax or approval guardrails.
+**Release:** Ricky Bot v1.2.0. This release adds durable promotion-verification cases while preserving the existing approval guardrails.
 
 ## What the bot will and will not do
 
@@ -36,6 +36,8 @@ Create or use these roles:
 
 - `PAB_ROLE_ID`: staff permitted to submit and approve ordinary PAB workflows.
 - `COMMAND_ROLE_ID`: staff permitted to approve promotions.
+- `PSD_ROLE_ID` (optional): staff permitted to complete the PSD eligibility check in a promotion case. Command and administrators remain valid fallbacks.
+- `OOTS_ROLE_ID` (optional): role pinged when a complete promotion case is posted for OOTS review. If blank, Ricky posts the review without inventing a role mention.
 
 PAB and Command must be normal **mentionable** roles (or Ricky Bot must be granted Mention Everyone) so restricted approval role pings actually notify staff. `/pab-health` reports a non-mentionable, managed, or elevated approval role.
 
@@ -106,6 +108,7 @@ Server administrators:
 
 PAB/Command:
 
+- `/promotion-case member:@member target-rank:<rank>` — opens a durable, tracked verification ticket. PAB verifies time in rank and hours; PSD verifies PSD eligibility; **Post to OOTS** is disabled until all three checks are complete. It never changes the candidate's roles.
 - `/pab-dashboard` — queue and recent activity.
 - `/find-record` — search the bot's local receipts by member or PAB record ID.
 - `/personnel-history` — private indexed personnel-jacket lookup with direct Discord record links.
@@ -114,11 +117,22 @@ PAB/Command:
 - `ACTIVITY_CHANNEL_IDS` — approved Discord channels whose human message timestamps may supply the last-known-activity field; message content is never stored.
 - `DEPARTURE_LOG_CHANNEL_ID` — optional staff-only destination for automatic member-departure notices. If blank, Ricky uses `AUDIT_LOG_CHANNEL_ID`, then `PAB_APPROVALS_CHANNEL_ID`.
 
+### Promotion verification case workflow
+
+1. A PAB/Command reviewer runs `/promotion-case member:@member target-rank:<rank>`. The candidate cannot open or verify their own case.
+2. Ricky creates a durable case and a tracked ticket/thread in `PAB_APPROVALS_CHANNEL_ID`, then pings the configured PAB/Command roles. The candidate is not invited to that ticket.
+3. Reviewers complete **Verify time in rank**, **Verify hours**, and **PSD review**. Each control opens a form that requires the factual value and its source/reference. PSD review is limited to `PSD_ROLE_ID` when configured, with Command/Administrator fallback.
+4. Ricky marks each check complete and stores the reviewer, timestamp, value, and source in the local case history. It does not infer eligibility from missing evidence.
+5. **Post to OOTS** remains disabled until all three checks are complete. Once posted, Ricky sends the complete case to `PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID`, optionally pings `OOTS_ROLE_ID`, and leaves the ticket open for discussion.
+6. OOTS may return one check for correction using the ticket selector. If OOTS approves, Command starts the separate `/promotion` workflow; only that final Command approval can change rank roles.
+
+This case workflow is a verification and routing aid, not an OOTS decision, promotion approval, discipline process, or role-management shortcut.
+
 Technical errors are written as structured JSON to Ricky's process error stream. Each entry includes the timestamp, failure scope, interaction ID, guild/user identifiers, command or custom ID, and stack when available; form contents and tokens are not logged. Use `docker compose logs -f --tail=100` or the configured service manager's log viewer. The Discord PAB audit channel is a personnel-action ledger, not a technical error sink. Runtime channel changes also emit a configuration audit event; a failed audit post does not silently roll back a successfully persisted setting, so administrators should run `/pab-health` after saving.
 
 ## Data retention and backup
 
-Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals and searchable metadata/record payloads. `data/runtime-config.json` is a separate private, machine-written override file for administrator-approved channel routing and activity-source IDs; it contains no token or role credentials. Back up both under the server's approved personnel-record retention process, but do not commit either file to GitHub. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (24 hours by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one hour by default), and offers the submitting PAB member a **Renew** button. Every request is posted to private `#pab-approvals` with a PAB role ping. Promotions have two gates: PAB reviews and forwards the request, then Ricky Bot updates the same request and pings Command for the final role-changing approval. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
+Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals, searchable metadata/record payloads, and promotion-case check/event history. `data/runtime-config.json` is a separate private, machine-written override file for administrator-approved channel routing and activity-source IDs; it contains no token or role credentials. Back up both under the server's approved personnel-record retention process, but do not commit either file to GitHub. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (24 hours by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one hour by default), and offers the submitting PAB member a **Renew** button. Every request is posted to private `#pab-approvals` with a PAB role ping. Promotions have two gates: the `/promotion-case` verification path records time, hours, and PSD evidence for OOTS without changing roles; the existing `/promotion` workflow remains the separate Command-approved role-changing path. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
 
 Optional self-service and comparison features are controlled separately: `/my-birthday` stores only an opt-in month/day, `/remove-birthday` deletes it, and `/roster-sync` performs a read-only comparison against a configured Google Sheet. `/promotion-check` can additionally read a separate promotion-evaluation sheet and report rank/evidence alignment in the PAB preview. Google Sheets is staged behind `GOOGLE_SHEETS_ENABLED=false` and `GOOGLE_PROMOTION_TESTS_ENABLED=false` until a server owner explicitly activates each source. Ricky Bot never applies spreadsheet-driven role changes or makes an IA/discipline decision; PAB and Command remain the approvers.
 

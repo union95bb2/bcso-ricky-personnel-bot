@@ -33,6 +33,8 @@ export const config = {
   guildId: required("DISCORD_GUILD_ID"),
   pabRoleId: optional("PAB_ROLE_ID"),
   commandRoleId: optional("COMMAND_ROLE_ID"),
+  psdRoleId: optional("PSD_ROLE_ID"),
+  ootsRoleId: optional("OOTS_ROLE_ID"),
   trainingRecordsChannelId: optional("TRAINING_RECORDS_CHANNEL_ID"),
   trainingRecordsForumChannelId: optional("TRAINING_RECORDS_FORUM_CHANNEL_ID"),
   personnelRecordsChannelId: optional("PERSONNEL_RECORDS_CHANNEL_ID"),

@@ -81,6 +81,31 @@ export class PabStore {
         UNIQUE(source, source_event_id)
       );
       CREATE INDEX IF NOT EXISTS activity_member_occurred_idx ON activity_events(member_id, occurred_at DESC);
+      CREATE TABLE IF NOT EXISTS promotion_cases (
+        id TEXT PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        member_id TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        status TEXT NOT NULL,
+        ticket_channel_id TEXT,
+        ticket_thread_id TEXT,
+        ticket_message_id TEXT,
+        candidate_removed_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        data_json TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS promotion_cases_status_idx ON promotion_cases(guild_id, status, updated_at DESC);
+      CREATE TABLE IF NOT EXISTS promotion_case_events (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        data_json TEXT NOT NULL,
+        FOREIGN KEY(case_id) REFERENCES promotion_cases(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS promotion_case_events_case_idx ON promotion_case_events(case_id, created_at ASC);
     `);
     const pendingColumns = this.#db.prepare("PRAGMA table_info(pending_actions)").all().map(column => column.name);
     if (!pendingColumns.includes("status")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'");
@@ -249,6 +274,73 @@ export class PabStore {
     `).run(guildId, channelId, memberId, threadId, threadName, now, now);
   }
 
+  createPromotionCase({ guildId, memberId, createdBy, data }) {
+    const id = `PC-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const now = Date.now();
+    this.#db.prepare(`
+      INSERT INTO promotion_cases (id, guild_id, member_id, created_by, status, created_at, updated_at, data_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, guildId, memberId, createdBy, data.status || 'pending-verification', now, now, JSON.stringify(data));
+    this.addPromotionCaseEvent(id, { actorId: createdBy, eventType: 'case-created', data: { memberId, memberLabel: data.memberLabel, fromRank: data.fromRank, toRank: data.toRank } });
+    return id;
+  }
+
+  promotionCase(id) {
+    const row = this.#db.prepare('SELECT * FROM promotion_cases WHERE id = ?').get(id);
+    if (!row) return null;
+    const events = this.#db.prepare('SELECT id, actor_id, event_type, created_at, data_json FROM promotion_case_events WHERE case_id = ? ORDER BY created_at ASC').all(id).map(event => ({
+      id: event.id,
+      actorId: event.actor_id,
+      eventType: event.event_type,
+      createdAt: event.created_at,
+      data: JSON.parse(event.data_json)
+    }));
+    return {
+      id: row.id,
+      guildId: row.guild_id,
+      memberId: row.member_id,
+      createdBy: row.created_by,
+      status: row.status,
+      ticketChannelId: row.ticket_channel_id,
+      ticketThreadId: row.ticket_thread_id,
+      ticketMessageId: row.ticket_message_id,
+      candidateRemovedAt: row.candidate_removed_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      data: { ...JSON.parse(row.data_json), events }
+    };
+  }
+
+  updatePromotionCase(id, mutate) {
+    const current = this.promotionCase(id);
+    if (!current) return null;
+    const next = mutate(structuredClone(current.data)) || current.data;
+    const now = Date.now();
+    this.#db.prepare(`
+      UPDATE promotion_cases
+      SET status = ?, ticket_channel_id = ?, ticket_thread_id = ?, ticket_message_id = ?, candidate_removed_at = ?, updated_at = ?, data_json = ?
+      WHERE id = ?
+    `).run(next.status || current.status, next.ticketChannelId || current.ticketChannelId || null, next.ticketThreadId || current.ticketThreadId || null, next.ticketMessageId || current.ticketMessageId || null, next.candidateRemovedAt || current.candidateRemovedAt || null, now, JSON.stringify(next), id);
+    return this.promotionCase(id);
+  }
+
+  addPromotionCaseEvent(caseId, { actorId, eventType, data = {}, createdAt = Date.now() }) {
+    const eventId = randomUUID();
+    this.#db.prepare(`
+      INSERT INTO promotion_case_events (id, case_id, actor_id, event_type, created_at, data_json)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(eventId, caseId, actorId, eventType, createdAt, JSON.stringify(data));
+    return eventId;
+  }
+
+  listPromotionCases({ guildId, status = null, limit = 20 } = {}) {
+    const clauses = ['guild_id = ?'];
+    const values = [guildId];
+    if (status) { clauses.push('status = ?'); values.push(status); }
+    values.push(limit);
+    return this.#db.prepare(`SELECT id FROM promotion_cases WHERE ${clauses.join(' AND ')} ORDER BY updated_at DESC LIMIT ?`).all(...values).map(row => this.promotionCase(row.id));
+  }
+
   summary() {
     this.purgeExpired();
     const completed = this.#db.prepare("SELECT COUNT(*) AS count FROM records").get().count;
@@ -256,8 +348,9 @@ export class PabStore {
     // are already being processed and expired actions are closed; neither is
     // an open approval waiting for staff.
     const pending = this.#db.prepare("SELECT COUNT(*) AS count FROM pending_actions WHERE status = 'pending'").get().count;
+    const promotionCases = this.#db.prepare("SELECT COUNT(*) AS count FROM promotion_cases WHERE status NOT IN ('oots-review', 'cancelled')").get().count;
     const latest = this.#db.prepare("SELECT created_at FROM records ORDER BY created_at DESC LIMIT 1").get();
-    return { completed, pending, latestAt: latest?.created_at || null };
+    return { completed, pending, promotionCases, latestAt: latest?.created_at || null };
   }
 
   exportRecords() {

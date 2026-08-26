@@ -69,9 +69,10 @@ test("RMS record search and inactivity queue remain factual and member-scoped", 
 test("RMS tracks qualification expiry and keeps promotion eligibility advisory", () => {
   const store = new RmsStore(":memory:");
   const member = store.upsertMember({ guildId: "g", discordId: "u1", callsign: "C-110", displayName: "W. Dorfman", rank: "Deputy", status: "active" });
-  const qualification = store.createRecord({ guildId: "g", memberId: member.id, recordType: "qualification", effectiveDate: "2026-08-01", expiresOn: "2026-08-25", createdBy: "u", data: { summary: "Pursuit qualification" } });
+  const expiryDate = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const qualification = store.createRecord({ guildId: "g", memberId: member.id, recordType: "qualification", effectiveDate: "2026-08-01", expiresOn: expiryDate, createdBy: "u", data: { summary: "Pursuit qualification" } });
   store.createRecord({ guildId: "g", memberId: member.id, recordType: "training", effectiveDate: "2026-08-01", createdBy: "u", data: { summary: "Academy complete" } });
-  assert.equal(store.recordById(qualification.id).expiresOn, "2026-08-25");
+  assert.equal(store.recordById(qualification.id).expiresOn, expiryDate);
   assert.equal(store.expiringRecords("g", { days: 30 }).length, 1);
   const result = store.memberEligibility("g", member.id, "Corporal");
   assert.equal(result.recommendation, "evidence-ready-for-human-review");

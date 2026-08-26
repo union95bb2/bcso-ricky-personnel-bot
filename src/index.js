@@ -9,6 +9,7 @@ import {
   GatewayIntentBits,
   ModalBuilder,
   PermissionFlagsBits,
+  StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle
 } from "discord.js";
@@ -28,6 +29,7 @@ import { memberThreadName, sendRecord } from "./record-destinations.js";
 import { RmsStore } from "./rms/store.js";
 import { departureEmbed, departureNoticeContent } from "./departure.js";
 import { createAdminRoutingCog } from "./cogs/admin-routing.js";
+import { PROMOTION_CASE_CHECKS, caseIsComplete, caseMissingChecks, checkDisplay, completeCaseCheck, createPromotionCaseData, reopenCaseCheck } from "./promotion-cases.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages] });
 const store = new PabStore(config.dataPath);
@@ -85,6 +87,14 @@ function mayUsePab(member) {
 
 function mayApprovePromotion(member) {
   return hasRole(member, config.commandRoleId) || member.permissions.has(PermissionFlagsBits.Administrator);
+}
+
+function mayReviewPsd(member) {
+  return hasRole(member, config.psdRoleId) || mayApprovePromotion(member);
+}
+
+function mayReviewOots(member) {
+  return hasRole(member, config.ootsRoleId) || mayUsePab(member);
 }
 
 function rankNameForMember(member) {
@@ -384,6 +394,46 @@ function promotionCheckEmbed(data, title = "BCSO Promotion Eligibility Check") {
   ];
   if (data.googleEligibility) fields.push({ name: "Google promotion evaluation (read-only)", value: clean(data.googleEligibility.join("\n"), 1024), inline: false });
   return recordEmbed(title, BLUE, fields, "Ricky PAB — This is not promotion approval");
+}
+
+function promotionCaseEmbed(data, title = "BCSO Promotion Verification Case") {
+  const check = key => checkDisplay(data.checks?.[key]);
+  const status = {
+    "pending-verification": "Pending PAB verification",
+    "ready-for-oots": "Ready for OOTS review",
+    "oots-review": "Posted for OOTS review",
+    cancelled: "Cancelled"
+  }[data.status] || clean(data.status, 80);
+  return recordEmbed(title, data.status === "oots-review" ? GREEN : BLUE, [
+    { name: "Case status", value: status, inline: true },
+    { name: "Member", value: data.memberLabel, inline: false },
+    { name: "Promotion path", value: `${data.fromRank} → ${data.toRank}`, inline: true },
+    { name: "Time in rank", value: check("timeInRank"), inline: false },
+    { name: "Hours logged / shift or period", value: check("hours"), inline: false },
+    { name: "PSD eligibility review", value: check("psd"), inline: false },
+    { name: "Operating rule", value: "Ricky records PAB verification. Ricky does not approve the promotion, assign the rank, or change the candidate’s roles.", inline: false }
+  ], "Ricky PAB — verification record only; OOTS retains review authority");
+}
+
+function promotionCaseButtons(id, data) {
+  const complete = caseIsComplete(data);
+  const disabled = data.status === "oots-review" || data.status === "cancelled";
+  const rows = [new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`promotion-case:time:${id}`).setLabel("Verify time in rank").setStyle(ButtonStyle.Primary).setDisabled(disabled),
+    new ButtonBuilder().setCustomId(`promotion-case:hours:${id}`).setLabel("Verify hours").setStyle(ButtonStyle.Primary).setDisabled(disabled),
+    new ButtonBuilder().setCustomId(`promotion-case:psd:${id}`).setLabel("PSD review").setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+    new ButtonBuilder().setCustomId(`promotion-case:oots:${id}`).setLabel("Post to OOTS").setStyle(ButtonStyle.Success).setDisabled(disabled || !complete),
+    new ButtonBuilder().setCustomId(`promotion-case:cancel:${id}`).setLabel("Cancel case").setStyle(ButtonStyle.Danger).setDisabled(disabled)
+  )];
+  if (data.status === "oots-review") {
+    rows.push(new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`promotion-case-reopen:${id}`)
+        .setPlaceholder("Return one check to PAB for correction")
+        .addOptions(PROMOTION_CASE_CHECKS.map(({ key, label }) => ({ label, value: key, description: "Reopen this check and keep the ticket open." })))
+    ));
+  }
+  return rows;
 }
 
 function statusEmbed(data, title = "BCSO Personnel Status Record") {
@@ -719,6 +769,154 @@ async function showPromotionCheckModal(interaction) {
   return interaction.showModal(modal);
 }
 
+function promotionCaseDaysBetween(startDate, endDate) {
+  const [startMonth, startDay, startYear] = startDate.split("/").map(Number);
+  const [endMonth, endDay, endYear] = endDate.split("/").map(Number);
+  return Math.round((Date.UTC(endYear, endMonth - 1, endDay) - Date.UTC(startYear, startMonth - 1, startDay)) / 86400000);
+}
+
+async function showPromotionCase(interaction) {
+  const member = interaction.options.getMember("member");
+  const toRank = clean(interaction.options.getString("target-rank"), 80);
+  if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
+  if (!toRank || !config.rankRoleIds[toRank]) return interaction.reply({ content: `The target rank must exactly match a configured rank: ${Object.keys(config.rankRoleIds).join(", ") || "none"}.`, ephemeral: true });
+  if (member.id === interaction.user.id) return interaction.reply({ content: "A member cannot create or verify their own promotion case.", ephemeral: true });
+  const fromRank = rankNameForMember(member);
+  if (!config.rankRoleIds[fromRank]) return interaction.reply({ content: "Ricky could not resolve the member's current configured rank. Confirm the member has one of the configured BCSO rank roles before opening a promotion case.", ephemeral: true });
+  if (fromRank === toRank) return interaction.reply({ content: "The current rank and target rank cannot be the same.", ephemeral: true });
+
+  const data = createPromotionCaseData({
+    memberId: member.id,
+    memberLabel: mentionWithLabel(member),
+    fromRank,
+    toRank,
+    createdBy: interaction.user.id
+  });
+  const id = store.createPromotionCase({ guildId: interaction.guild.id, memberId: member.id, createdBy: interaction.user.id, data });
+  const channel = await fetchChannel(config.pabApprovalsChannelId);
+  const roles = [config.pabRoleId, config.commandRoleId].filter(Boolean);
+  const embed = promotionCaseEmbed(data);
+  const parent = await channel.send({
+    content: `${roles.map(roleId => `<@&${roleId}>`).join(" ")} New promotion verification case **${id}** for ${data.memberLabel}. The candidate's roles are not changed by this workflow.`,
+    allowedMentions: { roles },
+    embeds: [embed]
+  });
+
+  let ticketChannel = channel;
+  let ticketMessage = parent;
+  let thread = null;
+  try {
+    thread = await parent.startThread({ name: clean(`Promotion ${id} — ${memberLabel(member)}`, 100), autoArchiveDuration: 10080, reason: "Ricky promotion verification case" });
+    ticketChannel = thread;
+    ticketMessage = await thread.send({ embeds: [embed], components: promotionCaseButtons(id, data), allowedMentions: { parse: [] } });
+    await parent.edit({ content: `Promotion verification case **${id}** opened in the thread below. The candidate's roles are not changed by this workflow.`, components: [] });
+  } catch (error) {
+    logError("promotion-case.thread-create", error, { caseId: id, channelId: channel.id });
+    await parent.edit({ components: promotionCaseButtons(id, data) }).catch(() => null);
+  }
+
+  store.updatePromotionCase(id, next => ({ ...next, ticketChannelId: ticketChannel.id, ticketThreadId: thread?.id || null, ticketMessageId: ticketMessage.id }));
+  store.addPromotionCaseEvent(id, { actorId: interaction.user.id, eventType: "ticket-created", data: { channelId: ticketChannel.id, threadId: thread?.id || null, messageId: ticketMessage.id } });
+  const link = ticketMessage.url || `https://discord.com/channels/${interaction.guild.id}/${ticketChannel.id}/${ticketMessage.id}`;
+  return interaction.reply({ content: `Promotion case **${id}** opened. Continue in the tracked PAB ticket: ${link}. No rank or other role was changed.`, ephemeral: true, allowedMentions: { parse: [] } });
+}
+
+async function refreshPromotionCaseMessage(guild, id) {
+  const record = store.promotionCase(id);
+  if (!record?.ticketChannelId || !record.ticketMessageId) return record;
+  try {
+    const channel = await guild.channels.fetch(record.ticketChannelId);
+    const message = await channel.messages.fetch(record.ticketMessageId);
+    await message.edit({ embeds: [promotionCaseEmbed(record.data)], components: promotionCaseButtons(id, record.data), allowedMentions: { parse: [] } });
+  } catch (error) {
+    logError("promotion-case.refresh", error, { caseId: id, channelId: record.ticketChannelId, messageId: record.ticketMessageId });
+  }
+  return record;
+}
+
+function promotionCaseActorError(interaction, record) {
+  if (!record) return "That promotion case no longer exists.";
+  if (record.guildId !== interaction.guild.id) return "That promotion case belongs to another server.";
+  if (record.memberId === interaction.user.id) return "The candidate cannot verify, submit, or cancel their own promotion case.";
+  if (record.status === "oots-review") return "This case is already posted for OOTS review. Continue the discussion in the open ticket.";
+  if (record.status === "cancelled") return "This promotion case was cancelled.";
+  return null;
+}
+
+async function handlePromotionCaseButton(interaction, action, id) {
+  const record = store.promotionCase(id);
+  const accessError = promotionCaseActorError(interaction, record);
+  if (accessError) return interaction.reply({ content: accessError, ephemeral: true });
+  if (action === "psd" && !mayReviewPsd(interaction.member)) return interaction.reply({ content: "PSD review is restricted to PSD, Command, or server administrators.", ephemeral: true });
+  if (action === "oots" && !mayUsePab(interaction.member)) return interaction.reply({ content: "Only PAB or Command can send a case to OOTS review.", ephemeral: true });
+  if (action === "cancel" && !mayUsePab(interaction.member)) return interaction.reply({ content: "Only PAB or Command can cancel a promotion case.", ephemeral: true });
+  if (action === "time") {
+    const modal = new ModalBuilder().setCustomId(`promotion-case-time:${id}`).setTitle(`Verify time in rank — ${id}`);
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(input("start-date", "Hire / last promotion date (MM/DD/YYYY)", TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
+      new ActionRowBuilder().addComponents(input("eligibility-date", "Date time-in-rank requirement was met", TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 })),
+      new ActionRowBuilder().addComponents(input("source", "Source / record reference", TextInputStyle.Paragraph, { placeholder: "Department record, roster, or PAB-confirmed source", maxLength: 800 }))
+    );
+    return interaction.showModal(modal);
+  }
+  if (action === "hours") {
+    const modal = new ModalBuilder().setCustomId(`promotion-case-hours:${id}`).setTitle(`Verify hours — ${id}`);
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(input("hours", "Hours logged", TextInputStyle.Short, { placeholder: "Example: 24.5", maxLength: 40 })),
+      new ActionRowBuilder().addComponents(input("period", "Shift / reporting period", TextInputStyle.Short, { placeholder: "Example: 08/01/2026–08/15/2026", maxLength: 100 })),
+      new ActionRowBuilder().addComponents(input("source", "Source / record reference", TextInputStyle.Paragraph, { placeholder: "Roster, shift log, or PAB-confirmed source", maxLength: 800 }))
+    );
+    return interaction.showModal(modal);
+  }
+  if (action === "psd") {
+    const modal = new ModalBuilder().setCustomId(`promotion-case-psd:${id}`).setTitle(`PSD review — ${id}`);
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(input("result", "PSD eligibility result", TextInputStyle.Short, { placeholder: "Eligible / Hold / Not eligible", maxLength: 120 })),
+      new ActionRowBuilder().addComponents(input("reference", "PSD reference / reviewer note", TextInputStyle.Paragraph, { placeholder: "State the human review and the source used", maxLength: 800 }))
+    );
+    return interaction.showModal(modal);
+  }
+  if (action === "oots") {
+    if (!caseIsComplete(record.data)) return interaction.reply({ content: `Complete the remaining checks first: ${caseMissingChecks(record.data).map(({ label }) => label).join(", ")}.`, ephemeral: true });
+    const next = store.updatePromotionCase(id, current => ({ ...current, status: "oots-review", candidateRemovedAt: Date.now() }));
+    store.addPromotionCaseEvent(id, { actorId: interaction.user.id, eventType: "oots-review-posted", data: { checks: next.data.checks, candidateAccess: "Candidate was not invited to the PAB ticket; no role was changed." } });
+    const reviewRoles = [config.pabRoleId, config.psdRoleId, config.ootsRoleId].filter(Boolean);
+    const channel = await fetchChannel(config.promotionsAnnouncementsChannelId);
+    const ticketLink = next.ticketThreadId
+      ? `https://discord.com/channels/${interaction.guild.id}/${next.ticketThreadId}`
+      : `https://discord.com/channels/${interaction.guild.id}/${next.ticketChannelId}/${next.ticketMessageId}`;
+    await channel.send({
+      content: `${reviewRoles.map(roleId => `<@&${roleId}>`).join(" ")} OOTS review requested for **${id}** — ${next.data.memberLabel}. Review the open ticket: ${ticketLink}`,
+      allowedMentions: { roles: reviewRoles },
+      embeds: [promotionCaseEmbed(next.data, "OOTS Review Queue — Promotion Verification")]
+    });
+    await refreshPromotionCaseMessage(interaction.guild, id);
+    await audit("Promotion case sent to OOTS", `${id} | ${next.data.memberLabel} | ${next.data.fromRank} → ${next.data.toRank} | Submitted by <@${interaction.user.id}>`).catch(error => logError("promotion-case.audit", error, { caseId: id }));
+    return interaction.reply({ content: `Case **${id}** is complete and has been posted to the OOTS review queue. The ticket remains open for discussion. No roles were changed.`, ephemeral: true });
+  }
+  if (action === "cancel") {
+    const next = store.updatePromotionCase(id, current => ({ ...current, status: "cancelled" }));
+    store.addPromotionCaseEvent(id, { actorId: interaction.user.id, eventType: "case-cancelled", data: { reason: "Cancelled from the case control." } });
+    await refreshPromotionCaseMessage(interaction.guild, id);
+    await audit("Promotion case cancelled", `${id} | ${next.data.memberLabel} | Cancelled by <@${interaction.user.id}>`).catch(error => logError("promotion-case.audit", error, { caseId: id }));
+    return interaction.reply({ content: `Promotion case **${id}** cancelled. No roles were changed.`, ephemeral: true });
+  }
+}
+
+async function handlePromotionCaseReopen(interaction, id, key) {
+  const record = store.promotionCase(id);
+  if (!record) return interaction.reply({ content: "That promotion case no longer exists.", ephemeral: true });
+  if (record.memberId === interaction.user.id) return interaction.reply({ content: "The candidate cannot return their own promotion case for correction.", ephemeral: true });
+  if (record.status !== "oots-review") return interaction.reply({ content: "Only a case currently in OOTS review can return a check for correction.", ephemeral: true });
+  if (!mayReviewOots(interaction.member)) return interaction.reply({ content: "Only OOTS, PAB, Command, or server administrators can return a check for correction.", ephemeral: true });
+  if (!PROMOTION_CASE_CHECKS.some(check => check.key === key)) return interaction.reply({ content: "That verification check is not recognized.", ephemeral: true });
+  const next = store.updatePromotionCase(id, current => reopenCaseCheck(current, key, "Returned from OOTS review for correction; discuss the reason in the open ticket.", interaction.user.id));
+  store.addPromotionCaseEvent(id, { actorId: interaction.user.id, eventType: "check-reopened", data: { key, reason: "Returned from OOTS review for correction." } });
+  await refreshPromotionCaseMessage(interaction.guild, id);
+  await audit("Promotion case returned for correction", `${id} | ${next.data.memberLabel} | Check: ${key} | Returned by <@${interaction.user.id}>`).catch(error => logError("promotion-case.audit", error, { caseId: id }));
+  return interaction.reply({ content: `The **${key}** check in case **${id}** is pending correction. The ticket remains open for discussion.`, ephemeral: true });
+}
+
 async function showPersonnelStatusModal(interaction) {
   const member = interaction.options.getMember("member");
   if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
@@ -802,10 +1000,11 @@ function dashboardEmbed() {
   return recordEmbed("Ricky BCSO PAB Control Panel", BLUE, [
     { name: "Completed bot records", value: String(summary.completed), inline: true },
     { name: "Open approvals", value: String(summary.pending), inline: true },
+    { name: "Open promotion cases", value: String(summary.promotionCases), inline: true },
     { name: "Last completed", value: summary.latestAt ? `<t:${Math.floor(summary.latestAt / 1000)}:R>` : "No records yet", inline: true },
     { name: "Open queue", value: pendingText, inline: false },
     { name: "Recent activity", value: recentText, inline: false },
-    { name: "Quick workflow", value: "`/department-record` · `/training-log` · `/promotion` · `/inactivity-review`", inline: false }
+    { name: "Quick workflow", value: "`/promotion-case` · `/department-record` · `/training-log` · `/promotion` · `/inactivity-review`", inline: false }
   ], "PAB-only control surface");
 }
 
@@ -1111,9 +1310,56 @@ function personnelHistory(interaction) {
   });
 }
 
+function savePromotionCaseCheck(interaction, id, key, value, source) {
+  const record = store.promotionCase(id);
+  const accessError = promotionCaseActorError(interaction, record);
+  if (accessError) return { error: accessError };
+  if (key === "psd" && !mayReviewPsd(interaction.member)) return { error: "PSD review is restricted to PSD, Command, or server administrators." };
+  const next = store.updatePromotionCase(id, current => completeCaseCheck(current, key, { value, source, reviewedBy: interaction.user.id }));
+  store.addPromotionCaseEvent(id, { actorId: interaction.user.id, eventType: "check-completed", data: { key, value, source } });
+  return { record: next };
+}
+
 async function handleModal(interaction) {
   const modalParts = interaction.customId.split(":");
   const kind = modalParts[0];
+  if (kind === "promotion-case-time") {
+    const id = modalParts[1];
+    const startDate = normalizeDate(interaction.fields.getTextInputValue("start-date"));
+    const eligibilityDate = normalizeDate(interaction.fields.getTextInputValue("eligibility-date"));
+    if (!startDate || !eligibilityDate) return modalReply(interaction, { content: `Enter both dates as \`${DATE_FORMAT_HINT}\`, for example \`08/06/2026\`.` });
+    const days = promotionCaseDaysBetween(startDate, eligibilityDate);
+    if (days < 0) return modalReply(interaction, { content: "The eligibility date cannot be before the hire or last-promotion date." });
+    const source = normalizeMultiline(interaction.fields.getTextInputValue("source"));
+    if (!source) return modalReply(interaction, { content: "Enter the record or source used for the human verification." });
+    const result = savePromotionCaseCheck(interaction, id, "timeInRank", `${startDate} → ${eligibilityDate} (${days} calendar days)`, source);
+    if (result.error) return modalReply(interaction, { content: result.error });
+    await refreshPromotionCaseMessage(interaction.guild, id);
+    return modalReply(interaction, { content: `Time-in-rank check saved for **${id}**. The candidate's roles were not changed.` });
+  }
+  if (kind === "promotion-case-hours") {
+    const id = modalParts[1];
+    const hoursText = clean(interaction.fields.getTextInputValue("hours"), 40);
+    const hours = Number(hoursText);
+    if (!hoursText || !Number.isFinite(hours) || hours < 0) return modalReply(interaction, { content: "Enter hours as a non-negative number, for example `24.5`." });
+    const period = clean(interaction.fields.getTextInputValue("period"), 100);
+    const source = normalizeMultiline(interaction.fields.getTextInputValue("source"));
+    if (!period || !source) return modalReply(interaction, { content: "Enter the reporting period and the record or source used for the human verification." });
+    const result = savePromotionCaseCheck(interaction, id, "hours", `${hoursText} hours — ${period}`, source);
+    if (result.error) return modalReply(interaction, { content: result.error });
+    await refreshPromotionCaseMessage(interaction.guild, id);
+    return modalReply(interaction, { content: `Hours check saved for **${id}**. The candidate's roles were not changed.` });
+  }
+  if (kind === "promotion-case-psd") {
+    const id = modalParts[1];
+    const resultText = clean(interaction.fields.getTextInputValue("result"), 120);
+    const source = normalizeMultiline(interaction.fields.getTextInputValue("reference"));
+    if (!resultText || !source) return modalReply(interaction, { content: "Enter the PSD result and the human reviewer reference." });
+    const result = savePromotionCaseCheck(interaction, id, "psd", resultText, source);
+    if (result.error) return modalReply(interaction, { content: result.error });
+    await refreshPromotionCaseMessage(interaction.guild, id);
+    return modalReply(interaction, { content: `PSD review saved for **${id}**. The candidate's roles were not changed.` });
+  }
   if (kind === "training-modal") {
     const [, trainerId, traineeId, timezoneValue, divisionValue] = modalParts;
     const timezone = resolveTrainingTimeZone(timezoneValue, { label: config.timeZoneLabel, timeZoneId: config.timeZoneId });
@@ -1592,6 +1838,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.commandName === "department-record") return showDepartmentRecordModal(interaction);
       if (interaction.commandName === "correct-record") return showCorrectionModal(interaction);
       if (interaction.commandName === "promotion-check") return showPromotionCheckModal(interaction);
+      if (interaction.commandName === "promotion-case") return showPromotionCase(interaction);
       if (interaction.commandName === "personnel-status") return showPersonnelStatusModal(interaction);
       if (interaction.commandName === "inactivity-review") return showInactivityReviewModal(interaction);
       if (interaction.commandName === "member-profile") return showMemberProfile(interaction);
@@ -1601,15 +1848,27 @@ client.on(Events.InteractionCreate, async interaction => {
       if (interaction.commandName === "find-record") return findRecord(interaction);
     }
     if (interaction.isModalSubmit()) {
-      if (!mayUsePab(interaction.member)) return unauthorized(interaction);
+      const isPsdCaseModal = interaction.customId.startsWith("promotion-case-psd:");
+      if (!mayUsePab(interaction.member) && !(isPsdCaseModal && mayReviewPsd(interaction.member))) return unauthorized(interaction);
       // A modal submission has only a short Discord acknowledgement window.
       // Defer before member/channel fetches so mobile submissions do not fall
       // back to Discord's generic “Something went wrong” banner.
       await interaction.deferReply({ ephemeral: true });
       return handleModal(interaction);
     }
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith("promotion-case-reopen:")) {
+      if (!mayReviewOots(interaction.member)) return unauthorized(interaction);
+      const id = interaction.customId.split(":")[1];
+      return handlePromotionCaseReopen(interaction, id, interaction.values[0]);
+    }
     if (interaction.isButton()) {
-      if (!mayUsePab(interaction.member)) return unauthorized(interaction);
+      const isPromotionCaseButton = interaction.customId.startsWith("promotion-case:");
+      if (!mayUsePab(interaction.member) && !(isPromotionCaseButton && interaction.customId.startsWith("promotion-case:psd:") && mayReviewPsd(interaction.member))) return unauthorized(interaction);
+      if (isPromotionCaseButton) {
+        const [, action, id] = interaction.customId.split(":");
+        if (!action || !id) return;
+        return handlePromotionCaseButton(interaction, action, id);
+      }
       const [decision, type, id] = interaction.customId.split(":");
       if (!["approve", "cancel", "renew"].includes(decision) || !id) return;
       if (decision === "renew") {

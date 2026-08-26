@@ -9,11 +9,13 @@ This file is a persistent replacement for a temporary source index. It is safe t
 - `src/cogs/admin-routing.js` — first cog-like feature boundary: owns the channel-routing command definitions, validation, previews, approval, and persistence. It is loaded by the existing JavaScript runtime without changing the bot language.
 - `src/config.js` — protected environment configuration plus runtime override loading and persistence.
 - `src/runtime-config.js` — allow-listed channel settings, Discord-ID validation, and atomic `data/runtime-config.json` read/write helpers.
+- `src/promotion-cases.js` — pure promotion-case check state machine for time-in-rank, hours, PSD review, completion, and reopen behavior.
 - `src/workflow-spec.js` — command coverage, admin/PAB/self-service classification, workflow requirements, and destination checks.
 - `src/pending-actions.js` — durable approval previews, expiry countdowns, renewals, and fail-closed claims.
 - `src/permissions.js` — channel/member/role hierarchy checks used before writes.
 - `src/record-destinations.js` — text-channel fallback and optional Forum/member-thread routing.
 - `src/store.js` — private SQLite receipt/activity ledger (`data/pab.sqlite`).
+- `src/store.js` also persists promotion cases and their append-only event history in `promotion_cases` and `promotion_case_events`.
 - `src/rms/` — optional Phase 2 RMS SQLite store and dashboard integration.
 
 ## Administrator routing controls

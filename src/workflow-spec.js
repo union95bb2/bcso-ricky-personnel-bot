@@ -10,6 +10,7 @@ export const PAB_COMMANDS = new Set([
   "department-record",
   "correct-record",
   "promotion-check",
+  "promotion-case",
   "personnel-status",
   "inactivity-review",
   "member-profile",
@@ -27,6 +28,7 @@ export const WORKFLOW_REQUIREMENTS = {
   "department-record": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "correct-record": ["pabRoleId", "commandRoleId", "auditLogChannelId", "pabApprovalsChannelId"],
   "promotion-check": ["pabRoleId", "commandRoleId", "pabApprovalsChannelId", "auditLogChannelId"],
+  "promotion-case": ["pabRoleId", "commandRoleId", "pabApprovalsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
   "personnel-status": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "inactivity-review": ["pabRoleId", "commandRoleId", "inactivityReviewChannelId", "auditLogChannelId", "pabApprovalsChannelId", "activityChannelIds"],
   "pab-announcement": ["pabRoleId", "commandRoleId", "pabAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
@@ -44,6 +46,7 @@ export const WORKFLOW_CHANNELS = {
   "department-record": ["personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "correct-record": ["auditLogChannelId", "pabApprovalsChannelId"],
   "promotion-check": ["pabApprovalsChannelId", "auditLogChannelId"],
+  "promotion-case": ["pabApprovalsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
   "personnel-status": ["personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "inactivity-review": ["inactivityReviewChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "pab-announcement": ["pabAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId"]

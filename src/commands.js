@@ -61,6 +61,11 @@ export const commands = [
     .setDescription("Document a human PAB eligibility check before a promotion request.")
     .addUserOption(option => option.setName("member").setDescription("Member being reviewed.").setRequired(true)),
   new SlashCommandBuilder()
+    .setName("promotion-case")
+    .setDescription("Create a tracked promotion verification case for PAB and OOTS.")
+    .addUserOption(option => option.setName("member").setDescription("Member being reviewed.").setRequired(true))
+    .addStringOption(option => option.setName("target-rank").setDescription("Rank being considered for the member.").setRequired(true)),
+  new SlashCommandBuilder()
     .setName("personnel-status")
     .setDescription("Create a reviewed leave, transfer, separation, or return-to-duty record.")
     .addUserOption(option => option.setName("member").setDescription("Member this status record concerns.").setRequired(true))

@@ -149,7 +149,7 @@ def footer(canvas, doc):
     canvas.line(0.6 * inch, 0.48 * inch, width - 0.6 * inch, 0.48 * inch)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(0.6 * inch, 0.29 * inch, "Ricky Bot v1.1.0 | Owner's Manual | Technical reference")
+    canvas.drawString(0.6 * inch, 0.29 * inch, "Ricky Bot v1.2.0 | Owner's Manual | Technical reference")
     canvas.drawRightString(width - 0.6 * inch, 0.29 * inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -164,7 +164,7 @@ if logo.exists():
     story += [Spacer(1, 0.38 * inch), im, Spacer(1, 0.18 * inch)]
 story += [
     P("BCSO PERSONNEL ADMINISTRATION BUREAU", "CoverKicker"),
-    P("Ricky Bot v1.1.0", "CoverTitle"),
+    P("Ricky Bot v1.2.0", "CoverTitle"),
     P("Owner's Manual and Server Administrator Reference", "CoverTitle"),
     P("A technical operating guide for the Discord personnel workflow bot", "CoverSub"),
     Spacer(1, 0.15 * inch),
@@ -223,6 +223,7 @@ cmd_rows = [
     ["/training-log", "PAB", "Guided trainer/trainee/division/date/time-zone/time form; preview then post.", "No"],
     ["/department-record", "PAB", "Branded department record with callsign, optional role fields, CC, and source link.", "No"],
     ["/promotion-check", "PAB", "Documents a human eligibility review; optionally adds a read-only Google promotion-evaluation row/rank/evidence comparison. Not approval.", "No"],
+    ["/promotion-case", "PAB + PSD + OOTS", "Tracked verification ticket for time in rank, hours, and PSD review; posts complete case to OOTS without changing roles.", "No"],
     ["/promotion", "PAB then Command", "Creates promotion request; Command approval is the role-change control point.", "Only after Command approval"],
     ["/award-role", "PAB", "Adds one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
     ["/remove-role", "PAB", "Removes one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
@@ -357,6 +358,8 @@ story += [P("Sandbox commands", "H2Manual"), P("npm run preflight:demo\nnpm run 
 story += [P("The startup gate checks the guild, every destination/activity channel, required permissions, role maps, role hierarchy, and the exact guild command set. A failed gate is a hard no-go.")]
 story += [P("Changing channel routing", "H2Manual")]
 story += [P("Server administrators can use /config-channel setting:<choice> channel:<channel> when a records, approvals, announcements, audit, birthday, milestone, departure, or Forum destination changes. Ricky checks the selected channel's guild, type, and live permissions, presents a confirmation preview with an explicit expiry countdown, and writes the approved override to data/runtime-config.json without a restart. Use /config-activity mode:add/remove channel:<channel> to manage the inactivity-review activity-source allow-list. These commands never modify role IDs, rank maps, tokens, or award allow-lists; run /pab-health after saving.", "SmallManual")]
+story += [P("Promotion verification cases", "H2Manual")]
+story += [P("/promotion-case member:@member target-rank:<rank> opens a durable case in the private PAB approvals channel and creates a tracked ticket/thread. PAB verifies time in rank and hours from source records; PSD verifies the PSD eligibility result. Each check stores the human-entered value, source, reviewer, and timestamp. Post to OOTS remains disabled until all three checks are complete. A complete case is posted to the configured promotion channel and optionally pings OOTS; the ticket remains open, the candidate is not invited, and no role or access change occurs. If OOTS approves, Command uses the existing /promotion workflow for the separate role-changing approval.", "SmallManual")]
 story += [P("Technical diagnostics", "H2Manual")]
 story += [P("Ricky emits structured JSON errors to the process error stream with a timestamp, scope, interaction ID, command/custom ID, Discord code, and stack when available. It never logs submitted form values or tokens. Use the deployment supervisor's log viewer (for example, docker compose logs -f --tail=100); the PAB audit channel is reserved for personnel-action receipts. Modal submissions are acknowledged before slow Discord fetches so mobile users receive a specific Ricky validation/error message instead of Discord's generic banner.", "SmallManual")]
 
@@ -370,7 +373,7 @@ check_items = [
     "Run npm run preflight:demo or npm run preflight:deploy; stop on any failure.",
     "Start exactly one Ricky Bot process and confirm the startup readiness gate passes.",
     "Run /setup-status and /pab-health as a server administrator.",
-    "Run one harmless test of training, department record, promotion-check, personnel-status, inactivity-review, announcement, award-role, remove-role, correction, search, and audit export.",
+    "Run one harmless test of promotion-case (including the three human checks and OOTS handoff), training, department record, promotion-check, personnel-status, inactivity-review, announcement, award-role, remove-role, correction, search, and audit export.",
     "Use a clean test member for role changes; never test against the server owner.",
     "Verify the test member's baseline role is restored and /pab-health is green before handoff.",
 ]
@@ -406,6 +409,7 @@ story += bullets([
     "Unapproved previews expire after PENDING_ACTION_TTL_MINUTES, reminders are deduplicated, and expired rows are eventually purged. Renewing never bypasses final permission or hierarchy checks.",
     "Opt-in birthday data stores month/day only. Delivery markers prevent duplicate annual notices.",
     "Google Sheets credentials are read-only and belong only in the protected host environment; the service-account JSON must never be committed.",
+    "Promotion cases are durable verification records with append-only check/event history. They are advisory evidence for OOTS and never a promotion approval or role-change mechanism.",
     "Promotion-evaluation evidence is advisory. Hours, reports, discipline fields, and PAB recommendation are displayed for PAB review; Ricky does not turn them into an IA finding, disciplinary action, approval, or role change.",
     "Activity tracking stores member ID, timestamp, source channel, and source event ID. It does not store message content and is limited to ACTIVITY_CHANNEL_IDS.",
     "The bot does not import IA, complaint, discipline, personnel-jacket, or historical roster data.",
@@ -426,7 +430,7 @@ story += bullets([
 story += [P("Current validation baseline", "H2Manual")]
 story += [table([
     ["Check", "Expected result"],
-    ["npm test", "68 tests passed in the current release baseline."],
+    ["npm test", "71 tests passed in the current release baseline."],
     ["npm run preflight:demo", "Demo IDs and protected credentials pass validation."],
     ["DEPLOY_CONFIG_ENV_FILE=.env.demo.example npm run preflight:deploy", "Candidate deployment configuration passes without printing secrets."],
     ["/setup-status + /pab-health", "All IDs/channels/permissions/hierarchy ready in the target guild."],
@@ -455,7 +459,7 @@ story += [P("This document is an operating manual for Ricky Bot. Server-specific
 doc = SimpleDocTemplate(
     str(OUT), pagesize=letter, rightMargin=0.6 * inch, leftMargin=0.6 * inch,
     topMargin=0.62 * inch, bottomMargin=0.68 * inch,
-    title="Ricky Bot v1.1.0 - Owner's Manual",
+    title="Ricky Bot v1.2.0 - Owner's Manual",
     author="BCSO Personnel Administration Bureau",
 )
 doc.build(story, onFirstPage=footer, onLaterPages=footer)

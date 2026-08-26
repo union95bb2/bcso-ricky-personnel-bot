@@ -4,7 +4,7 @@ An internal Discord bot for the Blaine County Sheriff's Office FiveM roleplay se
 
 Canonical source: [public GitHub repository](https://github.com/union95bb2/bcso-ricky-personnel-bot). Keep deployment changes and reviewed fixes in `main`; never commit `.env` or the local SQLite data directory.
 
-**Current release: Ricky Bot v1.1.0** — a backward-compatible feature release adding silent-departure monitoring and the associated human-review record path.
+**Current release: Ricky Bot v1.2.0** — a backward-compatible feature release adding durable promotion-verification cases, PSD/OOTS routing, and the associated human-review record path.
 
 The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky Bot without copying third-party credentials or internals. The [PAB workflow audit](REAL_SERVER_PAB_WORKFLOW_AUDIT.md) documents the visible request-channel → PAB reformat → correct ping/CC → reviewed record process.
 
@@ -34,6 +34,8 @@ If `/award-role` or `/remove-role` says a role is not eligible, the selected rol
 - `/department-record member:@member callsign:C-### source-link:<optional>` is the mobile-first PAB workflow. It selects members and roles in Discord, previews the captured PAB-branded department-record format, routes it to the personnel-record destination, and gives it an audit ID. PAB still enters the factual information from the division record-request channel; Ricky Bot does not scrape or copy source-message content. When supplied, the source link is preserved in the final record for traceability.
 - `/correct-record message-link:` creates a new, immutable correction in the original record's channel. It never edits or deletes the original.
 - `/promotion-check member:@member` captures the human eligibility review in the private PAB queue. When the optional Google promotion-evaluation source is enabled, Ricky adds a read-only row/rank/evidence comparison; it cannot approve or promote anyone.
+- `/promotion-case member:@member target-rank:<rank>` opens a durable promotion-verification case in the private PAB approvals channel. Ricky creates a tracked ticket/thread with three separate controls—time in rank, hours logged / shift or period, and PSD eligibility review. Each completed check changes from pending to a check mark with the human-entered value and source. **Post to OOTS** is disabled until all three checks are complete; it posts a review entry to the promotion channel, leaves the ticket open for discussion, records the case history, and never changes the candidate's roles.
+- `PSD_ROLE_ID` optionally limits the PSD check to a dedicated PSD role; Command and server administrators remain valid fallbacks. `OOTS_ROLE_ID` optionally controls the role ping when a complete case is posted for OOTS review. If either setting is blank, Ricky keeps the workflow functional without inventing a role mention.
 - `/personnel-status member:@member status:` records an approved leave, return to duty, transfer, or separation. It is record-only—access and role changes remain a separate Command decision.
 - `/inactivity-review member:@member` creates a neutral, private PAB activity review with a review period, last known activity, factual summary, and follow-up. It never changes roles or access, and is not an IA or disciplinary workflow.
 - Ricky Bot can track human message timestamps in explicitly approved `ACTIVITY_CHANNEL_IDS` channels without storing message content. In `/inactivity-review`, leave the last-activity field blank to use the latest tracked event through the review period; PAB can enter a verified override when the ledger has no event.
@@ -111,20 +113,22 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 ## Daily workflow
 
 1. PAB runs `/training-log`, selects trainer and trainee, completes the form, reviews the private preview, and clicks **Approve & post**.
-2. PAB runs `/promotion`, chooses the member, and completes the form. The bot sends the request to private `#pab-approvals` and pings PAB.
-3. A PAB member clicks **PAB review & forward**. Ricky Bot updates the request and pings Command.
-4. A Command member clicks **Command approve & apply**. Only then does the bot change rank roles and send announcements.
-5. PAB runs `/award-role` or `/remove-role` for an allow-listed certification or unit role, reviews the private preview, and approves it.
-6. PAB creates a `/department-record` for mobile-friendly branded records, and uses `/correct-record` to append—not overwrite—any correction.
-7. PAB uses `/promotion-check` before a promotion request, `/personnel-status` to document approved leave, return, transfer, or separation records, and `/inactivity-review` for private staff-attention follow-up. None of these actions changes roles or access.
-8. PAB uses `/pab-announcement` for reviewed notices and `/member-profile` for a current-role snapshot.
-9. If anything is wrong, click Cancel and re-run the command. Nothing changes before approval.
+2. PAB runs `/promotion-case`, chooses the member and target rank, and opens the tracked verification ticket.
+3. PAB completes the time-in-rank and hours checks from the actual source records. PSD completes the PSD check. Ricky records the facts and sources; it does not decide eligibility from missing or invented information.
+4. When every check is complete, a PAB or Command member clicks **Post to OOTS**. The review entry is posted to the promotion channel, the original ticket stays open, and the candidate's roles remain unchanged.
+5. If OOTS approves the promotion, an authorized Command member uses the existing `/promotion` workflow. Only its final **Command approve & apply** control changes rank roles and sends the announcement.
+6. PAB runs `/award-role` or `/remove-role` for an allow-listed certification or unit role, reviews the private preview, and approves it.
+7. PAB creates a `/department-record` for mobile-friendly branded records, and uses `/correct-record` to append—not overwrite—any correction.
+8. PAB uses `/promotion-check` for a standalone human eligibility record, `/personnel-status` to document approved leave, return, transfer, or separation records, and `/inactivity-review` for private staff-attention follow-up. None of these actions changes roles or access.
+9. PAB uses `/pab-announcement` for reviewed notices and `/member-profile` for a current-role snapshot.
+10. If anything is wrong, click **Cancel case** or Cancel and re-run the command. Nothing changes before the authorized role-changing workflow.
 
 ## Safeguards built in
 
 - Every posting and role-change workflow presents a private preview first.
 - The bot selects actual Discord members and roles; staff never type `@` mentions by hand.
 - Rank changes use two human gates: a PAB member reviews and forwards the request, then a Command member is pinged and must approve/apply it. PAB may only award or remove roles in the explicit qualification/unit allow-list.
+- Promotion cases are append-only verification records. The candidate cannot verify or submit their own case, Ricky never changes a candidate's roles in the case workflow, the candidate is not invited into the PAB ticket, and OOTS receives the complete case only after the three required checks are marked complete. `PSD_ROLE_ID` and `OOTS_ROLE_ID` are optional protected settings; when absent, PSD review falls back to Command and OOTS is addressed through the configured review channel without an invented role mention.
 - Internal Affairs matters, conduct complaints, investigations, findings, and discipline are not part of this bot.
 - Inactivity review is a neutral PAB staff-attention record only; it does not determine misconduct, trigger discipline, or automatically remove anyone.
 - Corrections preserve the original message and link the correction to it.
