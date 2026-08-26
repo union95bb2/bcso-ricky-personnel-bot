@@ -50,6 +50,18 @@ test("role-changing and date-bearing forms expose the same Today/manual control"
   }
 });
 
+test("promotion-case target rank is a bounded canonical choice menu", () => {
+  const targetRank = commandMap.get("promotion-case").options.find(option => option.name === "target-rank");
+  assert.ok(targetRank);
+  assert.equal(targetRank.required, true);
+  assert.deepEqual(targetRank.choices.map(choice => choice.value), [
+    "DST", "Deputy", "Senior Deputy", "Corporal", "Sergeant", "Staff Sergeant",
+    "2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Commander",
+    "Division Chief", "Chief Deputy", "Assistant Sheriff", "UnderSheriff", "Sheriff"
+  ]);
+  assert.equal(targetRank.choices[0].name, "Deputy Sheriff Trainee (DST)");
+});
+
 test("real-server PAB intake fields are represented in the guided commands", () => {
   const training = commandMap.get("training-log");
   assert.deepEqual(training.options.filter(option => option.required).map(option => option.name), ["trainer", "trainee", "division", "date", "timezone"]);

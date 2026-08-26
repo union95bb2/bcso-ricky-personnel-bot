@@ -1,11 +1,20 @@
 import { SlashCommandBuilder } from "discord.js";
 import { TRAINING_DIVISION_CHOICES, TRAINING_TIME_CHOICES, TRAINING_TIME_ZONES } from "./format.js";
+import { BCSO_RANK_MATRIX } from "./rank-matrix.js";
 import { commands as adminRoutingCommands } from "./cogs/admin-routing.js";
 
 const DATE_CHOICES = [
   { name: "Today (prefill)", value: "today" },
   { name: "Enter manually", value: "manual" }
 ];
+
+// Discord choices keep promotion intake on the canonical BCSO rank ladder.
+// The value is the stable matrix key used by RANK_ROLE_IDS; aliases stay out
+// of the menu so staff never have to guess which spelling Ricky accepts.
+const PROMOTION_RANK_CHOICES = BCSO_RANK_MATRIX.map(({ key, displayName }) => ({
+  name: key === "DST" ? `${displayName} (DST)` : displayName,
+  value: key
+}));
 
 export const commands = [
   new SlashCommandBuilder()
@@ -64,7 +73,8 @@ export const commands = [
     .setName("promotion-case")
     .setDescription("Create a tracked promotion verification case for PAB and OOTS.")
     .addUserOption(option => option.setName("member").setDescription("Member being reviewed.").setRequired(true))
-    .addStringOption(option => option.setName("target-rank").setDescription("Rank being considered for the member.").setRequired(true)),
+    .addStringOption(option => option.setName("target-rank").setDescription("Select the rank being considered for the member.").setRequired(true)
+      .addChoices(...PROMOTION_RANK_CHOICES)),
   new SlashCommandBuilder()
     .setName("personnel-status")
     .setDescription("Create a reviewed leave, transfer, separation, or return-to-duty record.")

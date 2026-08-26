@@ -108,7 +108,7 @@ Server administrators:
 
 PAB/Command:
 
-- `/promotion-case member:@member target-rank:<rank>` — opens a durable, tracked verification ticket. PAB verifies time in rank and hours; PSD verifies PSD eligibility; **Post to OOTS** is disabled until all three checks are complete. It never changes the candidate's roles.
+- `/promotion-case member:@member target-rank:<rank>` — opens a durable, tracked verification ticket. `target-rank` is a Discord choice menu sourced from the canonical BCSO rank matrix, including `Deputy Sheriff Trainee (DST)`; staff should select the displayed rank rather than type a spelling. PAB verifies time in rank and hours; PSD verifies PSD eligibility; **Post to OOTS** is disabled until all three checks are complete. It never changes the candidate's roles.
 - `/pab-dashboard` — queue and recent activity.
 - `/find-record` — search the bot's local receipts by member or PAB record ID.
 - `/personnel-history` — private indexed personnel-jacket lookup with direct Discord record links.
