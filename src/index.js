@@ -809,7 +809,11 @@ async function showPromotionCase(interaction) {
     thread = await parent.startThread({ name: clean(`Promotion ${id} — ${memberLabel(member)}`, 100), autoArchiveDuration: 10080, reason: "Ricky promotion verification case" });
     ticketChannel = thread;
     ticketMessage = await thread.send({ embeds: [embed], components: promotionCaseButtons(id, data), allowedMentions: { parse: [] } });
-    await parent.edit({ content: `Promotion verification case **${id}** opened in the thread below. The candidate's roles are not changed by this workflow.`, components: [] });
+    await parent.edit({
+      content: `${roles.map(roleId => `<@&${roleId}>`).join(" ")} **Attention required:** promotion verification case **${id}** is open in the thread below. The candidate's roles are not changed by this workflow.`,
+      allowedMentions: { roles },
+      components: []
+    });
   } catch (error) {
     logError("promotion-case.thread-create", error, { caseId: id, channelId: channel.id });
     await parent.edit({ components: promotionCaseButtons(id, data) }).catch(() => null);
