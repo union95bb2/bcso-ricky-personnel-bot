@@ -323,7 +323,7 @@ story += bullets([
 ])
 story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
 story += bullets([
-    "A preview lasts PENDING_ACTION_TTL_MINUTES (24 hours by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 hour by default).",
+    "A preview lasts PENDING_ACTION_TTL_MINUTES (7 days by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 day by default).",
     "Every request pings the PAB role. Promotions use two gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])

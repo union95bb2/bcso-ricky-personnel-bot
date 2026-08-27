@@ -53,8 +53,12 @@ export const config = {
   awardableRoleIds: parseIdList(process.env.AWARDABLE_ROLE_IDS),
   timeZoneLabel: process.env.TIME_ZONE_LABEL?.trim() || "MST",
   timeZoneId: process.env.TIME_ZONE_ID?.trim() || "Etc/GMT+7",
-  pendingActionTtlMinutes: boundedNumber(process.env.PENDING_ACTION_TTL_MINUTES, 24 * 60, 60, 7 * 24 * 60),
-  pendingReminderMinutes: boundedNumber(process.env.PENDING_REMINDER_MINUTES, 60, 5, 12 * 60),
+  // PAB/Command review is asynchronous; give staff a full week by default.
+  // The bound keeps stale approvals from living forever while the Renew
+  // control provides an explicit, creator-authorized extension when needed.
+  pendingActionTtlMinutes: boundedNumber(process.env.PENDING_ACTION_TTL_MINUTES, 7 * 24 * 60, 60, 7 * 24 * 60),
+  // Remind the responsible group one day before the deadline by default.
+  pendingReminderMinutes: boundedNumber(process.env.PENDING_REMINDER_MINUTES, 24 * 60, 5, 48 * 60),
   googleSheetsEnabled: process.env.GOOGLE_SHEETS_ENABLED?.trim().toLowerCase() === "true",
   googleSheetsSpreadsheetId: optional("GOOGLE_SHEETS_SPREADSHEET_ID"),
   googleSheetsRange: process.env.GOOGLE_SHEETS_RANGE?.trim() || "Roster!A:Z",

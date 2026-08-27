@@ -37,6 +37,11 @@ async function readJson(request) {
 }
 function safeId(value) { return /^[a-f0-9-]{20,40}$/i.test(String(value || "")); }
 function levelAtLeast(level, required) { return ["member", "pab", "command", "admin"].indexOf(level) >= ["member", "pab", "command", "admin"].indexOf(required); }
+function boundedApprovalMinutes(value, fallback = 7 * 24 * 60) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(7 * 24 * 60, Math.max(60, Math.floor(parsed)));
+}
 function configFromEnv(env = process.env) {
   const guildId = env.RMS_GUILD_ID || env.DISCORD_GUILD_ID || "";
   const clientId = env.RMS_DISCORD_CLIENT_ID || env.DISCORD_CLIENT_ID || "";
@@ -55,6 +60,7 @@ function configFromEnv(env = process.env) {
     commandRoleId: env.COMMAND_ROLE_ID || "",
     adminRoleIds: csvSet(env.RMS_ADMIN_ROLE_IDS),
     rankRoleIds: roleMap(env.RANK_ROLE_IDS),
+    approvalTtlMinutes: boundedApprovalMinutes(env.PENDING_ACTION_TTL_MINUTES),
     devLogin: env.RMS_DEV_LOGIN === "true"
   };
 }
@@ -331,7 +337,7 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       if (!account) return;
       const approvals = store.pendingApprovals(account.guildId);
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "view", entityType: "approval_queue", metadata: { count: approvals.length } });
-      return jsonResponse(response, 200, { approvals });
+      return jsonResponse(response, 200, { approvals, renewalWindowMinutes: config.approvalTtlMinutes || 7 * 24 * 60 });
     }
     const approvalRenewal = url.pathname.match(/^\/api\/approvals\/([^/]+)\/renew$/);
     if (approvalRenewal && request.method === "POST") {
@@ -339,7 +345,8 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       if (!existing) return jsonResponse(response, 404, { error: "Approval not found." });
       const account = authorized(request, response, existing.stage === "command" ? "command" : "pab");
       if (!account) return;
-      const approval = store.renewApproval(existing.id, Date.now() + 24 * 60 * 60 * 1000);
+      const renewalMinutes = boundedApprovalMinutes(config.approvalTtlMinutes);
+      const approval = store.renewApproval(existing.id, Date.now() + renewalMinutes * 60 * 1000);
       if (!approval) return jsonResponse(response, 409, { error: "Approval is no longer pending." });
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "renew", entityType: "approval", entityId: approval.id, metadata: { stage: approval.stage, expiresAt: approval.expiresAt } });
       return jsonResponse(response, 200, { approval });

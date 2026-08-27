@@ -205,7 +205,9 @@ async function loadApprovals() {
   if (!isPab()) { $("approval-results").innerHTML = '<p class="muted">PAB access is required to view the approval queue.</p>'; return; }
   try {
     const data = await api("/api/approvals");
+    const renewalLabel = data.renewalWindowMinutes >= 24 * 60 && data.renewalWindowMinutes % (24 * 60) === 0 ? `${data.renewalWindowMinutes / (24 * 60)}d` : `${Math.round(data.renewalWindowMinutes / 60)}h`;
     $("approval-results").innerHTML = data.approvals.length ? `<table class="data-table"><thead><tr><th>Requested</th><th>Workflow</th><th>Stage</th><th>Requested by</th><th>Decision window</th><th>Action</th></tr></thead><tbody>${data.approvals.map(approval => `<tr><td>${esc(dateTimeText(approval.requestedAt))}</td><td>${esc(approval.workflowType)}</td><td>${esc(approval.stage)}</td><td class="mono">${esc(approval.requestedBy)}</td><td>${approval.expiresAt ? `<span class="approval-countdown" data-expires="${esc(approval.expiresAt)}">${esc(dateTimeText(approval.expiresAt))}</span>` : '<span class="muted">No expiry</span>'}</td><td class="action-cell"><button class="gov-button small approve-button" data-approval="${esc(approval.id)}" data-decision="approved">Approve</button><button class="gov-button small reject-button" data-approval="${esc(approval.id)}" data-decision="rejected">Reject</button><button class="gov-button small renew-button" data-approval="${esc(approval.id)}">Renew 24h</button></td></tr>`).join("")}</tbody></table>` : '<p class="muted">There are no open approvals.</p>';
+    $("approval-results").querySelectorAll(".renew-button").forEach(button => { button.textContent = `Renew ${renewalLabel}`; });
     updateApprovalCountdowns();
     $("approval-results").querySelectorAll(".approve-button, .reject-button").forEach(button => button.addEventListener("click", () => decideApproval(button.dataset.approval, button.dataset.decision)));
     $("approval-results").querySelectorAll(".renew-button").forEach(button => button.addEventListener("click", () => renewApproval(button.dataset.approval)));
@@ -229,7 +231,7 @@ async function decideApproval(id, status) {
 }
 
 async function renewApproval(id) {
-  if (!window.confirm("Renew this approval window for 24 hours?")) return;
+  if (!window.confirm("Renew this approval using the configured review window?")) return;
   try { await api(`/api/approvals/${encodeURIComponent(id)}/renew`, { method: "POST", body: "{}" }); await loadApprovals(); await loadSummary(); } catch (error) { showError(error); }
 }
 

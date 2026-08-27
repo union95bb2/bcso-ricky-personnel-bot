@@ -66,7 +66,7 @@ After the Discord matrix, the release gates were tightened so these conditions f
 
 ## New feature validation — 2026-08-19
 
-- Approval TTL is configurable and bounded to 5–120 minutes. Pending actions receive one deduplicated reminder in the configured reminder window; creator-authorized **Renew** resets the window, and final approval still re-checks live Discord state.
+- Approval TTL is configurable and bounded to 1 hour–7 days (7 days by default). Pending actions receive one deduplicated reminder in the configured reminder window (one day by default); creator-authorized **Renew** resets the window, and final approval still re-checks live Discord state.
 - `/my-birthday` stores only opted-in month/day data. `/remove-birthday` clears it. Annual delivery markers prevent duplicate birthday announcements.
 - `SERVICE_MILESTONES_CHANNEL_ID` enables informational one-month, three-month, six-month, and yearly join-date notices; no role or access mutation is attached.
 - `/roster-sync` uses a read-only Google Sheets service-account scope and reports sheet IDs missing from Discord, rank mismatches, and Discord members absent from the sheet. It has no role-write path.

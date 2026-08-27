@@ -4,7 +4,19 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PabStore } from "../src/store.js";
+import { PendingActions } from "../src/pending-actions.js";
 import { completeCaseCheck, createPromotionCaseData } from "../src/promotion-cases.js";
+
+test("default pending approval window is a full week", () => {
+  const store = new PabStore(":memory:");
+  const pending = new PendingActions(store);
+  const id = pending.create({ type: "training", createdBy: "pab-1" });
+  const details = pending.details(id);
+  const windowMs = details.expiresAt - details.createdAt;
+  assert.ok(windowMs >= 7 * 24 * 60 * 60 * 1000 - 1000);
+  assert.ok(windowMs <= 7 * 24 * 60 * 60 * 1000 + 1000);
+  store.close();
+});
 
 test("pending approvals are single-use and authorize before consumption", () => {
   const store = new PabStore(":memory:");
