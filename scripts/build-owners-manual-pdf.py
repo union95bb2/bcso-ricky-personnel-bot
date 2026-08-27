@@ -171,7 +171,7 @@ story += [
     callout("This manual describes what the bot does, what it never does, how approvals work, and exactly how to install, test, operate, and troubleshoot it. It is written for server owners, developers, Command, and PAB staff."),
     Spacer(1, 0.16 * inch),
     P("Repository: github.com/union95bb2/bcso-ricky-personnel-bot", "SmallManual"),
-    P("Current command matrix: 19 guild slash commands | Human approval required for every consequential action", "SmallManual"),
+    P("Current command matrix: 23 guild slash commands | Human approval required for every consequential action", "SmallManual"),
     PageBreak(),
 ]
 
