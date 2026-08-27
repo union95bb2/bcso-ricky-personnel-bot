@@ -32,7 +32,13 @@ const findings = expected.map(item => {
     status: actualColor === item.color ? "ok" : "color-mismatch"
   };
 });
-const ordered = findings.filter(item => Number.isFinite(item.position));
+// Divider roles intentionally share names (Discord permits duplicate role
+// names), so a name-only lookup cannot identify which divider instance is in
+// the expected slot. Exclude duplicated names from the lightweight order
+// check; color and presence checks still cover every manifest entry.
+const nameCounts = new Map();
+for (const item of findings) nameCounts.set(item.name, (nameCounts.get(item.name) || 0) + 1);
+const ordered = findings.filter(item => Number.isFinite(item.position) && nameCounts.get(item.name) === 1);
 const orderMismatches = ordered.slice(0, -1).flatMap((item, index) => {
   const next = ordered[index + 1];
   return item.position <= next.position ? [{ above: item.name, abovePosition: item.position, below: next.name, belowPosition: next.position }] : [];
