@@ -112,6 +112,10 @@ export class PabStore {
     if (!pendingColumns.includes("claimed_by")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN claimed_by TEXT");
     if (!pendingColumns.includes("claimed_at")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN claimed_at INTEGER");
     if (!pendingColumns.includes("reminder_sent_at")) this.#db.exec("ALTER TABLE pending_actions ADD COLUMN reminder_sent_at INTEGER");
+    // A process restart means no handler is still working on a claimed action.
+    // Return those actions to the queue before expiry cleanup so a transient
+    // crash cannot leave a dead approval card permanently stuck.
+    this.recoverClaimed();
     this.purgeExpired();
   }
 
@@ -123,6 +127,10 @@ export class PabStore {
     const marked = this.#db.prepare("UPDATE pending_actions SET status = 'expired' WHERE status = 'pending' AND expires_at < ?").run(now).changes;
     this.#db.prepare("DELETE FROM pending_actions WHERE status = 'expired' AND expires_at < ?").run(now - 24 * 60 * 60 * 1000);
     return marked;
+  }
+
+  recoverClaimed() {
+    return this.#db.prepare("UPDATE pending_actions SET status = 'pending', claimed_by = NULL, claimed_at = NULL WHERE status = 'claimed'").run().changes;
   }
 
   createPending(action, expiresInMs = DEFAULT_PENDING_TTL) {

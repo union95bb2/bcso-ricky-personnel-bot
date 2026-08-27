@@ -105,6 +105,23 @@ test("pending approvals and receipts survive a database reopen", () => {
   }
 });
 
+test("a restart recovers an approval claimed by an interrupted handler", () => {
+  const directory = mkdtempSync(join(tmpdir(), "bcso-pab-recovery-"));
+  const path = join(directory, "pab.sqlite");
+  try {
+    const first = new PabStore(path);
+    const pendingId = first.createPending({ type: "training", createdBy: "pab-1" });
+    assert.equal(first.takePending(pendingId, "pab-1").action.type, "training");
+    first.close();
+
+    const second = new PabStore(path);
+    assert.equal(second.listPending().some(item => item.id === pendingId), true);
+    second.close();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("activity events are deduplicated and return the latest known event", () => {
   const store = new PabStore(":memory:");
   assert.equal(store.recordActivity({ memberId: "member-1", guildId: "guild-1", source: "discord-message", sourceEventId: "message-1", channelId: "channel-1", occurredAt: 100 }), true);
