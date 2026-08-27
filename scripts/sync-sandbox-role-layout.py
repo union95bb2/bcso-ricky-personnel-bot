@@ -91,8 +91,11 @@ def unique_preserving_separators(names):
 def build_order():
     with open(MANIFEST, encoding="utf-8") as handle:
         raw = json.load(handle)["orderedRoles"]
+    # Keep the live server's exact spelling (including its two spaces after
+    # the hyphen). Older sandbox runs used the single-space spelling; the
+    # migration below renames that object to the live spelling.
     raw = [
-        "S.E.B. - (K.9) Canine Unit" if name == "S.E.B. -  (K.9) Canine Unit" else name
+        "S.E.B. -  (K.9) Canine Unit" if name == "S.E.B. - (K.9) Canine Unit" else name
         for name in raw
     ]
     order = unique_preserving_separators(raw)
@@ -150,12 +153,12 @@ def main():
         by_name.setdefault(role["name"], []).append(role)
 
     # Correct the one known spelling drift without creating a duplicate.
-    typo = by_name.get("S.E.B. -  (K.9) Canine Unit", [])
+    typo = by_name.get("S.E.B. - (K.9) Canine Unit", [])
     if typo:
-        request(token, "PATCH", f"/guilds/{GUILD_ID}/roles/{typo[0]['id']}", {"name": "S.E.B. - (K.9) Canine Unit"})
-        typo[0]["name"] = "S.E.B. - (K.9) Canine Unit"
+        request(token, "PATCH", f"/guilds/{GUILD_ID}/roles/{typo[0]['id']}", {"name": "S.E.B. -  (K.9) Canine Unit"})
+        typo[0]["name"] = "S.E.B. -  (K.9) Canine Unit"
         by_name.setdefault(typo[0]["name"], []).append(typo[0])
-        by_name.pop("S.E.B. -  (K.9) Canine Unit", None)
+        by_name.pop("S.E.B. - (K.9) Canine Unit", None)
 
     # Remove duplicate non-divider roles, retaining the assigned/highest one.
     for name, candidates in list(by_name.items()):
