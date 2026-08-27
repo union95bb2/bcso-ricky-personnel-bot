@@ -41,6 +41,16 @@ test("promotion modal keeps the rank placeholder within Discord's limit", async 
   assert.match(handler, /placeholder: rankPlaceholder/);
 });
 
+test("promotion approval adds the new rank and retains prior rank roles", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  const start = source.indexOf("async function approvePromotion");
+  const end = source.indexOf("async function approveRoleAward", start);
+  const handler = source.slice(start, end);
+  assert.match(handler, /member\.roles\.add\(targetRoleId/);
+  assert.doesNotMatch(handler, /member\.roles\.remove/);
+  assert.match(handler, /Existing rank roles were retained/);
+});
+
 test("role-changing and date-bearing forms expose the same Today/manual control", () => {
   for (const name of ["training-log", "promotion", "award-role", "remove-role", "personnel-status"]) {
     const date = commandMap.get(name).options.find(option => option.name === "date");
@@ -56,7 +66,7 @@ test("promotion-case target rank is a bounded canonical choice menu", () => {
   assert.equal(targetRank.required, true);
   assert.deepEqual(targetRank.choices.map(choice => choice.value), [
     "DST", "Deputy", "Senior Deputy", "Corporal", "Sergeant", "Staff Sergeant",
-    "2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Commander",
+    "Lieutenant", "Captain", "Major", "Commander",
     "Division Chief", "Chief Deputy", "Assistant Sheriff", "UnderSheriff", "Sheriff"
   ]);
   assert.equal(targetRank.choices[0].name, "Deputy Sheriff Trainee (DST)");

@@ -85,7 +85,7 @@ These names are based on the visible live BCSO layout and remain TEST ONLY place
 
 ## 3) Role map to mirror permissions behavior
 
-- Preserve the full BCSO rank matrix in the sandbox: `DST` / `Deputy Sheriff Trainee`, `Deputy`, `Senior Deputy`, `Corporal`, `Sergeant`, `Staff Sergeant`, `2nd Lieutenant`, `1st Lieutenant`, `Captain`, `Major`, `Commander`, `Division Chief`, `Chief Deputy`, `Assistant Sheriff`, `UnderSheriff`, and `Sheriff`.
+- Preserve the full BCSO rank matrix in the sandbox: `DST` / `Deputy Sheriff Trainee`, `Deputy`, `Senior Deputy`, `Corporal`, `Sergeant`, `Staff Sergeant`, `Lieutenant`, `Captain`, `Major`, `Commander`, `Division Chief`, `Chief Deputy`, `Assistant Sheriff`, `UnderSheriff`, and `Sheriff`. Promotions add the next rank role and retain prior rank roles as history.
 - Use the existing organizational roles for workflow routing: `Personnel Administration Bureau` (`1539435205901942836`) is the PAB route and `BCSO | Command Staff` (`1539435146107813909`) is the Command approval route. These are the roles Ricky should ping. The duplicate short `PAB` and `Command` roles were removed after their assignments and channel overrides were migrated to these full-name roles.
 - Keep the bot's actual assigned highest role above `Deputy`, `Corporal`, and any role it may manage in hierarchy checks. Confirm the name in `/pab-health` rather than assuming it is `Ricky Controller`.
 - In the current demo, `Test FTO` (`1539385272255520900`) is the only role in `AWARDABLE_ROLE_IDS`. Selecting either existing authorization role, Deputy, Corporal, or the bot/integration role is intentionally rejected.

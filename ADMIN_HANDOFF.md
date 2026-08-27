@@ -73,15 +73,17 @@ The normal text channels are the safe baseline and remain required fallbacks. Fo
 4. Protect `.env` and `data/` so only the bot host administrator can read them. Never send the bot token in Discord.
 5. Run `npm run preflight:deploy`. It reports missing or malformed IDs without exposing secrets and checks the cutover host for duplicate Ricky Bot containers. Use `npm run preflight:demo` for the TEST ONLY configuration.
 
-`RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky Bot manages during promotion, including DST / Deputy Sheriff Trainee:
+`RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky Bot manages during promotion, including DST / Deputy Sheriff Trainee. Use one `Lieutenant` role; the retired `1st Lieutenant` and `2nd Lieutenant` entries are not part of the ladder:
 
 The sandbox already contains the copied role-name matrix, including DST and the visual separator roles. The verified live color palette is tracked in `scripts/role-style-manifest.json`; `npm run role-audit:demo` reports gray or mismatched sandbox roles without changing them. Apply any Discord color/order migration only after a human reviews that report.
 
 ```env
-RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","2nd Lieutenant":"789012345678901234","1st Lieutenant":"890123456789012345","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
+RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","Lieutenant":"789012345678901234","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
 ```
 
 `AWARDABLE_ROLE_IDS` is a comma-separated allow-list of non-rank unit/certification roles only.
+
+Promotion behavior is additive: after Command approval, Ricky adds the configured target rank role and retains the member's prior rank roles. Those prior roles provide a visible promotion history. Ricky does not remove rank roles; use the separate allow-listed `/remove-role` workflow only for qualification or unit roles.
 
 ## Install and release sequence
 

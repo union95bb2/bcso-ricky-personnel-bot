@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clean, durationLabel, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone, TRAINING_DIVISION_CHOICES, TRAINING_TIME_CHOICES } from "../src/format.js";
+import { canonicalRankRoleEntries, clean, durationLabel, memberLabel, mentionWithLabel, normalizeClockTime, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone, TRAINING_DIVISION_CHOICES, TRAINING_TIME_CHOICES } from "../src/format.js";
+import { BCSO_RANK_MATRIX } from "../src/rank-matrix.js";
 
 test("clean trims and preserves ordinary text", () => {
   assert.equal(clean("  Academy Complete  "), "Academy Complete");
@@ -19,6 +20,13 @@ test("multi-line notes collapse excessive blank lines", () => {
 
 test("rank map becomes predictable rank-role entries", () => {
   assert.deepEqual(rankRoleEntries({ Deputy: "2", Corporal: "3" }), [{ rank: "Deputy", id: "2" }, { rank: "Corporal", id: "3" }]);
+});
+
+test("canonical rank entries follow progression order and ignore obsolete aliases", () => {
+  assert.deepEqual(canonicalRankRoleEntries({ "2nd Lieutenant": "old-2", Lieutenant: "lt", Deputy: "dep", Corporal: "corp" }), [
+    { rank: "Deputy", id: "dep" }, { rank: "Corporal", id: "corp" }, { rank: "Lieutenant", id: "lt" }
+  ]);
+  assert.equal(BCSO_RANK_MATRIX.some(rank => rank.key === "1st Lieutenant" || rank.key === "2nd Lieutenant"), false);
 });
 
 test("today uses the configured timezone", () => {

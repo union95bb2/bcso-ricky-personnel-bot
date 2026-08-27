@@ -28,7 +28,7 @@ The RMS is designed for the PiCam host and starts as a protected SQLite database
 - The submitting PAB member gets a private preview and must approve it before it posts to the training-records channel. Training times are displayed with the selected timezone label (for example, `4:00 PM MST – 5:00 PM MST`).
 - Every date field uses `MM/DD/YYYY`; inactivity review periods use `MM/DD/YYYY - MM/DD/YYYY`. Training times are entered as a range such as `4 PM - 5 PM` or `4:00 PM - 5:00 PM MST` and are normalized to `h:mm AM/PM` in the selected timezone. The bot accepts hyphen or en-dash separators, normalizes minutes and AM/PM casing, and rejects invalid entries before creating a preview.
 - `/promotion member:@member date:Today` opens a guided promotion form with the shared date selector. `/award-role`, `/remove-role`, and `/personnel-status` use the same date control.
-- Only Command can approve the promotion preview. Approval removes any configured prior rank role, adds the configured new rank role, posts the personnel record, announces it, and writes an audit entry.
+- Only Command can approve the promotion preview. Approval adds the configured new rank role while retaining prior rank roles as history, posts the personnel record, announces it, and writes an audit entry.
 - `/award-role member:@member role:@role` records and applies an approved qualification or unit role. The bot will reject every role except those explicitly listed in `AWARDABLE_ROLE_IDS`.
 - `/remove-role member:@member role:@role` uses the same allow-list and preview to remove an approved qualification or unit role. It cannot remove ranks, PAB, moderation, or elevated roles.
 
@@ -98,13 +98,13 @@ When the protected `.env` contains Ricky Bot's token and client ID, start that p
 
 ## Required configuration
 
-`RANK_ROLE_IDS` is the guardrail for role updates. Ricky Bot now validates the complete BCSO rank matrix, including `DST` (Deputy Sheriff Trainee), before startup:
+`RANK_ROLE_IDS` is the guardrail for role updates. Ricky Bot now validates the complete BCSO rank matrix, including `DST` (Deputy Sheriff Trainee), before startup. The live ladder uses one `Lieutenant` role; `1st Lieutenant` and `2nd Lieutenant` are not separate ranks:
 
 ```env
-RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","2nd Lieutenant":"789012345678901234","1st Lieutenant":"890123456789012345","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
+RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","Lieutenant":"789012345678901234","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}
 ```
 
-The bot removes only roles listed in this map. It will leave qualifications, units, PAB, FTO, and other non-rank roles alone.
+The bot adds the approved target rank role and intentionally retains prior rank roles as promotion history. It never removes rank roles automatically. Qualifications, units, PAB, FTO, and other non-rank roles are left alone; only the separate allow-listed `/remove-role` workflow can remove qualification/unit roles.
 
 Configure approved non-rank awards separately. This is a hard allow-list; do not put rank, staff, moderator, or high-permission role IDs in it.
 
@@ -171,7 +171,7 @@ The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md)
 ## Before going live
 
 - Test first in a private BCSO test server with test roles and test channels.
-- Ensure every current rank role is in `RANK_ROLE_IDS`; otherwise the bot intentionally will not remove it.
+- Ensure every current rank role is in `RANK_ROLE_IDS`; Ricky adds only the configured target role during promotion and does not remove prior rank roles.
 - Confirm that PAB and Command role IDs are correct.
 - Keep Ricky Bot's actual highest assigned role (shown by `/pab-health`) above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and above PAB if PAB members may be promotion/qualification targets. Discord cannot change roles on a member whose highest role is at or above the bot. Moving an unassigned controller role does not change the bot's hierarchy; PAB, Command, Administrator, and moderation roles still remain protected by the bot's allow-lists.
 - Keep `#pab-audit-log` private.

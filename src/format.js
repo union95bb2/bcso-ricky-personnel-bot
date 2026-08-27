@@ -1,3 +1,5 @@
+import { BCSO_RANK_MATRIX } from "./rank-matrix.js";
+
 const MAX_FIELD_VALUE = 1024;
 
 // Discord modals do not support select menus. These choices are therefore
@@ -59,6 +61,13 @@ export function normalizeMultiline(value) {
 
 export function rankRoleEntries(rankRoleIds) {
   return Object.entries(rankRoleIds).map(([rank, id]) => ({ rank, id }));
+}
+
+/** Return only canonical rank entries, in BCSO progression order. */
+export function canonicalRankRoleEntries(rankRoleIds) {
+  return BCSO_RANK_MATRIX
+    .map(({ key, aliases }) => ({ rank: key, id: rankRoleIds?.[key] || aliases.map(alias => rankRoleIds?.[alias]).find(Boolean) }))
+    .filter(({ id }) => id);
 }
 
 function escapeRegExp(value) {

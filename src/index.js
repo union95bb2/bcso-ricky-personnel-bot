@@ -16,7 +16,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { config, configLabels, configurationIssues, missingConfiguration, persistActivityChannelConfig, persistChannelConfig } from "./config.js";
 import { commands } from "./commands.js";
-import { clean, dateInTimeZone, durationLabel, endOfDateTimestamp, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, rankRoleEntries, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
+import { canonicalRankRoleEntries, clean, dateInTimeZone, durationLabel, endOfDateTimestamp, memberLabel, mentionWithLabel, normalizeDate, normalizeDateRange, normalizeMultiline, parseDiscordMessageLink, resolveTrainingTimeZone, splitTimeRange, todayInTimeZone } from "./format.js";
 import { PendingActions } from "./pending-actions.js";
 import { channelPermissionIssue, memberManagementIssue, roleManagementIssue } from "./permissions.js";
 import { PabStore } from "./store.js";
@@ -98,7 +98,7 @@ function mayReviewOots(member) {
 }
 
 function rankNameForMember(member) {
-  return rankRoleEntries(config.rankRoleIds).find(({ id }) => member.roles.cache.has(id))?.rank || "PAB";
+  return canonicalRankRoleEntries(config.rankRoleIds).filter(({ id }) => member.roles.cache.has(id)).at(-1)?.rank || "PAB";
 }
 
 function isApprovedAwardRole(role) {
@@ -581,7 +581,7 @@ async function startupReadinessIssues(readyClient) {
   const commandRole = await guild.roles.fetch(config.commandRoleId).catch(() => null);
   if (!pabRole) issues.push(`PAB_ROLE_ID ${config.pabRoleId} was not found in the configured guild`);
   if (!commandRole) issues.push(`COMMAND_ROLE_ID ${config.commandRoleId} was not found in the configured guild`);
-  for (const { rank, id } of rankRoleEntries(config.rankRoleIds)) {
+  for (const { rank, id } of canonicalRankRoleEntries(config.rankRoleIds)) {
     const role = await guild.roles.fetch(id).catch(() => null);
     if (!role) issues.push(`RANK_ROLE_IDS.${rank} ${id} was not found in the configured guild`);
     else {
@@ -663,7 +663,7 @@ async function showPromotionModal(interaction) {
   if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
   const managementIssue = memberManagementError(interaction, member);
   if (managementIssue) return interaction.reply({ content: managementIssue, ephemeral: true });
-  const choices = rankRoleEntries(config.rankRoleIds).map(({ rank }) => rank).join(", ") || "Configure RANK_ROLE_IDS first";
+  const choices = canonicalRankRoleEntries(config.rankRoleIds).map(({ rank }) => rank).join(", ") || "Configure RANK_ROLE_IDS first";
   // Discord limits TextInput placeholders to 100 characters. The complete
   // rank ladder can exceed that, which used to make /promotion throw before
   // acknowledging the interaction (Discord then showed “application did not
@@ -1069,7 +1069,7 @@ async function runHealthCheck(interaction) {
     : "Ricky's highest assigned role could not be resolved.";
   const roleTargets = [
     ["PAB", config.pabRoleId, false], ["Command", config.commandRoleId, false],
-    ...rankRoleEntries(config.rankRoleIds).map(item => [`Rank: ${item.rank}`, item.id, true]),
+    ...canonicalRankRoleEntries(config.rankRoleIds).map(item => [`Rank: ${item.rank}`, item.id, true]),
     ...[...config.awardableRoleIds].map(id => ["Allow-listed role", id, true])
   ];
   for (const [label, id, requiresManagement] of roleTargets) {
@@ -1605,16 +1605,14 @@ async function approvePromotion(interaction, action) {
   const member = await interaction.guild.members.fetch(action.data.memberId);
   const memberIssue = memberManagementError(interaction, member);
   if (memberIssue) throw new Error(memberIssue);
-  const configuredRanks = rankRoleEntries(config.rankRoleIds);
+  const configuredRanks = canonicalRankRoleEntries(config.rankRoleIds);
   const currentRankRoles = configuredRanks.filter(({ id }) => member.roles.cache.has(id)).map(({ id }) => id);
   const targetRoleId = config.rankRoleIds[action.data.toRank];
   const roleTargets = await Promise.all([...new Set([...currentRankRoles, targetRoleId])].map(id => interaction.guild.roles.fetch(id)));
   const roleIssue = roleTargets.map(role => roleManagementError(interaction, role)).find(Boolean);
   if (roleIssue) throw new Error(roleIssue);
   if (!member.roles.cache.has(config.rankRoleIds[action.data.fromRank])) throw new Error(`${member.user.tag} does not currently have the configured ${action.data.fromRank} role.`);
-  const rolesToRemove = currentRankRoles.filter(id => id !== targetRoleId);
   if (!member.roles.cache.has(targetRoleId)) await member.roles.add(targetRoleId, `BCSO promotion approved by ${interaction.user.tag}`);
-  if (rolesToRemove.length) await member.roles.remove(rolesToRemove, `BCSO promotion to ${action.data.toRank} approved by ${interaction.user.tag}`);
   const [recordResult, announcementChannel] = await Promise.all([
     sendRecord({
       guild: interaction.guild,
@@ -1632,7 +1630,7 @@ async function approvePromotion(interaction, action) {
   saveReceipt("promotion", interaction, action, recordMessage);
   action.committed = true;
   await audit("Promotion applied", `${action.data.memberLabel} | ${action.data.fromRank} → ${action.data.toRank} | Approved by <@${interaction.user.id}>`);
-  return interaction.update({ content: `Promotion applied: ${action.data.memberLabel} is now **${action.data.toRank}**. Records and announcement posted.`, embeds: [promotionEmbed(action.data)], components: [] });
+  return interaction.update({ content: `Promotion applied: ${action.data.memberLabel} now has **${action.data.toRank}**. Existing rank roles were retained; records and announcement posted.`, embeds: [promotionEmbed(action.data)], components: [] });
 }
 
 async function approveRoleAward(interaction, action) {

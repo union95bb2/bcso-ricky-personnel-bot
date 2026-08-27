@@ -7,7 +7,7 @@ test("BCSO rank matrix includes DST and the complete documented promotion ladder
   assert.equal(BCSO_RANK_MATRIX[0].displayName, "Deputy Sheriff Trainee");
   assert.deepEqual(REQUIRED_RANK_KEYS, [
     "DST", "Deputy", "Senior Deputy", "Corporal", "Sergeant", "Staff Sergeant",
-    "2nd Lieutenant", "1st Lieutenant", "Captain", "Major", "Commander",
+    "Lieutenant", "Captain", "Major", "Commander",
     "Division Chief", "Chief Deputy", "Assistant Sheriff", "UnderSheriff", "Sheriff"
   ]);
   assert.ok(BCSO_RANK_MATRIX.find(rank => rank.key === "DST").aliases.includes("Deputy Sheriff Trainee"));

@@ -269,7 +269,7 @@ story += [table([
     ["Personnel Administration Bureau", "Existing BCSO role used for PAB workflow authorization and routing.", "Configured as PAB_ROLE_ID; keep mentionable."],
     ["BCSO | Command Staff", "Existing BCSO role used for final promotion approval and routing.", "Configured as COMMAND_ROLE_ID; keep mentionable."],
     ["Actual bot/controller role", "The role assigned to Ricky Bot that Discord uses for hierarchy.", "Must be above every rank/award role Ricky Bot must change; place it above PAB too when PAB members are targets."],
-    ["Rank roles", "Complete BCSO matrix: DST / Deputy Sheriff Trainee, Deputy, Senior Deputy, Corporal, Sergeant, Staff Sergeant, 2nd Lieutenant, 1st Lieutenant, Captain, Major, Commander, Division Chief, Chief Deputy, Assistant Sheriff, UnderSheriff, Sheriff.", "Startup requires every canonical key in RANK_ROLE_IDS; only those roles are removed/replaced by promotion."],
+    ["Rank roles", "Complete BCSO matrix: DST / Deputy Sheriff Trainee, Deputy, Senior Deputy, Corporal, Sergeant, Staff Sergeant, Lieutenant, Captain, Major, Commander, Division Chief, Chief Deputy, Assistant Sheriff, UnderSheriff, Sheriff. The live ladder has one Lieutenant role.", "Startup requires every canonical key in RANK_ROLE_IDS; promotion adds the target role and retains prior rank roles."],
     ["Qualification/unit roles", "FTO, certifications, divisions, awards.", "Only IDs in AWARDABLE_ROLE_IDS may be added/removed."],
     ["Category separators", "Visual labels only.", "Permissions 0; never assign to members or map to bot actions."],
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
@@ -347,7 +347,7 @@ env_rows = [
     ["DISCORD_GUILD_ID", "One target guild for this process."],
     ["PAB_ROLE_ID / COMMAND_ROLE_ID", "Exact authorization role IDs."],
     ["*_CHANNEL_ID variables", "Each configured destination/activity channel ID."],
-    ["RANK_ROLE_IDS", "JSON rank-name to role-ID map; include every rank Ricky Bot may replace."],
+    ["RANK_ROLE_IDS", "JSON rank-name to role-ID map; include every canonical rank Ricky Bot may add. Use one Lieutenant key, not 1st/2nd Lieutenant."],
     ["AWARDABLE_ROLE_IDS", "Comma-separated non-rank qualification/unit role IDs only."],
     ["TIME_ZONE_LABEL", "Configured display label, such as MST."],
 ]

@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RmsStore } from "./store.js";
+import { BCSO_RANK_MATRIX } from "../rank-matrix.js";
 
 const root = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const webRoot = join(root, "web", "rms");
@@ -115,7 +116,10 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
 
   function rankFromRoles(roles) {
     const roleSet = new Set(roles || []);
-    return Object.entries(config.rankRoleIds || {}).find(([, id]) => roleSet.has(id))?.[0] || null;
+    return BCSO_RANK_MATRIX
+      .map(({ key, displayName, aliases }) => ({ displayName, id: config.rankRoleIds?.[key] || aliases.map(alias => config.rankRoleIds?.[alias]).find(Boolean) }))
+      .filter(({ id }) => id && roleSet.has(id))
+      .at(-1)?.displayName || null;
   }
 
   async function syncRoster(account) {

@@ -7,8 +7,7 @@ export const BCSO_RANK_MATRIX = [
   { key: "Corporal", displayName: "Corporal", aliases: [] },
   { key: "Sergeant", displayName: "Sergeant", aliases: [] },
   { key: "Staff Sergeant", displayName: "Staff Sergeant", aliases: [] },
-  { key: "2nd Lieutenant", displayName: "2nd Lieutenant", aliases: [] },
-  { key: "1st Lieutenant", displayName: "1st Lieutenant", aliases: [] },
+  { key: "Lieutenant", displayName: "Lieutenant", aliases: ["Lt", "LT", "1st Lieutenant", "2nd Lieutenant"] },
   { key: "Captain", displayName: "Captain", aliases: [] },
   { key: "Major", displayName: "Major", aliases: [] },
   { key: "Commander", displayName: "Commander", aliases: ["Area Commander"] },
@@ -20,4 +19,3 @@ export const BCSO_RANK_MATRIX = [
 ];
 
 export const REQUIRED_RANK_KEYS = BCSO_RANK_MATRIX.map(rank => rank.key);
-

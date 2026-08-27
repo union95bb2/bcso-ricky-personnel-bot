@@ -1,4 +1,5 @@
 import { createSign } from "node:crypto";
+import { BCSO_RANK_MATRIX } from "./rank-matrix.js";
 
 function base64Url(value) {
   return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -92,7 +93,9 @@ export class GoogleRosterSheet {
 
 export function compareRosterRows(rows, members, rankRoleIds = {}) {
   const byId = new Map(members.map(member => [member.id, member]));
-  const rankByRole = new Map(Object.entries(rankRoleIds).map(([rank, id]) => [id, rank]));
+  const rankOrder = new Map(BCSO_RANK_MATRIX.map(({ key }, index) => [key, index]));
+  const rankEntries = Object.entries(rankRoleIds).sort(([left], [right]) => (rankOrder.get(left) ?? -1) - (rankOrder.get(right) ?? -1));
+  const rankByRole = new Map(rankEntries.map(([rank, id]) => [id, rank]));
   const seen = new Set();
   const missingDiscord = [];
   const mismatches = [];
@@ -106,7 +109,11 @@ export function compareRosterRows(rows, members, rankRoleIds = {}) {
       continue;
     }
     const expectedRank = row.rank || row.current_rank || row.role || "";
-    const actualRank = [...member.roles.cache.values()].map(role => rankByRole.get(role.id)).find(Boolean) || "";
+    const actualRank = [...member.roles.cache.values()]
+      .map(role => rankByRole.get(role.id))
+      .filter(Boolean)
+      .sort((left, right) => (rankOrder.get(left) ?? -1) - (rankOrder.get(right) ?? -1))
+      .at(-1) || "";
     if (expectedRank && expectedRank !== actualRank) mismatches.push({ discordId, displayName: member.displayName, expected: expectedRank, actual: actualRank || "none" });
   }
   const sheetOnlyIds = [...byId.keys()].filter(id => !seen.has(id) && !members.find(member => member.id === id)?.user.bot);
