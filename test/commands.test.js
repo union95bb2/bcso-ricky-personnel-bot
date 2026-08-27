@@ -32,13 +32,13 @@ test("pab-health acknowledges before its live Discord checks", async () => {
   assert.doesNotMatch(handler, /return interaction\.reply\(/);
 });
 
-test("promotion modal keeps the rank placeholder within Discord's limit", async () => {
-  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
-  const start = source.indexOf("async function showPromotionModal");
-  const end = source.indexOf("async function showRoleAwardModal", start);
-  const handler = source.slice(start, end);
-  assert.match(handler, /const rankPlaceholder = choices\.length > 90/);
-  assert.match(handler, /placeholder: rankPlaceholder/);
+test("promotion target rank is a required canonical dropdown", () => {
+  const promotion = commandMap.get("promotion");
+  const targetRank = promotion.options.find(option => option.name === "target-rank");
+  assert.ok(targetRank);
+  assert.equal(targetRank.required, true);
+  assert.equal(targetRank.choices.length, 15);
+  assert.equal(targetRank.choices[0].name, "Deputy Sheriff Trainee (DST)");
 });
 
 test("promotion approval adds the new rank and retains prior rank roles", async () => {

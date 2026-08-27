@@ -665,25 +665,22 @@ async function showTrainingModal(interaction) {
 
 async function showPromotionModal(interaction) {
   const member = interaction.options.getMember("member");
+  const toRank = clean(interaction.options.getString("target-rank"), 80);
   if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
+  if (!toRank || !config.rankRoleIds[toRank]) return interaction.reply({ content: "Choose a configured target rank from the command menu.", ephemeral: true });
   const managementIssue = memberManagementError(interaction, member);
   if (managementIssue) return interaction.reply({ content: managementIssue, ephemeral: true });
-  const choices = canonicalRankRoleEntries(config.rankRoleIds).map(({ rank }) => rank).join(", ") || "Configure RANK_ROLE_IDS first";
-  // Discord limits TextInput placeholders to 100 characters. The complete
-  // rank ladder can exceed that, which used to make /promotion throw before
-  // acknowledging the interaction (Discord then showed “application did not
-  // respond”). Keep the useful hint short and leave the full validation to
-  // the modal submit handler.
-  const rankPlaceholder = choices.length > 90
-    ? "Configured rank name (for example: Deputy or Corporal)"
-    : choices;
-  const modal = new ModalBuilder().setCustomId(`promotion-modal:${member.id}`).setTitle("BCSO promotion record");
+  const fromRank = rankNameForMember(member);
+  const configuredRanks = canonicalRankRoleEntries(config.rankRoleIds);
+  const fromIndex = configuredRanks.findIndex(({ rank }) => rank === fromRank);
+  const toIndex = configuredRanks.findIndex(({ rank }) => rank === toRank);
+  if (!config.rankRoleIds[fromRank]) return interaction.reply({ content: "Ricky could not resolve the member's current configured rank. Confirm the member has one of the configured BCSO rank roles before starting a promotion.", ephemeral: true });
+  if (toIndex < 0 || toIndex <= fromIndex) return interaction.reply({ content: `The selected target rank must be above the member's current rank (${fromRank}). Use /demotion for a lower rank.`, ephemeral: true });
+  const modal = new ModalBuilder().setCustomId(`promotion-modal:${member.id}:${encodeURIComponent(fromRank)}:${encodeURIComponent(toRank)}`).setTitle("BCSO promotion record");
   const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
   if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
     new ActionRowBuilder().addComponents(effectiveDate),
-    new ActionRowBuilder().addComponents(input("from-rank", "Current rank", TextInputStyle.Short, { placeholder: rankPlaceholder, maxLength: 80 })),
-    new ActionRowBuilder().addComponents(input("to-rank", "New rank", TextInputStyle.Short, { placeholder: rankPlaceholder, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "Sheriff / Undersheriff / Command member", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("reason", "Reason or approval reference", TextInputStyle.Paragraph, { placeholder: "Completed POST Academy and probationary requirements", maxLength: 1000 }))
   );
@@ -1426,8 +1423,8 @@ async function handleModal(interaction) {
   }
   if (kind === "promotion-modal") {
     const member = await interaction.guild.members.fetch(modalParts[1]);
-    const fromRank = clean(interaction.fields.getTextInputValue("from-rank"), 80);
-    const toRank = clean(interaction.fields.getTextInputValue("to-rank"), 80);
+    const fromRank = clean(decodeURIComponent(modalParts[2] || ""), 80);
+    const toRank = clean(decodeURIComponent(modalParts[3] || ""), 80);
     if (!config.rankRoleIds[fromRank] || !config.rankRoleIds[toRank]) return modalReply(interaction, { content: `Both ranks must exactly match configured ranks: ${Object.keys(config.rankRoleIds).join(", ") || "none"}.` });
     if (fromRank === toRank) return modalReply(interaction, { content: "The current and new rank cannot be the same." });
     const rankOrder = canonicalRankRoleEntries(config.rankRoleIds).map(({ rank }) => rank);

@@ -39,6 +39,8 @@ export const commands = [
     .setName("promotion")
     .setDescription("Start a two-stage BCSO promotion and role update (PAB then Command).")
     .addUserOption(option => option.setName("member").setDescription("Member being promoted.").setRequired(true))
+    .addStringOption(option => option.setName("target-rank").setDescription("Select the new rank from the BCSO rank ladder.").setRequired(true)
+      .addChoices(...PROMOTION_RANK_CHOICES))
     .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
     .setName("demotion")

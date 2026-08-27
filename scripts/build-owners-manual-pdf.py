@@ -307,7 +307,7 @@ story += [P("Promotion", "H2Manual")]
 story += bullets([
     "PAB runs /promotion and submits the factual request. No role changes occur.",
     "The request routes to private #pab-approvals.",
-    "PAB clicks PAB review & forward after checking the member, current rank, new rank, date, authorization, and reference.",
+    "PAB clicks PAB review & forward after checking the member, selected current/target ranks, date, authorization, and reference.",
     "Ricky Bot updates the request and pings Command. Only a different Command member can click Command approve & apply; the PAB reviewer cannot self-approve. That final action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt. Final record and announcement posts mention the member plus the configured PAB and Command roles in their respective destinations.",
 ])
 story += [P("Demotion", "H2Manual")]
