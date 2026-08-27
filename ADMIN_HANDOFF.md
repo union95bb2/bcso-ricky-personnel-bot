@@ -61,6 +61,8 @@ Create a private PAB records category or map these variables to approved existin
 | `PAB_APPROVALS_CHANNEL_ID` | `#pab-approvals` | PAB/Command only |
 | `QUALIFICATIONS_RECORDS_CHANNEL_ID` | `#qualification-records` | Read-only to ordinary members |
 | `PAB_ANNOUNCEMENTS_CHANNEL_ID` | `#pab-announcements` | Department-visible |
+
+Final promotion and demotion records are posted to `PERSONNEL_RECORDS_CHANNEL_ID`, while the department announcement is posted to `PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID`. Each final post mentions the member and the configured full-name PAB and Command roles. The approval request itself is posted to `PAB_APPROVALS_CHANNEL_ID`: the initial request pings PAB, and PAB forwarding updates or creates the request with a Command-role ping.
 | `INACTIVITY_REVIEW_CHANNEL_ID` | `#pab-inactivity-review` | PAB/Command only; neutral staff-attention review |
 
 The normal text channels are the safe baseline and remain required fallbacks. For Phase 2, an administrator may create two Forum channels and set `TRAINING_RECORDS_FORUM_CHANNEL_ID` and `PERSONNEL_JACKETS_FORUM_CHANNEL_ID`. Ricky then creates one append-only thread per trainee/member only after approval; it never places previews or approval buttons in those threads. The Forum channels must grant Ricky View Channel, Send Messages, Embed Links, Read Message History, and Create Public Threads, while ordinary members/PAB/Command should have view-only access if the record thread is intended to be bot-only. Run `/pab-health` after adding the IDs.

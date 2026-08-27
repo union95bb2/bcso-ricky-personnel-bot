@@ -249,6 +249,10 @@ function approvalMentionUsers(data = {}) {
   return [...new Set([data.memberId, data.traineeId, data.trainerId].filter(Boolean))];
 }
 
+function rankActionRoleMentions() {
+  return [...new Set([config.pabRoleId, config.commandRoleId].filter(Boolean))];
+}
+
 async function postApprovalRequest(interaction, id, type, data, embed, { commandLevel = false, stage = "final" } = {}) {
   const channel = await fetchChannel(config.pabApprovalsChannelId);
   const roles = [config.pabRoleId, commandLevel ? config.commandRoleId : null].filter(Boolean);
@@ -1671,13 +1675,14 @@ async function approvePromotion(interaction, action) {
       forumChannelId: config.personnelJacketsForumChannelId,
       memberId: member.id,
       threadName: memberThreadName(action.data.memberLabel),
-      payload: { content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data)] },
+      payload: { content: `<@${member.id}> ${rankActionRoleMentions().map(roleId => `<@&${roleId}>`).join(" ")}`, allowedMentions: { users: [member.id], roles: rankActionRoleMentions() }, embeds: [promotionEmbed(action.data)] },
       store
     }),
     fetchChannel(config.promotionsAnnouncementsChannelId)
   ]);
   const recordMessage = recordResult.message;
-  await announcementChannel.send({ content: `Please congratulate <@${member.id}> on promotion to **${action.data.toRank}**.`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Promotion") ] });
+  const rankRoles = rankActionRoleMentions();
+  await announcementChannel.send({ content: `${rankRoles.map(roleId => `<@&${roleId}>`).join(" ")} Please congratulate <@${member.id}> on promotion to **${action.data.toRank}**.`, allowedMentions: { users: [member.id], roles: rankRoles }, embeds: [promotionEmbed(action.data, "BCSO Promotion") ] });
   saveReceipt("promotion", interaction, action, recordMessage);
   action.committed = true;
   await audit("Promotion applied", `${action.data.memberLabel} | ${action.data.fromRank} → ${action.data.toRank} | Approved by <@${interaction.user.id}>`);
@@ -1706,13 +1711,14 @@ async function approveDemotion(interaction, action) {
       forumChannelId: config.personnelJacketsForumChannelId,
       memberId: member.id,
       threadName: memberThreadName(action.data.memberLabel),
-      payload: { content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Demotion")] },
+      payload: { content: `<@${member.id}> ${rankActionRoleMentions().map(roleId => `<@&${roleId}>`).join(" ")}`, allowedMentions: { users: [member.id], roles: rankActionRoleMentions() }, embeds: [promotionEmbed(action.data, "BCSO Demotion")] },
       store
     }),
     fetchChannel(config.promotionsAnnouncementsChannelId)
   ]);
   const recordMessage = recordResult.message;
-  await announcementChannel.send({ content: `Personnel action: <@${member.id}> was moved to **${action.data.toRank}**.`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Demotion")] });
+  const rankRoles = rankActionRoleMentions();
+  await announcementChannel.send({ content: `${rankRoles.map(roleId => `<@&${roleId}>`).join(" ")} Personnel action: <@${member.id}> was moved to **${action.data.toRank}**.`, allowedMentions: { users: [member.id], roles: rankRoles }, embeds: [promotionEmbed(action.data, "BCSO Demotion")] });
   saveReceipt("demotion", interaction, action, recordMessage);
   action.committed = true;
   await audit("Demotion applied", `${action.data.memberLabel} | ${action.data.fromRank} → ${action.data.toRank} | Approved by <@${interaction.user.id}>`);

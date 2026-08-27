@@ -67,6 +67,17 @@ test("promotion rejects downward rank changes and demotion replaces rank roles",
   assert.match(demotion, /member\.roles\.add\(targetRoleId/);
 });
 
+test("rank actions ping PAB and Command in final record and announcement destinations", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  const start = source.indexOf("function rankActionRoleMentions");
+  const end = source.indexOf("async function approveRoleAward", start);
+  const handlers = source.slice(start, end);
+  assert.match(handlers, /config\.pabRoleId/);
+  assert.match(handlers, /config\.commandRoleId/);
+  assert.match(handlers, /allowedMentions: \{ users: \[member\.id\], roles: rankActionRoleMentions\(\) \}/);
+  assert.match(handlers, /allowedMentions: \{ users: \[member\.id\], roles: rankRoles \}/);
+});
+
 test("role-changing and date-bearing forms expose the same Today/manual control", () => {
   for (const name of ["training-log", "promotion", "demotion", "award-role", "remove-role", "personnel-status"]) {
     const date = commandMap.get(name).options.find(option => option.name === "date");
