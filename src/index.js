@@ -2051,6 +2051,7 @@ client.on(Events.InteractionCreate, async interaction => {
         if ((type === "training" || type === "role-award" || type === "role-removal" || type === "department-record" || type === "correction" || type === "promotion-check" || type === "personnel-status" || type === "inactivity-review" || type === "announcement") && !mayUsePab(interaction.member)) return "A PAB member must approve this request.";
         if ((type === "promotion" || type === "demotion") && !action.data.pabApprovedBy) return "PAB review must be completed before Command can approve and apply this rank change.";
         if ((type === "promotion" || type === "demotion") && !mayApprovePromotion(interaction.member)) return "A Command member must approve and apply this rank change.";
+        if ((type === "promotion" || type === "demotion") && action.data.pabApprovedBy === interaction.user.id) return "A different Command reviewer must approve and apply this rank change; the PAB reviewer cannot self-approve.";
         return null;
       });
       if (result.error) return interaction.reply({ content: result.error, ephemeral: true });

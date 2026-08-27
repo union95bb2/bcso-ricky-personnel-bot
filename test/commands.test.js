@@ -78,6 +78,12 @@ test("rank actions ping PAB and Command in final record and announcement destina
   assert.match(handlers, /allowedMentions: \{ users: \[member\.id\], roles: rankRoles \}/);
 });
 
+test("rank actions require a different Command reviewer after PAB review", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  assert.match(source, /action\.data\.pabApprovedBy === interaction\.user\.id/);
+  assert.match(source, /A different Command reviewer must approve and apply this rank change; the PAB reviewer cannot self-approve/);
+});
+
 test("role-changing and date-bearing forms expose the same Today/manual control", () => {
   for (const name of ["training-log", "promotion", "demotion", "award-role", "remove-role", "personnel-status"]) {
     const date = commandMap.get(name).options.find(option => option.name === "date");

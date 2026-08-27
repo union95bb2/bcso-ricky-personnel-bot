@@ -308,13 +308,13 @@ story += bullets([
     "PAB runs /promotion and submits the factual request. No role changes occur.",
     "The request routes to private #pab-approvals.",
     "PAB clicks PAB review & forward after checking the member, current rank, new rank, date, authorization, and reference.",
-    "Ricky Bot updates the request and pings Command. Only the Command approve & apply action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt. Final record and announcement posts mention the member plus the configured PAB and Command roles in their respective destinations.",
+    "Ricky Bot updates the request and pings Command. Only a different Command member can click Command approve & apply; the PAB reviewer cannot self-approve. That final action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt. Final record and announcement posts mention the member plus the configured PAB and Command roles in their respective destinations.",
 ])
 story += [P("Demotion", "H2Manual")]
 story += bullets([
     "PAB runs /demotion, selects the member, chooses a lower rank from the canonical menu, and completes the effective date, authorization, and factual reason/reference.",
     "PAB reviews and forwards the private request. Ricky pings Command and keeps the countdown visible; no role changes occur at this stage.",
-    "Command clicks Command approve & apply. Ricky re-checks the current rank and role hierarchy, removes configured rank role(s), adds the selected lower rank, posts the demotion record and announcement, and writes the audit receipt. Final posts mention the member plus the configured PAB and Command roles. Unrelated unit, qualification, PAB, and staff roles remain unchanged.",
+    "A different Command member clicks Command approve & apply. Ricky rejects self-approval by the PAB reviewer, then re-checks the current rank and role hierarchy, removes configured rank role(s), adds the selected lower rank, posts the demotion record and announcement, and writes the audit receipt. Final posts mention the member plus the configured PAB and Command roles. Unrelated unit, qualification, PAB, and staff roles remain unchanged.",
     "Ricky never decides whether a demotion is justified. Cancel or renew the request if the facts or authorization need correction.",
 ])
 story += [P("Award / remove role", "H2Manual")]
@@ -332,7 +332,7 @@ story += bullets([
 story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
 story += bullets([
     "A preview lasts PENDING_ACTION_TTL_MINUTES (7 days by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 day by default).",
-    "Every request pings the PAB role. Promotions and demotions use two gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a rank-change request. The original action is still rechecked against current members, roles, and permissions at approval time.",
+    "Every request pings the PAB role. Promotions and demotions use two human gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then a different Command member clicks Command approve & apply for the final role change. The PAB reviewer cannot self-approve. The creator can click Renew to create a fresh approval window; Command may also renew a rank-change request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])
 story += [P("Google Sheet comparison and promotion evidence", "H2Manual")]
