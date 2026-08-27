@@ -4,7 +4,7 @@ This bot is a private BCSO Personnel Administration Bureau (PAB) workflow system
 
 **Release:** Ricky Bot v1.2.0. This release adds durable promotion-verification cases while preserving the existing approval guardrails.
 
-The sandbox currently has a `Sandbox Owners` role with Administrator permission assigned to Rickya128, Bobby Anderson, Newbie_Trucker John, and Landon Joyner (`landonjoyner26`). This role is sandbox-only for FiveM/Ricky testing; it does not transfer Discord ownership and must not be copied into the live server by automation. The continuity procedure for ownership, credentials, PiCam recovery, backups, and successor testing is in [SUCCESSION_PLAN.md](SUCCESSION_PLAN.md).
+The sandbox uses the existing live-style `IAA Director` role with Administrator permission for Rickya128, Bobby Anderson, Newbie_Trucker John, and Landon Joyner (`landonjoyner26`). This permission is sandbox-only for FiveM/Ricky testing; it does not transfer Discord ownership and must not be copied into the live server by automation. The continuity procedure for ownership, credentials, PiCam recovery, backups, and successor testing is in [SUCCESSION_PLAN.md](SUCCESSION_PLAN.md).
 
 ## What the bot will and will not do
 
@@ -75,7 +75,7 @@ The normal text channels are the safe baseline and remain required fallbacks. Fo
 
 `RANK_ROLE_IDS` is a JSON object. It must contain the complete BCSO matrix that Ricky Bot manages during promotion, including DST / Deputy Sheriff Trainee. Use one `Lieutenant` role; the retired `1st Lieutenant` and `2nd Lieutenant` entries are not part of the ladder:
 
-The sandbox already contains the copied role-name matrix, including DST and the visual separator roles. The verified live color palette is tracked in `scripts/role-style-manifest.json`; `npm run role-audit:demo` reports gray or mismatched sandbox roles without changing them. Apply any Discord color/order migration only after a human reviews that report.
+The sandbox already contains the copied role-name matrix, including DST, the visual separator roles, and the live picker additions. The verified live color palette is tracked in `scripts/role-style-manifest.json`; `npm run role-audit:demo` reports gray or mismatched sandbox roles without changing them. `scripts/sync-sandbox-role-layout.py` is the sandbox-only repair tool: it removes stale duplicate/test roles, restores roles observed in the live picker, and aligns the hierarchy. Apply any Discord color/order migration only after a human reviews that report.
 
 ```env
 RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior Deputy":"345678901234567890","Corporal":"456789012345678901","Sergeant":"567890123456789012","Staff Sergeant":"678901234567890123","Lieutenant":"789012345678901234","Captain":"901234567890123456","Major":"012345678901234567","Commander":"123456789012345679","Division Chief":"234567890123456790","Chief Deputy":"345678901234567891","Assistant Sheriff":"456789012345678902","UnderSheriff":"567890123456789013","Sheriff":"678901234567890124"}

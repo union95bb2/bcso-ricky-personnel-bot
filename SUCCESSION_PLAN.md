@@ -12,7 +12,7 @@ This plan is for continuity if the current owner/operator becomes unavailable, i
 
 ## Important ownership limitation
 
-An Administrator role does **not** transfer Discord server ownership. Discord ownership can only be transferred by the current server owner through Discord's server settings/account process. The sandbox `Sandbox Owners` role grants full sandbox administration for testing; it is not a legal or technical substitute for ownership transfer and must never be copied into the live server without an explicit owner decision.
+An Administrator role does **not** transfer Discord server ownership. Discord ownership can only be transferred by the current server owner through Discord's server settings/account process. The sandbox's live-style `IAA Director` role grants full sandbox administration for testing; it is not a legal or technical substitute for ownership transfer and must never be copied into the live server without an explicit owner decision.
 
 ## Before an emergency
 
@@ -30,7 +30,7 @@ An Administrator role does **not** transfer Discord server ownership. Discord ow
 4. **Recover the host.** If the PiCam is healthy, verify the service directory and backups. If it is not, clone the public repository onto a replacement host, restore the encrypted `data/` backup, recreate the protected `.env`, and start with `docker compose up -d --build`.
 5. **Run release gates.** Run `npm ci`, `npm run preflight:deploy`, `/setup-status`, and `/pab-health`. Resolve every failed channel, permission, role-hierarchy, OAuth, or backup check before allowing staff use.
 6. **Verify the records path.** Run one harmless sandbox training record, one approval preview, one correction lookup, and one `/export-audit` backup. Confirm that records, audit events, and direct links are durable after a container restart.
-7. **Re-establish the staff roster.** Confirm PAB, Command, and successor access from current Discord roles. Review the sandbox `Sandbox Owners` assignments and remove any person who is no longer authorized.
+7. **Re-establish the staff roster.** Confirm PAB, Command, and successor access from current Discord roles. Review the sandbox `IAA Director` assignments and remove any person who is no longer authorized.
 8. **Document the handoff.** Record the date, successor, rotated credential identifiers (not secret values), restored backup, test results, and any unresolved risks in the private operations log.
 
 ## Data and privacy rules

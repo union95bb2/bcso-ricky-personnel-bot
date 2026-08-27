@@ -275,6 +275,8 @@ story += [table([
 ], [1.45 * inch, 3.1 * inch, 2.45 * inch])]
 story += [P("Hierarchy rule", "H2Manual")]
 story += [callout("Move the actual assigned Ricky Bot role above every configured RANK_ROLE_IDS and AWARDABLE_ROLE_IDS role. If PAB members may be promotion or qualification targets, move that same assigned role above PAB too; Discord otherwise refuses every role mutation on those members. This does not make PAB, Command, Administrator, or moderation roles editable because Ricky's allow-lists still block them. Moving an unassigned controller role does nothing. Ricky Bot can never manage the server owner.", RED)]
+story += [P("Sandbox role parity", "H2Manual")]
+story += [P("The disposable sandbox is kept visually aligned with the audited live picker by scripts/sync-sandbox-role-layout.py. It is guild-locked, removes stale duplicate/test role objects, restores live-picker role names, corrects the K9 spelling drift, and preserves the authorized sandbox administrator access under the live-style IAA Director role. It never targets the live guild. Run it only with DISCORD_GUILD_ID=1539383172536467516 and review the resulting role list before testing.", "SmallManual")]
 story += [P("Use the existing full-name BCSO authorization roles rather than creating duplicate short PAB or Command roles. The Personnel Administration Bureau and BCSO | Command Staff roles must be normal mentionable roles (or Ricky Bot must have Mention Everyone) for restricted group pings to notify staff. /pab-health flags non-mentionable, managed, or elevated approval roles.", "SmallManual")]
 story += [P("Recommended records category", "H2Manual")]
 story += [table([
