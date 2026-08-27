@@ -29,6 +29,7 @@ The RMS is designed for the PiCam host and starts as a protected SQLite database
 - Every date field uses `MM/DD/YYYY`; inactivity review periods use `MM/DD/YYYY - MM/DD/YYYY`. Training times are entered as a range such as `4 PM - 5 PM` or `4:00 PM - 5:00 PM MST` and are normalized to `h:mm AM/PM` in the selected timezone. The bot accepts hyphen or en-dash separators, normalizes minutes and AM/PM casing, and rejects invalid entries before creating a preview.
 - `/promotion member:@member date:Today` opens a guided promotion form with the shared date selector. `/award-role`, `/remove-role`, and `/personnel-status` use the same date control.
 - Only Command can approve the promotion preview. Approval adds the configured new rank role while retaining prior rank roles as history, posts the personnel record, announces it, and writes an audit entry.
+- `/demotion member:@member target-rank:<lower rank> date:Today` is the separate guided demotion workflow. The target rank is selected from the canonical BCSO rank menu; Ricky rejects lateral/upward choices and re-checks the member's current rank before approval. PAB reviews and forwards it, then Command approves and applies it. Approval removes the member's configured rank role(s), adds the selected lower rank, posts a demotion record and announcement, and writes an audit entry. Unrelated qualification, unit, PAB, and staff roles are not touched.
 - `/award-role member:@member role:@role` records and applies an approved qualification or unit role. The bot will reject every role except those explicitly listed in `AWARDABLE_ROLE_IDS`.
 - `/remove-role member:@member role:@role` uses the same allow-list and preview to remove an approved qualification or unit role. It cannot remove ranks, PAB, moderation, or elevated roles.
 
@@ -106,6 +107,8 @@ RANK_ROLE_IDS={"DST":"123456789012345678","Deputy":"234567890123456789","Senior 
 
 The bot adds the approved target rank role and intentionally retains prior rank roles as promotion history. It never removes rank roles automatically. Qualifications, units, PAB, FTO, and other non-rank roles are left alone; only the separate allow-listed `/remove-role` workflow can remove qualification/unit roles.
 
+Demotions are the explicit exception: `/demotion` is the only rank-removal path. It removes configured rank roles so the member's effective rank actually changes, then adds the selected lower rank. It never infers or decides that a demotion is justified; the PAB and Command approval gates are human decisions.
+
 Configure approved non-rank awards separately. This is a hard allow-list; do not put rank, staff, moderator, or high-permission role IDs in it.
 
 ```env
@@ -119,22 +122,24 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 3. PAB completes the time-in-rank and hours checks from the actual source records. PSD completes the PSD check. Ricky records the facts and sources; it does not decide eligibility from missing or invented information.
 4. When every check is complete, a PAB or Command member clicks **Post to OOTS**. The review entry is posted to the promotion channel, the original ticket stays open, and the candidate's roles remain unchanged.
 5. If OOTS approves the promotion, an authorized Command member uses the existing `/promotion` workflow. Only its final **Command approve & apply** control changes rank roles and sends the announcement.
-6. PAB runs `/award-role` or `/remove-role` for an allow-listed certification or unit role, reviews the private preview, and approves it.
-7. PAB creates a `/department-record` for mobile-friendly branded records, and uses `/correct-record` to append—not overwrite—any correction.
-8. PAB uses `/promotion-check` for a standalone human eligibility record, `/personnel-status` to document approved leave, return, transfer, or separation records, and `/inactivity-review` for private staff-attention follow-up. None of these actions changes roles or access.
-9. PAB uses `/pab-announcement` for reviewed notices and `/member-profile` for a current-role snapshot.
-10. If anything is wrong, click **Cancel case** or Cancel and re-run the command. Nothing changes before the authorized role-changing workflow.
+6. For an approved reduction in rank, PAB runs `/demotion`, selects the lower rank, reviews the record, and forwards it. Command clicks **Command approve & apply**; only then does Ricky remove the old rank role(s), add the lower rank, and publish the record/announcement.
+7. PAB runs `/award-role` or `/remove-role` for an allow-listed certification or unit role, reviews the private preview, and approves it.
+8. PAB creates a `/department-record` for mobile-friendly branded records, and uses `/correct-record` to append—not overwrite—any correction.
+9. PAB uses `/promotion-check` for a standalone human eligibility record, `/personnel-status` to document approved leave, return, transfer, or separation records, and `/inactivity-review` for private staff-attention follow-up. None of these actions changes roles or access.
+10. PAB uses `/pab-announcement` for reviewed notices and `/member-profile` for a current-role snapshot.
+11. If anything is wrong, click **Cancel case** or Cancel and re-run the command. Nothing changes before the authorized role-changing workflow.
 
 ## Safeguards built in
 
 - Every posting and role-change workflow presents a private preview first.
 - The bot selects actual Discord members and roles; staff never type `@` mentions by hand.
 - Rank changes use two human gates: a PAB member reviews and forwards the request, then a Command member is pinged and must approve/apply it. PAB may only award or remove roles in the explicit qualification/unit allow-list.
+- Promotions and demotions are intentionally separate. Promotions add the selected rank and retain prior rank roles as history; demotions remove configured rank role(s) and add the selected lower rank. Both require PAB review followed by Command approval, and both re-check Discord hierarchy and manageability at the moment of application.
 - Promotion cases are append-only verification records. The candidate cannot verify or submit their own case, Ricky never changes a candidate's roles in the case workflow, the candidate is not invited into the PAB ticket, and OOTS receives the complete case only after the three required checks are marked complete. `PSD_ROLE_ID` and `OOTS_ROLE_ID` are optional protected settings; when absent, PSD review falls back to Command and OOTS is addressed through the configured review channel without an invented role mention.
 - Internal Affairs matters, conduct complaints, investigations, findings, and discipline are not part of this bot.
 - Inactivity review is a neutral PAB staff-attention record only; it does not determine misconduct, trigger discipline, or automatically remove anyone.
 - Corrections preserve the original message and link the correction to it.
-- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (7 days by default; configurable from 1 hour to 7 days), show both an absolute Discord timestamp and live relative countdown, receive a private PAB/Command reminder one day before expiry, and expose a creator-authorized **Renew** control. Every new approval request pings the PAB role in private `#pab-approvals`; after PAB forwards a promotion, Ricky Bot updates the request and pings Command for the final role-changing approval. Expired actions fail closed and require fresh validation before approval.
+- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (7 days by default; configurable from 1 hour to 7 days), show both an absolute Discord timestamp and live relative countdown, receive a private PAB/Command reminder one day before expiry, and expose a creator-authorized **Renew** control. Every new approval request pings the PAB role in private `#pab-approvals`; after PAB forwards a promotion or demotion, Ricky Bot updates the request and pings Command for the final role-changing approval. Expired actions fail closed and require fresh validation before approval.
 - `/my-birthday` is opt-in and stores month/day only; `/remove-birthday` deletes it. With `BIRTHDAY_CHANNEL_ID`, Ricky Bot posts one annual birthday notice and deduplicates it.
 - With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky Bot can post one-month, three-month, six-month, and yearly notices from the Discord join date, plus the same milestones from Ricky Bot's own approved promotion receipts for time in rank. These are informational and never change rank or access.
 - `/roster-sync` is an administrator-only, read-only comparison against a configured Google Sheet. It is staged behind `GOOGLE_SHEETS_ENABLED=false` until a server owner explicitly activates it. It reports missing Discord IDs and rank mismatches; it never applies spreadsheet-driven role changes.

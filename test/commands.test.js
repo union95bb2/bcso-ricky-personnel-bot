@@ -44,15 +44,31 @@ test("promotion modal keeps the rank placeholder within Discord's limit", async 
 test("promotion approval adds the new rank and retains prior rank roles", async () => {
   const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
   const start = source.indexOf("async function approvePromotion");
-  const end = source.indexOf("async function approveRoleAward", start);
+  const end = source.indexOf("async function approveDemotion", start);
   const handler = source.slice(start, end);
   assert.match(handler, /member\.roles\.add\(targetRoleId/);
   assert.doesNotMatch(handler, /member\.roles\.remove/);
   assert.match(handler, /Existing rank roles were retained/);
 });
 
+test("demotion is a separate guided command with the same canonical rank choices", () => {
+  const demotion = commandMap.get("demotion");
+  assert.ok(demotion);
+  assert.equal(demotion.options.find(option => option.name === "target-rank").choices.length, 15);
+  assert.deepEqual(demotion.options.find(option => option.name === "date").choices.map(choice => choice.value), ["today", "manual"]);
+});
+
+test("promotion rejects downward rank changes and demotion replaces rank roles", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  const promotion = source.slice(source.indexOf('if (kind === "promotion-modal")'), source.indexOf('if (kind === "demotion-modal")'));
+  assert.match(promotion, /Use \/demotion for a lower rank/);
+  const demotion = source.slice(source.indexOf("async function approveDemotion"), source.indexOf("async function approveRoleAward"));
+  assert.match(demotion, /member\.roles\.remove/);
+  assert.match(demotion, /member\.roles\.add\(targetRoleId/);
+});
+
 test("role-changing and date-bearing forms expose the same Today/manual control", () => {
-  for (const name of ["training-log", "promotion", "award-role", "remove-role", "personnel-status"]) {
+  for (const name of ["training-log", "promotion", "demotion", "award-role", "remove-role", "personnel-status"]) {
     const date = commandMap.get(name).options.find(option => option.name === "date");
     assert.ok(date, `${name} must expose a date selector`);
     assert.equal(date.required, true);

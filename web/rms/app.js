@@ -49,7 +49,7 @@ function renderSummary(summary) {
   $("stat-members-sub").textContent = `${summary.members.inactive} inactive · ${summary.members.separated} separated`;
   $("stat-active").textContent = summary.members.active;
   $("stat-records").textContent = summary.records.total;
-  $("stat-records-sub").textContent = `${summary.records.training} training · ${summary.records.promotion} promotion`;
+  $("stat-records-sub").textContent = `${summary.records.training} training · ${summary.records.promotion} rank actions`;
   $("stat-approvals").textContent = summary.pendingApprovals;
   $("last-refresh").textContent = `Last refresh: ${dateTimeText(summary.generatedAt)}`;
   renderRecords(summary.recentRecords, "home-records", true);

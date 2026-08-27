@@ -41,6 +41,13 @@ export const commands = [
     .addUserOption(option => option.setName("member").setDescription("Member being promoted.").setRequired(true))
     .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
+    .setName("demotion")
+    .setDescription("Prepare and approve a BCSO demotion record and role update.")
+    .addUserOption(option => option.setName("member").setDescription("Member being demoted.").setRequired(true))
+    .addStringOption(option => option.setName("target-rank").setDescription("Select the lower rank being assigned.").setRequired(true)
+      .addChoices(...PROMOTION_RANK_CHOICES))
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
+  new SlashCommandBuilder()
     .setName("award-role")
     .setDescription("Award an approved BCSO qualification or unit role.")
     .addUserOption(option => option.setName("member").setDescription("Member receiving the role.").setRequired(true))

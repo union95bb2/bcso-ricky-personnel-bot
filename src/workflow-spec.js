@@ -5,6 +5,7 @@ export const SELF_SERVICE_COMMANDS = new Set(["my-birthday", "remove-birthday"])
 export const PAB_COMMANDS = new Set([
   "training-log",
   "promotion",
+  "demotion",
   "award-role",
   "remove-role",
   "department-record",
@@ -23,6 +24,7 @@ export const PAB_COMMANDS = new Set([
 export const WORKFLOW_REQUIREMENTS = {
   "training-log": ["pabRoleId", "commandRoleId", "trainingRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   promotion: ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "rankRoleIds"],
+  demotion: ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "rankRoleIds"],
   "award-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "awardableRoleIds"],
   "remove-role": ["pabRoleId", "commandRoleId", "qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId", "awardableRoleIds"],
   "department-record": ["pabRoleId", "commandRoleId", "personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
@@ -41,6 +43,7 @@ export const WORKFLOW_REQUIREMENTS = {
 export const WORKFLOW_CHANNELS = {
   "training-log": ["trainingRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   promotion: ["pabApprovalsChannelId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
+  demotion: ["pabApprovalsChannelId", "personnelRecordsChannelId", "promotionsAnnouncementsChannelId", "auditLogChannelId"],
   "award-role": ["qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "remove-role": ["qualificationsRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],
   "department-record": ["personnelRecordsChannelId", "auditLogChannelId", "pabApprovalsChannelId"],

@@ -205,7 +205,7 @@ export class RmsStore {
     const row = this.#db.prepare(`
       SELECT COUNT(*) AS total,
         SUM(CASE WHEN record_type = 'training' THEN 1 ELSE 0 END) AS training,
-        SUM(CASE WHEN record_type = 'promotion' THEN 1 ELSE 0 END) AS promotion,
+      SUM(CASE WHEN record_type IN ('promotion', 'demotion') THEN 1 ELSE 0 END) AS promotion,
         SUM(CASE WHEN record_type = 'inactivity' THEN 1 ELSE 0 END) AS inactivity,
         SUM(CASE WHEN status = 'finalized' THEN 1 ELSE 0 END) AS finalized
       FROM rms_records WHERE guild_id = ?
@@ -270,7 +270,7 @@ export class RmsStore {
     if (!row) return null;
     const detail = row.record_type === "training"
       ? this.#db.prepare("SELECT * FROM rms_training_records WHERE record_id = ?").get(id)
-      : row.record_type === "promotion"
+      : row.record_type === "promotion" || row.record_type === "demotion"
         ? this.#db.prepare("SELECT * FROM rms_promotion_records WHERE record_id = ?").get(id)
         : null;
     return { id: row.id, guildId: row.guild_id, memberId: row.member_id, member: { discordId: row.discord_id, callsign: row.callsign, displayName: row.display_name, rank: row.rank, status: row.member_status }, recordType: row.record_type, status: row.status, effectiveDate: row.effective_date, expiresOn: row.expires_on, createdBy: row.created_by, sourceChannelId: row.source_channel_id, sourceMessageId: row.source_message_id, sourceRecordId: row.source_record_id, data: parse(row.data_json), detail, createdAt: row.created_at, updatedAt: row.updated_at };
@@ -294,7 +294,7 @@ export class RmsStore {
     const records = this.records(guildId, { memberId, status: "finalized", limit: 500 });
     const training = records.filter(record => record.recordType === "training");
     const qualifications = records.filter(record => record.recordType === "qualification");
-    const promotions = records.filter(record => record.recordType === "promotion");
+    const promotions = records.filter(record => record.recordType === "promotion" || record.recordType === "demotion");
     const blockers = [];
     if (member.status !== "active") blockers.push(`Personnel status is ${member.status}.`);
     if (!training.length) blockers.push("No finalized training record is on file.");

@@ -288,13 +288,13 @@ export function createRmsServer({ config = configFromEnv(), store = new RmsStore
       if (!account) return;
       const body = await readJson(request);
       const member = store.memberById(body.memberId);
-      const allowedTypes = new Set(["training", "promotion", "inactivity", "qualification", "award", "department", "status", "note"]);
+      const allowedTypes = new Set(["training", "promotion", "demotion", "inactivity", "qualification", "award", "department", "status", "note"]);
       if (!member || member.guildId !== account.guildId) return jsonResponse(response, 400, { error: "A valid RMS member is required." });
       if (!allowedTypes.has(body.recordType)) return jsonResponse(response, 400, { error: `recordType must be one of: ${[...allowedTypes].join(", ")}.` });
       const record = store.createRecord({ guildId: account.guildId, memberId: member.id, recordType: body.recordType, status: body.status || "finalized", effectiveDate: body.effectiveDate || new Date().toISOString().slice(0, 10), expiresOn: body.expiresOn || null, createdBy: account.discordId, sourceRecordId: body.sourceRecordId || null, data: body.data && typeof body.data === "object" ? body.data : {} });
       const detail = body.detail && typeof body.detail === "object" ? body.detail : {};
       if (body.recordType === "training") store.addTrainingRecord({ recordId: record.id, trainerDiscordId: detail.trainerDiscordId || account.discordId, division: detail.division || null, trainingDate: detail.trainingDate || record.effectiveDate, startTime: detail.startTime || null, endTime: detail.endTime || null, timeZone: detail.timeZone || null, trainingType: detail.trainingType || null, outcome: detail.outcome || null, notes: detail.notes || null });
-      if (body.recordType === "promotion") store.addPromotionRecord({ recordId: record.id, fromRank: detail.fromRank || "unknown", toRank: detail.toRank || "unknown", promotionDate: detail.promotionDate || record.effectiveDate, reason: detail.reason || null, authorizationReference: detail.authorizationReference || null });
+      if (body.recordType === "promotion" || body.recordType === "demotion") store.addPromotionRecord({ recordId: record.id, fromRank: detail.fromRank || "unknown", toRank: detail.toRank || "unknown", promotionDate: detail.promotionDate || record.effectiveDate, reason: detail.reason || null, authorizationReference: detail.authorizationReference || null });
       store.audit({ guildId: account.guildId, actorDiscordId: account.discordId, action: "create", entityType: "record", entityId: record.id, metadata: { recordType: body.recordType, memberId: member.id } });
       return jsonResponse(response, 201, { record: store.recordById(record.id) });
     }

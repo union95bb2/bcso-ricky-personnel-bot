@@ -171,7 +171,7 @@ story += [
     callout("This manual describes what the bot does, what it never does, how approvals work, and exactly how to install, test, operate, and troubleshoot it. It is written for server owners, developers, Command, and PAB staff."),
     Spacer(1, 0.16 * inch),
     P("Repository: github.com/union95bb2/bcso-ricky-personnel-bot", "SmallManual"),
-    P("Current command matrix: 23 guild slash commands | Human approval required for every consequential action", "SmallManual"),
+    P("Current command matrix: 24 guild slash commands | Human approval required for every consequential action", "SmallManual"),
     PageBreak(),
 ]
 
@@ -225,6 +225,7 @@ cmd_rows = [
     ["/promotion-check", "PAB", "Documents a human eligibility review; optionally adds a read-only Google promotion-evaluation row/rank/evidence comparison. Not approval.", "No"],
     ["/promotion-case", "PAB + PSD + OOTS", "Tracked verification ticket for time in rank, hours, and PSD review; posts complete case to OOTS without changing roles.", "No"],
     ["/promotion", "PAB then Command", "Creates promotion request; Command approval is the role-change control point.", "Only after Command approval"],
+    ["/demotion", "PAB then Command", "Guided lower-rank request; Command approval removes configured rank role(s), adds the selected lower rank, and posts/audits the demotion.", "Only after Command approval"],
     ["/award-role", "PAB", "Adds one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
     ["/remove-role", "PAB", "Removes one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
     ["/personnel-status", "PAB", "Records leave, return, transfer, or separation; no access change.", "No"],
@@ -309,6 +310,13 @@ story += bullets([
     "PAB clicks PAB review & forward after checking the member, current rank, new rank, date, authorization, and reference.",
     "Ricky Bot updates the request and pings Command. Only the Command approve & apply action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt.",
 ])
+story += [P("Demotion", "H2Manual")]
+story += bullets([
+    "PAB runs /demotion, selects the member, chooses a lower rank from the canonical menu, and completes the effective date, authorization, and factual reason/reference.",
+    "PAB reviews and forwards the private request. Ricky pings Command and keeps the countdown visible; no role changes occur at this stage.",
+    "Command clicks Command approve & apply. Ricky re-checks the current rank and role hierarchy, removes configured rank role(s), adds the selected lower rank, posts the demotion record and announcement, and writes the audit receipt. Unrelated unit, qualification, PAB, and staff roles remain unchanged.",
+    "Ricky never decides whether a demotion is justified. Cancel or renew the request if the facts or authorization need correction.",
+])
 story += [P("Award / remove role", "H2Manual")]
 story += bullets([
     "PAB selects a member and an allow-listed qualification/unit role.",
@@ -324,7 +332,7 @@ story += bullets([
 story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
 story += bullets([
     "A preview lasts PENDING_ACTION_TTL_MINUTES (7 days by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 day by default).",
-    "Every request pings the PAB role. Promotions use two gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a promotion request. The original action is still rechecked against current members, roles, and permissions at approval time.",
+    "Every request pings the PAB role. Promotions and demotions use two gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then Command clicks Command approve & apply for the final role change. The creator can click Renew to create a fresh approval window; Command may also renew a rank-change request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])
 story += [P("Google Sheet comparison and promotion evidence", "H2Manual")]

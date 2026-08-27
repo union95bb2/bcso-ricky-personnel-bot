@@ -80,3 +80,16 @@ test("RMS tracks qualification expiry and keeps promotion eligibility advisory",
   assert.equal(result.blockers.length, 0);
   store.close();
 });
+
+test("RMS stores demotions as structured rank actions", () => {
+  const store = new RmsStore(":memory:");
+  const member = store.upsertMember({ guildId: "g", discordId: "u1", displayName: "Tyler M", rank: "Corporal" });
+  const record = store.createRecord({ guildId: "g", memberId: member.id, recordType: "demotion", effectiveDate: "2026-08-27", createdBy: "u" });
+  store.addPromotionRecord({ recordId: record.id, fromRank: "Corporal", toRank: "Deputy", promotionDate: "2026-08-27", reason: "Approved rank reduction" });
+  const saved = store.recordById(record.id);
+  assert.equal(saved.recordType, "demotion");
+  assert.equal(saved.detail.from_rank, "Corporal");
+  assert.equal(saved.detail.to_rank, "Deputy");
+  assert.equal(store.recordStats("g").promotion, 1);
+  store.close();
+});

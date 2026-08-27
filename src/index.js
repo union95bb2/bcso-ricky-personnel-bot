@@ -237,6 +237,7 @@ function expiryText(id) {
 function approvalLabel(type, stage = "final") {
   return {
     promotion: stage === "pab" ? "PAB review & forward" : "Command approve & apply",
+    demotion: stage === "pab" ? "PAB review & forward" : "Command approve & apply",
     "role-removal": "Approve & remove",
     "promotion-check": "Approve checklist",
     "inactivity-review": "Post private review",
@@ -625,7 +626,7 @@ function saveReceipt(type, interaction, action, message, recordId = null) {
     const rmsMember = rms.upsertMember({ guildId: interaction.guild.id, discordId: memberId, callsign, displayName: member?.displayName || label, rank: member ? rankNameForMember(member) : action.data.toRank || null, source: "discord" });
     const record = rms.createRecord({ guildId: interaction.guild.id, memberId: rmsMember.id, recordType: type, effectiveDate: action.data.effectiveDate || action.data.date || null, createdBy: interaction.user.id, sourceChannelId: message?.channelId, sourceMessageId: message?.id, sourceRecordId: receiptId, data: action.data });
     if (type === "training") rms.addTrainingRecord({ recordId: record.id, trainerDiscordId: action.data.trainerId || "unknown", division: action.data.division || null, trainingDate: action.data.date || "unknown", startTime: action.data.startTime || null, endTime: action.data.endTime || null, timeZone: action.data.timeZoneLabel || null, trainingType: action.data.trainingType || null, outcome: action.data.outcome || null, notes: action.data.notes || null });
-    if (type === "promotion") rms.addPromotionRecord({ recordId: record.id, fromRank: action.data.fromRank || "unknown", toRank: action.data.toRank || "unknown", promotionDate: action.data.effectiveDate || "unknown", reason: action.data.reason || null, authorizationReference: action.data.authorizedBy || null });
+    if (type === "promotion" || type === "demotion") rms.addPromotionRecord({ recordId: record.id, fromRank: action.data.fromRank || "unknown", toRank: action.data.toRank || "unknown", promotionDate: action.data.effectiveDate || "unknown", reason: action.data.reason || null, authorizationReference: action.data.authorizedBy || null });
     rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "record_finalized", entityType: "record", entityId: record.id, metadata: { recordType: type, discordReceiptId: receiptId } });
   } catch (error) {
     logError("rms.record-finalization", error, { recordType: type, discordReceiptId: receiptId });
@@ -681,6 +682,30 @@ async function showPromotionModal(interaction) {
     new ActionRowBuilder().addComponents(input("to-rank", "New rank", TextInputStyle.Short, { placeholder: rankPlaceholder, maxLength: 80 })),
     new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "Sheriff / Undersheriff / Command member", maxLength: 200 })),
     new ActionRowBuilder().addComponents(input("reason", "Reason or approval reference", TextInputStyle.Paragraph, { placeholder: "Completed POST Academy and probationary requirements", maxLength: 1000 }))
+  );
+  return interaction.showModal(modal);
+}
+
+async function showDemotionModal(interaction) {
+  const member = interaction.options.getMember("member");
+  const targetRank = clean(interaction.options.getString("target-rank"), 80);
+  if (!member) return interaction.reply({ content: "That member must be in this server.", ephemeral: true });
+  if (!config.rankRoleIds[targetRank]) return interaction.reply({ content: "Choose a configured target rank from the command menu.", ephemeral: true });
+  const managementIssue = memberManagementError(interaction, member);
+  if (managementIssue) return interaction.reply({ content: managementIssue, ephemeral: true });
+  const currentRank = rankNameForMember(member);
+  const configuredRanks = canonicalRankRoleEntries(config.rankRoleIds);
+  const currentIndex = configuredRanks.findIndex(({ rank }) => rank === currentRank);
+  const targetIndex = configuredRanks.findIndex(({ rank }) => rank === targetRank);
+  if (currentIndex < 0) return interaction.reply({ content: "Ricky could not resolve the member's current configured rank.", ephemeral: true });
+  if (targetIndex < 0 || targetIndex >= currentIndex) return interaction.reply({ content: "The target rank must be below the member's current rank (" + currentRank + ").", ephemeral: true });
+  const modal = new ModalBuilder().setCustomId("demotion-modal:" + member.id + ":" + encodeURIComponent(targetRank)).setTitle("BCSO demotion record");
+  const effectiveDate = input("effective-date", "Effective date (" + DATE_FORMAT_HINT + ")", TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
+  if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(effectiveDate),
+    new ActionRowBuilder().addComponents(input("authorized-by", "Authorized by", TextInputStyle.Short, { placeholder: "Sheriff / Undersheriff / Command member", maxLength: 200 })),
+    new ActionRowBuilder().addComponents(input("reason", "Reason or approval reference", TextInputStyle.Paragraph, { placeholder: "Approved demotion reference and factual reason", maxLength: 1000 }))
   );
   return interaction.showModal(modal);
 }
@@ -1270,11 +1295,11 @@ async function sendPendingReminders() {
   if (!channel) return;
   for (const item of pending.expiring(config.pendingReminderMinutes)) {
     try {
-      const awaitingCommand = item.type === "promotion" && item.data?.pabApprovedBy;
+      const awaitingCommand = (item.type === "promotion" || item.type === "demotion") && item.data?.pabApprovedBy;
       const roles = awaitingCommand ? [config.commandRoleId].filter(Boolean) : [config.pabRoleId].filter(Boolean);
       const roleMentions = roles.map(roleId => `<@&${roleId}>`).join(" ");
       const sent = await channel.send({
-        content: `${roleMentions} ⏰ Approval reminder: **${approvalLabel(item.type, awaitingCommand ? "final" : item.type === "promotion" ? "pab" : "final")}** submitted by <@${item.createdBy}> expires <t:${Math.floor(item.expiresAt / 1000)}:F> (<t:${Math.floor(item.expiresAt / 1000)}:R>). Use the original preview's **Renew** button if more review time is needed.`,
+        content: `${roleMentions} ⏰ Approval reminder: **${approvalLabel(item.type, awaitingCommand ? "final" : (item.type === "promotion" || item.type === "demotion") ? "pab" : "final")}** submitted by <@${item.createdBy}> expires <t:${Math.floor(item.expiresAt / 1000)}:F> (<t:${Math.floor(item.expiresAt / 1000)}:R>). Use the original preview's **Renew** button if more review time is needed.`,
         allowedMentions: { roles, users: [item.createdBy] }
       });
       if (sent) pending.markReminder(item.id);
@@ -1401,6 +1426,8 @@ async function handleModal(interaction) {
     const toRank = clean(interaction.fields.getTextInputValue("to-rank"), 80);
     if (!config.rankRoleIds[fromRank] || !config.rankRoleIds[toRank]) return modalReply(interaction, { content: `Both ranks must exactly match configured ranks: ${Object.keys(config.rankRoleIds).join(", ") || "none"}.` });
     if (fromRank === toRank) return modalReply(interaction, { content: "The current and new rank cannot be the same." });
+    const rankOrder = canonicalRankRoleEntries(config.rankRoleIds).map(({ rank }) => rank);
+    if (rankOrder.indexOf(toRank) <= rankOrder.indexOf(fromRank)) return modalReply(interaction, { content: "This is a demotion or lateral rank change. Use /demotion for a lower rank; promotions must move upward." });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
@@ -1415,6 +1442,30 @@ async function handleModal(interaction) {
     const approvalEmbed = promotionEmbed(data, "Approval Required — BCSO Promotion");
     await postApprovalRequest(interaction, id, "promotion", data, approvalEmbed, { stage: "pab" });
     return modalReply(interaction, { content: `Promotion request sent to the private PAB approvals channel for PAB review. After PAB forwards it, Command will be pinged for final approval. No roles changed. ${expiryText(id)}`, embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], components: [approvalRow(id, "promotion", approvalLabel("promotion", "pab"))] });
+  }
+  if (kind === "demotion-modal") {
+    const member = await interaction.guild.members.fetch(modalParts[1]);
+    const toRank = clean(decodeURIComponent(modalParts[2] || ""), 80);
+    const fromRank = rankNameForMember(member);
+    const configuredRanks = canonicalRankRoleEntries(config.rankRoleIds);
+    const fromIndex = configuredRanks.findIndex(({ rank }) => rank === fromRank);
+    const toIndex = configuredRanks.findIndex(({ rank }) => rank === toRank);
+    if (!config.rankRoleIds[fromRank] || !config.rankRoleIds[toRank]) return modalReply(interaction, { content: "The member's current rank or selected target rank is no longer configured. Run the command again." });
+    if (toIndex < 0 || fromIndex < 0 || toIndex >= fromIndex) return modalReply(interaction, { content: "The target rank must be below the member's current rank (" + fromRank + "). Run the command again." });
+    const data = {
+      memberId: member.id,
+      memberLabel: mentionWithLabel(member),
+      effectiveDate: normalizeDate(interaction.fields.getTextInputValue("effective-date")),
+      fromRank,
+      toRank,
+      authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
+      reason: normalizeMultiline(interaction.fields.getTextInputValue("reason"))
+    };
+    if (!data.effectiveDate) return modalReply(interaction, { content: "Enter the effective date as " + DATE_FORMAT_HINT + ", for example 08/06/2026." });
+    const id = pending.create({ type: "demotion", createdBy: interaction.user.id, data });
+    const approvalEmbed = promotionEmbed(data, "Approval Required — BCSO Demotion");
+    await postApprovalRequest(interaction, id, "demotion", data, approvalEmbed, { stage: "pab" });
+    return modalReply(interaction, { content: "Demotion request sent to the private PAB approvals channel for PAB review. After PAB forwards it, Command will be pinged for final approval. No roles changed. " + expiryText(id), embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], components: [approvalRow(id, "demotion", approvalLabel("demotion", "pab"))] });
   }
   if (kind === "role-award-modal") {
     const [, memberId, roleId] = modalParts;
@@ -1633,6 +1684,41 @@ async function approvePromotion(interaction, action) {
   return interaction.update({ content: `Promotion applied: ${action.data.memberLabel} now has **${action.data.toRank}**. Existing rank roles were retained; records and announcement posted.`, embeds: [promotionEmbed(action.data)], components: [] });
 }
 
+async function approveDemotion(interaction, action) {
+  if (!mayApprovePromotion(interaction.member)) return interaction.reply({ content: "A Command member must approve and apply a demotion.", ephemeral: true });
+  const member = await interaction.guild.members.fetch(action.data.memberId);
+  const memberIssue = memberManagementError(interaction, member);
+  if (memberIssue) throw new Error(memberIssue);
+  const configuredRanks = canonicalRankRoleEntries(config.rankRoleIds);
+  const currentRankRoles = configuredRanks.filter(({ id }) => member.roles.cache.has(id)).map(({ id }) => id);
+  const targetRoleId = config.rankRoleIds[action.data.toRank];
+  const roleTargets = await Promise.all([...new Set([...currentRankRoles, targetRoleId])].map(id => interaction.guild.roles.fetch(id)));
+  const roleIssue = roleTargets.map(role => roleManagementError(interaction, role)).find(Boolean);
+  if (roleIssue) throw new Error(roleIssue);
+  if (!member.roles.cache.has(config.rankRoleIds[action.data.fromRank])) throw new Error(`${member.user.tag} does not currently have the configured ${action.data.fromRank} role.`);
+  const rolesToRemove = currentRankRoles.filter(id => id !== targetRoleId);
+  if (rolesToRemove.length) await member.roles.remove(rolesToRemove, `BCSO demotion approved by ${interaction.user.tag}`);
+  if (!member.roles.cache.has(targetRoleId)) await member.roles.add(targetRoleId, `BCSO demotion approved by ${interaction.user.tag}`);
+  const [recordResult, announcementChannel] = await Promise.all([
+    sendRecord({
+      guild: interaction.guild,
+      baseChannelId: config.personnelRecordsChannelId,
+      forumChannelId: config.personnelJacketsForumChannelId,
+      memberId: member.id,
+      threadName: memberThreadName(action.data.memberLabel),
+      payload: { content: `<@${member.id}>`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Demotion")] },
+      store
+    }),
+    fetchChannel(config.promotionsAnnouncementsChannelId)
+  ]);
+  const recordMessage = recordResult.message;
+  await announcementChannel.send({ content: `Personnel action: <@${member.id}> was moved to **${action.data.toRank}**.`, allowedMentions: { users: [member.id] }, embeds: [promotionEmbed(action.data, "BCSO Demotion")] });
+  saveReceipt("demotion", interaction, action, recordMessage);
+  action.committed = true;
+  await audit("Demotion applied", `${action.data.memberLabel} | ${action.data.fromRank} → ${action.data.toRank} | Approved by <@${interaction.user.id}>`);
+  return interaction.update({ content: `Demotion applied: ${action.data.memberLabel} now has **${action.data.toRank}**. Higher rank roles were removed; records and announcement posted.`, embeds: [promotionEmbed(action.data, "BCSO Demotion")], components: [] });
+}
+
 async function approveRoleAward(interaction, action) {
   const member = await interaction.guild.members.fetch(action.data.memberId);
   const role = await interaction.guild.roles.fetch(action.data.roleId);
@@ -1835,6 +1921,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (selectedMembers.some(member => member.user.bot)) return interaction.reply({ content: "PAB personnel workflows may only target human server members.", ephemeral: true });
       if (interaction.commandName === "training-log") return showTrainingModal(interaction);
       if (interaction.commandName === "promotion") return showPromotionModal(interaction);
+      if (interaction.commandName === "demotion") return showDemotionModal(interaction);
       if (interaction.commandName === "award-role") return showRoleAwardModal(interaction);
       if (interaction.commandName === "remove-role") return showRoleRemovalModal(interaction);
       if (interaction.commandName === "department-record") return showDepartmentRecordModal(interaction);
@@ -1876,7 +1963,7 @@ client.on(Events.InteractionCreate, async interaction => {
       if (decision === "renew") {
         if (adminRoutingCog.isConfigurationType(type)) return interaction.reply({ content: "Routing configuration previews do not renew. Run the command again to create a fresh preview.", ephemeral: true });
         const renewal = pending.renew(id, interaction.user.id, action => {
-          if (type === "promotion") return action.createdBy === interaction.user.id || mayApprovePromotion(interaction.member) ? null : "Only the submitting PAB member or Command can renew this promotion request.";
+          if (type === "promotion" || type === "demotion") return action.createdBy === interaction.user.id || mayApprovePromotion(interaction.member) ? null : "Only the submitting PAB member or Command can renew this rank-change request.";
           return action.createdBy === interaction.user.id ? null : "Only the PAB member who created this preview can renew it.";
         });
         if (renewal.error) return interaction.reply({ content: renewal.error, ephemeral: true });
@@ -1884,7 +1971,7 @@ client.on(Events.InteractionCreate, async interaction => {
         rmsApprovalRenewal(interaction, id, renewal.action.expiresAt);
         return interaction.update({ content: `Preview renewed for ${ttlLabel()}. Review it before <t:${expiresAt}:F> (<t:${expiresAt}:R>).`, components: [approvalRow(id, type, approvalLabel(type))] });
       }
-      if (decision === "approve" && type === "promotion") {
+      if (decision === "approve" && (type === "promotion" || type === "demotion")) {
         const forwarded = pending.advance(id, interaction.user.id, action => {
           if (action.data.pabApprovedBy) return "AWAITING_COMMAND_APPROVAL";
           if (!mayUsePab(interaction.member)) return "A PAB member must complete the review before Command approval.";
@@ -1896,29 +1983,30 @@ client.on(Events.InteractionCreate, async interaction => {
           rmsApprovalDecision(interaction, id, "approved", "PAB review completed; forwarded to Command");
           if (rms) {
             try {
-              rms.createApproval({ guildId: interaction.guild.id, sourceActionId: id, workflowType: "promotion", stage: "command", requestedBy: interaction.user.id, expiresAt: forwarded.action.expiresAt, notes: forwarded.action.data.memberLabel || null });
-              rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "approval_requested", entityType: "approval", entityId: id, metadata: { workflowType: "promotion", stage: "command" } });
+              rms.createApproval({ guildId: interaction.guild.id, sourceActionId: id, workflowType: type, stage: "command", requestedBy: interaction.user.id, expiresAt: forwarded.action.expiresAt, notes: forwarded.action.data.memberLabel || null });
+              rms.audit({ guildId: interaction.guild.id, actorDiscordId: interaction.user.id, action: "approval_requested", entityType: "approval", entityId: id, metadata: { workflowType: type, stage: "command" } });
             } catch (error) {
               logError("rms.command-approval-request", error, { actionId: id });
             }
           }
           const expiresAt = Math.floor(forwarded.action.expiresAt / 1000);
           const roles = [config.commandRoleId].filter(Boolean);
-          const embed = promotionEmbed(forwarded.action.data, "Command Approval Required — BCSO Promotion");
+          const rankAction = type === "demotion" ? "demotion" : "promotion";
+          const embed = promotionEmbed(forwarded.action.data, "Command Approval Required — BCSO " + (type === "demotion" ? "Demotion" : "Promotion"));
           if (!interaction.message || interaction.message.flags?.has?.(64)) {
             const approvalChannel = await fetchChannel(config.pabApprovalsChannelId);
             await approvalChannel.send({
-              content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the promotion. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
+              content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the ${rankAction}. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
               allowedMentions: { roles },
               embeds: [embed],
-              components: [approvalRow(id, "promotion", approvalLabel("promotion"))]
+              components: [approvalRow(id, type, approvalLabel(type))]
             });
           }
           return interaction.update({
-            content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the promotion. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
+            content: `<@&${config.commandRoleId}> PAB review is complete for ${forwarded.action.data.memberLabel}. Command must approve and apply the ${rankAction}. Expires <t:${expiresAt}:F> (<t:${expiresAt}:R>).`,
             allowedMentions: { roles },
             embeds: [embed],
-            components: [approvalRow(id, "promotion", approvalLabel("promotion"))]
+            components: [approvalRow(id, type, approvalLabel(type))]
           });
         }
         if (forwarded.error !== "AWAITING_COMMAND_APPROVAL") return interaction.reply({ content: forwarded.error, ephemeral: true });
@@ -1927,7 +2015,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const cancellation = pending.take(id, interaction.user.id, action => {
           if (adminRoutingCog.isConfigurationType(type) && !isServerAdministrator(interaction.member)) return "Only a server administrator can cancel this configuration preview.";
           if ((type === "training" || type === "role-award" || type === "role-removal" || type === "department-record" || type === "correction" || type === "promotion-check" || type === "personnel-status" || type === "inactivity-review" || type === "announcement") && action.createdBy !== interaction.user.id) return "Only the PAB member who created this preview can cancel it.";
-          if (type === "promotion" && action.createdBy !== interaction.user.id && !mayApprovePromotion(interaction.member)) return "Only the submitting PAB member or Command can cancel this promotion request.";
+          if ((type === "promotion" || type === "demotion") && action.createdBy !== interaction.user.id && !mayApprovePromotion(interaction.member)) return "Only the submitting PAB member or Command can cancel this rank-change request.";
           return null;
         });
         if (cancellation.error) return interaction.reply({ content: cancellation.error, ephemeral: true });
@@ -1955,8 +2043,8 @@ client.on(Events.InteractionCreate, async interaction => {
       }
       const result = pending.take(id, interaction.user.id, action => {
         if ((type === "training" || type === "role-award" || type === "role-removal" || type === "department-record" || type === "correction" || type === "promotion-check" || type === "personnel-status" || type === "inactivity-review" || type === "announcement") && !mayUsePab(interaction.member)) return "A PAB member must approve this request.";
-        if (type === "promotion" && !action.data.pabApprovedBy) return "PAB review must be completed before Command can approve and apply this promotion.";
-        if (type === "promotion" && !mayApprovePromotion(interaction.member)) return "A Command member must approve and apply a promotion.";
+        if ((type === "promotion" || type === "demotion") && !action.data.pabApprovedBy) return "PAB review must be completed before Command can approve and apply this rank change.";
+        if ((type === "promotion" || type === "demotion") && !mayApprovePromotion(interaction.member)) return "A Command member must approve and apply this rank change.";
         return null;
       });
       if (result.error) return interaction.reply({ content: result.error, ephemeral: true });
@@ -1965,6 +2053,7 @@ client.on(Events.InteractionCreate, async interaction => {
       const handlers = {
         training: approveTraining,
         promotion: approvePromotion,
+        demotion: approveDemotion,
         "role-award": approveRoleAward,
         "role-removal": approveRoleRemoval,
         "department-record": approveDepartmentRecord,

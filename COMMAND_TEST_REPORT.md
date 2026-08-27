@@ -13,7 +13,7 @@ The sandbox bot container was stopped during this follow-up, so Discord showed *
 
 ## Result
 
-The original production workflow commands were exercised through their real Discord surface. The current source and TEST ONLY guild register 20 commands; the optional birthday and Google-roster surfaces remain covered by automated tests and require optional configuration for a live Discord pass. Form commands were taken from command picker → member/role selector → guided form → preview/approval → destination record. Role-changing tests used the clean sandbox member `Rickya128`; the member was restored to Deputy after the promotion test.
+The original production workflow commands were exercised through their real Discord surface. The current source and TEST ONLY guild register 24 commands; the optional birthday and Google-roster surfaces remain covered by automated tests and require optional configuration for a live Discord pass. Form commands were taken from command picker → member/role selector → guided form → preview/approval → destination record. Role-changing tests used the clean sandbox member `Rickya128`; the member was restored to Deputy after the promotion test.
 
 | Command | Result | What was verified |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ The original production workflow commands were exercised through their real Disc
 | `/correct-record` | PASS | Original message link validated; correction posted while preserving the original record. |
 | `/find-record` | PASS | PAB record ID search returned the receipt and open-record link. |
 | `/promotion` | PASS | Deputy → Corporal Command approval changed roles and posted both personnel record and announcement; a second approved Corporal → Deputy action restored the sandbox baseline. |
+| `/demotion` | REGISTERED / AUTOMATED PASS | Separate guided lower-rank selector and PAB → Command approval path is registered in the sandbox. Final approval removes configured rank role(s), adds the selected lower rank, posts/announces the demotion, and audits it; a controlled live role mutation remains a deliberate operator test. |
 
 ## Guardrail checks observed
 
@@ -107,6 +108,7 @@ The complete command matrix was rerun in `BCSO Bot Demo | TEST ONLY` (`153938317
 | `/award-role` | PASS | `@Test FTO` was added to `Rickya128` only after approval; receipt posted. |
 | `/remove-role` | PASS | The temporary `@Test FTO` role was removed only after approval; receipt posted. |
 | `/promotion` | PASS | Deputy → Corporal request routed to private PAB approvals and explicitly made no role change. |
+| `/demotion` | REGISTERED / AUTOMATED PASS | Sandbox guild command registered; source tests cover canonical lower-rank choices, upward/lateral rejection, and rank-role replacement. |
 | `/find-record` | PASS | `PAB-851A50EA` search returned the record and open-record link. |
 | `/correct-record` | PASS | Valid message link produced a preview; approval posted a correction while preserving the original. |
 
