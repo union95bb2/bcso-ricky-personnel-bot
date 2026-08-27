@@ -37,7 +37,7 @@ export const commands = [
       .addChoices(...TRAINING_TIME_CHOICES)),
   new SlashCommandBuilder()
     .setName("promotion")
-    .setDescription("Prepare and approve a BCSO promotion record and role update.")
+    .setDescription("Start a two-stage BCSO promotion and role update (PAB then Command).")
     .addUserOption(option => option.setName("member").setDescription("Member being promoted.").setRequired(true))
     .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
@@ -78,7 +78,7 @@ export const commands = [
     .addUserOption(option => option.setName("member").setDescription("Member being reviewed.").setRequired(true)),
   new SlashCommandBuilder()
     .setName("promotion-case")
-    .setDescription("Create a tracked promotion verification case for PAB and OOTS.")
+    .setDescription("Eligibility checklist only; never changes roles (PAB and OOTS).")
     .addUserOption(option => option.setName("member").setDescription("Member being reviewed.").setRequired(true))
     .addStringOption(option => option.setName("target-rank").setDescription("Select the rank being considered for the member.").setRequired(true)
       .addChoices(...PROMOTION_RANK_CHOICES)),
