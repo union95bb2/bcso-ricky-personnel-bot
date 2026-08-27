@@ -8,7 +8,7 @@ Canonical source: [public GitHub repository](https://github.com/union95bb2/bcso-
 
 The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVENTORY.md) records the live server's visible bot surfaces and the exact sandbox checks used to compare Ricky Bot without copying third-party credentials or internals. The [PAB workflow audit](REAL_SERVER_PAB_WORKFLOW_AUDIT.md) documents the visible request-channel → PAB reformat → correct ping/CC → reviewed record process.
 
-The verified role-presentation audit is stored in [`scripts/role-style-manifest.json`](scripts/role-style-manifest.json). Run `node scripts/role-style-audit.mjs` with the protected sandbox `.env` to report missing roles and color mismatches. It is intentionally read-only; it will never reorder or recolor roles automatically.
+The verified role-presentation audit is stored in [`scripts/role-style-manifest.json`](scripts/role-style-manifest.json). Run `node scripts/role-style-audit.mjs` with the protected sandbox `.env` to report missing roles and color mismatches. It is intentionally read-only. The sandbox-only `scripts/apply-sandbox-role-style.py --apply` migration applies the audited colors after the layout has been reviewed; it refuses every guild except `1539383172536467516` and never targets the live server.
 
 The live top-to-bottom role stack is recorded in [`scripts/role-layout-manifest.json`](scripts/role-layout-manifest.json). It is the reference for sandbox role ordering and visual divider placement; the managed Ricky Bot role remains above the stack so Manage Roles continues to work.
 

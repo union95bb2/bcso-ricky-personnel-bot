@@ -14,6 +14,7 @@
     "register": "node src/register-commands.js",
     "role-audit": "node scripts/role-style-audit.mjs",
     "role-audit:demo": "node scripts/role-audit-demo.mjs",
+    "role-style:apply:demo": "python3 scripts/apply-sandbox-role-style.py --apply",
     "preflight": "node src/preflight.js",
     "preflight:demo": "node scripts/preflight-demo.mjs",
     "preflight:deploy": "node scripts/deploy-preflight.mjs",
