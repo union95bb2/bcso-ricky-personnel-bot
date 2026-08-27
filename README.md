@@ -10,6 +10,8 @@ The read-only [real-server bot function inventory](REAL_SERVER_BOT_FUNCTION_INVE
 
 The verified role-presentation audit is stored in [`scripts/role-style-manifest.json`](scripts/role-style-manifest.json). Run `node scripts/role-style-audit.mjs` with the protected sandbox `.env` to report missing roles and color mismatches. It is intentionally read-only; it will never reorder or recolor roles automatically.
 
+The live top-to-bottom role stack is recorded in [`scripts/role-layout-manifest.json`](scripts/role-layout-manifest.json). It is the reference for sandbox role ordering and visual divider placement; the managed Ricky Bot role remains above the stack so Manage Roles continues to work.
+
 ## Ricky RMS (Phase 2)
 
 Ricky RMS is the structured system of record for personnel data. Discord remains the intake, approval, and notification surface; the RMS stores normalized member profiles, typed training and promotion records, approval states, imports, and an append-only audit trail. The PAB dashboard provides individual Discord-account sign-in, member search, personnel timelines, and the approval queue. Members can view only their own profile; PAB, Command, and administrators receive progressively broader access from current Discord roles.
