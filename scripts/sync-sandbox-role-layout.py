@@ -108,30 +108,9 @@ def build_order():
             order.remove(name)
         order.insert(order.index(anchor), name)
 
-    # Current live ordering for the divisions that were missing from the first audit.
-    move_before("S.E.B. - Rapid Tactical Response Unit", "S.E.B. - Riot Division")
-    sar = [
-        "SAR - Director", "SAR - Asst. Director", "SAR Command", "SAR Supervisor",
-        "SAR Deputy", "SAR - Air Support Unit", "SAR - Shark Unit", "SAR - SORE Unit",
-        "Search and Rescue Division",
-    ]
-    for name in sar:
-        while name in order:
-            order.remove(name)
-    order[order.index("Department Of Corrections"):order.index("Department Of Corrections")] = sar
-    ia = [
-        "IA Commander", "IA Captain", "IA Command", "IA Lead Investigator",
-        "IA Senior Investigator", "IA Investigator", "IA Trainee",
-    ]
-    for name in ia:
-        while name in order:
-            order.remove(name)
-    order[order.index("Professional Standards Division"):order.index("Professional Standards Division")] = ia
-    for name in ["DOJ Judge", "IRL LEO", "IRL Fire/Medical", "IRL Service Member", "IRL Dispatch"]:
-        while name in order:
-            order.remove(name)
-    key_anchor = order.index("-----BCSO | Office Keys-----")
-    order[key_anchor:key_anchor] = ["DOJ Judge", "IRL LEO", "IRL Fire/Medical", "IRL Service Member", "IRL Dispatch"]
+    # The manifest is already the audited live top-to-bottom sequence. Keep it
+    # authoritative; older revisions performed ad-hoc division moves that
+    # reversed SAR/DOC and displaced the visual divider roles.
     return order
 
 
@@ -170,14 +149,35 @@ def main():
                 continue
             request(token, "DELETE", f"/guilds/{GUILD_ID}/roles/{role['id']}")
 
+    # Divider roles are intentionally unassigned and only provide the visual
+    # category breaks in Discord's picker. Remove stale divider lengths and
+    # surplus instances so the sandbox has exactly the live divider sequence.
+    desired_divider_counts = {}
+    for name in desired:
+        if name.startswith(SEPARATOR_PREFIX):
+            desired_divider_counts[name] = desired_divider_counts.get(name, 0) + 1
+    for name, candidates in list(by_name.items()):
+        if not name.startswith(SEPARATOR_PREFIX):
+            continue
+        keep = desired_divider_counts.get(name, 0)
+        # Prefer the highest-position instances when trimming; all dividers
+        # should be unassigned, but never delete one that a member uses.
+        ranked = sorted(candidates, key=lambda role: (usage.get(role["id"], 0) > 0, role["position"]), reverse=True)
+        for role in ranked[keep:]:
+            if usage.get(role["id"], 0) == 0 and not role.get("managed"):
+                request(token, "DELETE", f"/guilds/{GUILD_ID}/roles/{role['id']}")
+
     # Re-fetch after deletes/rename and create only names observed in the live layout.
     _, roles = request(token, "GET", f"/guilds/{GUILD_ID}/roles")
-    existing = {role["name"]: role for role in roles}
+    existing = {}
+    for role in roles:
+        existing.setdefault(role["name"], []).append(role)
     for name in desired:
-        if name in existing:
+        if existing.get(name):
+            existing[name].pop(0)
             continue
         _, created = request(token, "POST", f"/guilds/{GUILD_ID}/roles", {"name": name, "permissions": "0", "color": 0, "hoist": False, "mentionable": False})
-        existing[name] = created
+        existing.setdefault(name, []).append(created)
 
     # Arrange managed/non-managed roles in the audited top-to-bottom order. Discord
     # preserves managed bot roles; the list still gives all ordinary roles the right
@@ -205,8 +205,20 @@ def main():
         request(token, "PATCH", f"/guilds/{GUILD_ID}/roles", payload)
 
     _, final_roles = request(token, "GET", f"/guilds/{GUILD_ID}/roles")
-    final_names = [r["name"] for r in sorted(final_roles, key=lambda role: role["position"], reverse=True) if r["id"] != GUILD_ID and not r.get("managed")]
-    print(json.dumps({"guild": GUILD_ID, "assignable_roles": len(final_names), "desired_names": len(desired), "missing": [name for name in desired if name not in final_names]}, indent=2))
+    final_assignable = [r for r in final_roles if r["id"] != GUILD_ID and not r.get("managed")]
+    final_names = [r["name"] for r in final_roles if r["id"] != GUILD_ID]
+    divider_counts = {}
+    for role in final_assignable:
+        if role["name"].startswith(SEPARATOR_PREFIX):
+            divider_counts[role["name"]] = divider_counts.get(role["name"], 0) + 1
+    print(json.dumps({
+        "guild": GUILD_ID,
+        "assignable_roles": len(final_names),
+        "desired_names": len(desired),
+        "missing": [name for name in desired if name not in final_names],
+        "divider_counts": divider_counts,
+        "managed_roles": [r["name"] for r in final_roles if r.get("managed")],
+    }, indent=2))
 
 
 if __name__ == "__main__":
