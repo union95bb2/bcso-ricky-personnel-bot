@@ -146,7 +146,7 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 
 ## Production handoff
 
-Read [ADMIN_HANDOFF.md](ADMIN_HANDOFF.md) before installing the bot in a BCSO server. It includes the exact role/channel model, least-privilege permissions, sandbox test plan, backup boundary, deployment order, and incident procedure.
+Read [ADMIN_HANDOFF.md](ADMIN_HANDOFF.md) before installing the bot in a BCSO server. It includes the exact role/channel model, least-privilege permissions, sandbox test plan, backup boundary, deployment order, and incident procedure. For continuity, ownership transfer, credential rotation, PiCam recovery, and successor testing, see [SUCCESSION_PLAN.md](SUCCESSION_PLAN.md).
 
 For an always-on host, the included `Dockerfile` and `compose.yaml` run the bot with automatic restart and a persistent `data/` directory:
 

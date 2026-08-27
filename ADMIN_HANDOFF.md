@@ -4,6 +4,8 @@ This bot is a private BCSO Personnel Administration Bureau (PAB) workflow system
 
 **Release:** Ricky Bot v1.2.0. This release adds durable promotion-verification cases while preserving the existing approval guardrails.
 
+The sandbox currently has a `Sandbox Owners` role with Administrator permission assigned to Rickya128, Bobby Anderson, Newbie_Trucker John, and Landon Joyner (`landonjoyner26`). This role is sandbox-only for FiveM/Ricky testing; it does not transfer Discord ownership and must not be copied into the live server by automation. The continuity procedure for ownership, credentials, PiCam recovery, backups, and successor testing is in [SUCCESSION_PLAN.md](SUCCESSION_PLAN.md).
+
 ## What the bot will and will not do
 
 It can create approved-format records, use real Discord member/role mentions, manage only explicitly allow-listed qualification roles, and process a rank promotion only after Command approval. It logs a durable local receipt for every successful bot-posted record.
