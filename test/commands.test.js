@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { commands } from "../src/commands.js";
-import { commandCoverage } from "../src/workflow-spec.js";
+import { ADMIN_COMMANDS, PAB_COMMANDS, SELF_SERVICE_COMMANDS, WORKFLOW_CHANNELS, commandCoverage } from "../src/workflow-spec.js";
 
 const commandMap = new Map(commands.map(command => [command.name, command]));
 
@@ -13,6 +13,19 @@ test("every registered slash command has exactly one documented handler path", (
   assert.deepEqual(coverage.undocumentedHandlers, []);
   assert.deepEqual(coverage.missingRequirements, []);
   assert.deepEqual(coverage.missingChannelChecks, []);
+});
+
+test("command groups and option/route keys are disjoint", () => {
+  const groups = [ADMIN_COMMANDS, PAB_COMMANDS, SELF_SERVICE_COMMANDS];
+  for (const command of commands) {
+    const memberships = groups.filter(group => group.has(command.name));
+    assert.equal(memberships.length, 1, `${command.name} must belong to exactly one permission group`);
+    const optionNames = command.options.map(option => option.name);
+    assert.equal(new Set(optionNames).size, optionNames.length, `${command.name} has duplicate option names`);
+  }
+  for (const [commandName, routeKeys] of Object.entries(WORKFLOW_CHANNELS)) {
+    assert.equal(new Set(routeKeys).size, routeKeys.length, `${commandName} has duplicate destination checks`);
+  }
 });
 
 test("every command has a safe description and valid Discord name", () => {
