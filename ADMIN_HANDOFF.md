@@ -8,7 +8,7 @@ The sandbox uses the existing live-style `IAA Director` role with Administrator 
 
 ## What the bot will and will not do
 
-It can create approved-format records, use real Discord member/role mentions, manage only explicitly allow-listed qualification roles, and process promotions or demotions only after PAB review and Command approval. It logs a durable local receipt for every successful bot-posted record.
+It can create approved-format records, use real Discord member/role mentions, manage only explicitly allow-listed qualification roles (up to five in one award/removal preview), and process promotions or demotions only after PAB review and Command approval. It logs a durable local receipt for every successful bot-posted record.
 
 All date-bearing forms use `MM/DD/YYYY`; promotion, role-award/removal, personnel-status, and training commands offer a **Today** prefill or manual entry; inactivity review uses `MM/DD/YYYY - MM/DD/YYYY`. The training time field uses `h:mm AM/PM - h:mm AM/PM` in the configured timezone label (for example, `4:00 PM - 5:00 PM MST`). Invalid dates or times are rejected before a preview is created, and training duration is derived from the validated range.
 

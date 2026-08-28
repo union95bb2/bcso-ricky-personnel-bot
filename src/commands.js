@@ -51,16 +51,24 @@ export const commands = [
     .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
   new SlashCommandBuilder()
     .setName("award-role")
-    .setDescription("Award an approved BCSO qualification or unit role.")
+    .setDescription("Award one or more approved BCSO qualification or unit roles.")
     .addUserOption(option => option.setName("member").setDescription("Member receiving the role.").setRequired(true))
     .addRoleOption(option => option.setName("role").setDescription("Approved qualification or unit role.").setRequired(true))
-    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES))
+    .addRoleOption(option => option.setName("role-2").setDescription("Optional second qualification or unit role."))
+    .addRoleOption(option => option.setName("role-3").setDescription("Optional third qualification or unit role."))
+    .addRoleOption(option => option.setName("role-4").setDescription("Optional fourth qualification or unit role."))
+    .addRoleOption(option => option.setName("role-5").setDescription("Optional fifth qualification or unit role.")),
   new SlashCommandBuilder()
     .setName("remove-role")
-    .setDescription("Remove an approved BCSO qualification or unit role after review.")
+    .setDescription("Remove one or more approved BCSO qualification or unit roles after review.")
     .addUserOption(option => option.setName("member").setDescription("Member losing the role.").setRequired(true))
     .addRoleOption(option => option.setName("role").setDescription("Approved qualification or unit role.").setRequired(true))
-    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES)),
+    .addStringOption(option => option.setName("date").setDescription("Choose Today to pre-fill the effective date.").setRequired(true).addChoices(...DATE_CHOICES))
+    .addRoleOption(option => option.setName("role-2").setDescription("Optional second qualification or unit role."))
+    .addRoleOption(option => option.setName("role-3").setDescription("Optional third qualification or unit role."))
+    .addRoleOption(option => option.setName("role-4").setDescription("Optional fourth qualification or unit role."))
+    .addRoleOption(option => option.setName("role-5").setDescription("Optional fifth qualification or unit role.")),
   new SlashCommandBuilder()
     .setName("department-record")
     .setDescription("Create the approved PAB department-record format from one mobile workflow.")

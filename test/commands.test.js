@@ -106,6 +106,25 @@ test("role-changing and date-bearing forms expose the same Today/manual control"
   }
 });
 
+test("award and remove role workflows expose up to five selectable roles", async () => {
+  for (const name of ["award-role", "remove-role"]) {
+    const command = commandMap.get(name);
+    assert.ok(command);
+    assert.equal(command.options.find(option => option.name === "role").required, true);
+    assert.deepEqual(
+      command.options.filter(option => option.name.startsWith("role")).map(option => option.name),
+      ["role", "role-2", "role-3", "role-4", "role-5"]
+    );
+    assert.ok(command.options.findIndex(option => option.name === "date") < command.options.findIndex(option => option.name === "role-2"), `${name} must place required date before optional roles`);
+  }
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  assert.match(source, /function selectedAwardRoles/);
+  assert.match(source, /member\.roles\.add\(missingRoleIds/);
+  assert.match(source, /member\.roles\.remove\(roleIds/);
+  assert.match(source, /Roles awarded/);
+  assert.match(source, /Roles removed/);
+});
+
 test("promotion-case target rank is a bounded canonical choice menu", () => {
   const targetRank = commandMap.get("promotion-case").options.find(option => option.name === "target-rank");
   assert.ok(targetRank);

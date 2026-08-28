@@ -109,6 +109,21 @@ function isApprovedAwardRole(role) {
     && !role.permissions.has(PermissionFlagsBits.Administrator);
 }
 
+const AWARD_ROLE_OPTION_NAMES = ["role", "role-2", "role-3", "role-4", "role-5"];
+
+function selectedAwardRoles(interaction) {
+  return AWARD_ROLE_OPTION_NAMES
+    .map(name => interaction.options.getRole(name))
+    .filter(Boolean)
+    .filter((role, index, roles) => roles.findIndex(candidate => candidate.id === role.id) === index);
+}
+
+function roleListText(data, action = "awarded") {
+  const ids = data.roleIds || (data.roleId ? [data.roleId] : []);
+  const names = data.roleNames || (data.roleName ? [data.roleName] : []);
+  return ids.map((id, index) => `<@&${id}> — ${names[index] || "selected role"}`).join("\n") || "No roles selected";
+}
+
 function awardRoleEligibilityMessage(role, action = "award") {
   if (!config.awardableRoleIds.size) {
     return `No qualification or unit roles are configured for PAB ${action}s yet. A server administrator must add the intended role ID to the protected \`AWARDABLE_ROLE_IDS\` setting, restart Ricky, then run \`/pab-health\`.`;
@@ -337,7 +352,7 @@ function roleAwardEmbed(data, title = "BCSO Qualification / Unit Role Award") {
     .setTitle(title)
     .addFields(
       { name: "Member", value: data.memberLabel, inline: false },
-      { name: "Role awarded", value: `<@&${data.roleId}> — ${data.roleName}`, inline: false },
+      { name: (data.roleIds?.length || 1) > 1 ? "Roles awarded" : "Role awarded", value: roleListText(data, "awarded"), inline: false },
       { name: "Effective date", value: data.effectiveDate, inline: true },
       { name: "Authorized by", value: data.authorizedBy, inline: true },
       { name: "Reason / reference", value: data.reason, inline: false }
@@ -352,7 +367,7 @@ function roleRemovalEmbed(data, title = "BCSO Qualification / Unit Role Removal"
     .setTitle(title)
     .addFields(
       { name: "Member", value: data.memberLabel, inline: false },
-      { name: "Role removed", value: `<@&${data.roleId}> — ${data.roleName}`, inline: false },
+      { name: (data.roleIds?.length || 1) > 1 ? "Roles removed" : "Role removed", value: roleListText(data, "removed"), inline: false },
       { name: "Effective date", value: data.effectiveDate, inline: true },
       { name: "Authorized by", value: data.authorizedBy, inline: true },
       { name: "Reason / reference", value: data.reason, inline: false }
@@ -713,14 +728,16 @@ async function showDemotionModal(interaction) {
 
 async function showRoleAwardModal(interaction) {
   const member = interaction.options.getMember("member");
-  const role = interaction.options.getRole("role");
-  if (!member || !role) return interaction.reply({ content: "The member and role must be available in this server.", ephemeral: true });
-  if (!isApprovedAwardRole(role)) return interaction.reply({ content: awardRoleEligibilityMessage(role, "award"), ephemeral: true });
+  const roles = selectedAwardRoles(interaction);
+  if (!member || !roles.length) return interaction.reply({ content: "The member and at least one role must be available in this server.", ephemeral: true });
+  const ineligible = roles.find(role => !isApprovedAwardRole(role));
+  if (ineligible) return interaction.reply({ content: awardRoleEligibilityMessage(ineligible, "award"), ephemeral: true });
   const memberIssue = memberManagementError(interaction, member);
   if (memberIssue) return interaction.reply({ content: memberIssue, ephemeral: true });
-  const roleIssue = roleManagementError(interaction, role);
+  const roleIssue = roles.map(role => roleManagementError(interaction, role)).find(Boolean);
   if (roleIssue) return interaction.reply({ content: roleIssue, ephemeral: true });
-  const modal = new ModalBuilder().setCustomId(`role-award-modal:${member.id}:${role.id}`).setTitle("BCSO role award record");
+  const draftId = pending.create({ type: "role-award-draft", createdBy: interaction.user.id, data: { memberId: member.id, roleIds: roles.map(role => role.id) } });
+  const modal = new ModalBuilder().setCustomId(`role-award-modal:${draftId}`).setTitle(roles.length > 1 ? "BCSO role awards record" : "BCSO role award record");
   const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
   if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
@@ -733,15 +750,18 @@ async function showRoleAwardModal(interaction) {
 
 async function showRoleRemovalModal(interaction) {
   const member = interaction.options.getMember("member");
-  const role = interaction.options.getRole("role");
-  if (!member || !role) return interaction.reply({ content: "The member and role must be available in this server.", ephemeral: true });
-  if (!isApprovedAwardRole(role)) return interaction.reply({ content: awardRoleEligibilityMessage(role, "removal"), ephemeral: true });
+  const roles = selectedAwardRoles(interaction);
+  if (!member || !roles.length) return interaction.reply({ content: "The member and at least one role must be available in this server.", ephemeral: true });
+  const ineligible = roles.find(role => !isApprovedAwardRole(role));
+  if (ineligible) return interaction.reply({ content: awardRoleEligibilityMessage(ineligible, "removal"), ephemeral: true });
   const memberIssue = memberManagementError(interaction, member);
   if (memberIssue) return interaction.reply({ content: memberIssue, ephemeral: true });
-  const roleIssue = roleManagementError(interaction, role);
+  const roleIssue = roles.map(role => roleManagementError(interaction, role)).find(Boolean);
   if (roleIssue) return interaction.reply({ content: roleIssue, ephemeral: true });
-  if (!member.roles.cache.has(role.id)) return interaction.reply({ content: "That member does not currently hold the selected role.", ephemeral: true });
-  const modal = new ModalBuilder().setCustomId(`role-removal-modal:${member.id}:${role.id}`).setTitle("BCSO role removal record");
+  const missing = roles.filter(role => !member.roles.cache.has(role.id));
+  if (missing.length) return interaction.reply({ content: `That member does not currently hold: ${missing.map(role => role.name).join(", ")}.`, ephemeral: true });
+  const draftId = pending.create({ type: "role-removal-draft", createdBy: interaction.user.id, data: { memberId: member.id, roleIds: roles.map(role => role.id) } });
+  const modal = new ModalBuilder().setCustomId(`role-removal-modal:${draftId}`).setTitle(roles.length > 1 ? "BCSO role removals record" : "BCSO role removal record");
   const effectiveDate = input("effective-date", `Effective date (${DATE_FORMAT_HINT})`, TextInputStyle.Short, { placeholder: DATE_FORMAT_HINT, maxLength: 64 });
   if (interaction.options.getString("date") === "today") effectiveDate.setValue(todayInTimeZone(config.timeZoneId));
   modal.addComponents(
@@ -1469,14 +1489,17 @@ async function handleModal(interaction) {
     return modalReply(interaction, { content: "Demotion request sent to the private PAB approvals channel for PAB review. After PAB forwards it, Command will be pinged for final approval. No roles changed. " + expiryText(id), embeds: [promotionEmbed(data, "Submitted — BCSO Personnel Action")], components: [approvalRow(id, "demotion", approvalLabel("demotion", "pab"))] });
   }
   if (kind === "role-award-modal") {
-    const [, memberId, roleId] = modalParts;
-    const [member, role] = await Promise.all([interaction.guild.members.fetch(memberId), interaction.guild.roles.fetch(roleId)]);
-    if (!role || !isApprovedAwardRole(role)) return modalReply(interaction, { content: "That role is no longer eligible for PAB awards." });
+    const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "role-award-draft" ? null : "This form expired. Run the command again.");
+    if (draft.error) return modalReply(interaction, { content: draft.error });
+    const member = await interaction.guild.members.fetch(draft.action.data.memberId);
+    const roles = await Promise.all(draft.action.data.roleIds.map(roleId => interaction.guild.roles.fetch(roleId)));
+    const ineligible = roles.find(role => !role || !isApprovedAwardRole(role));
+    if (ineligible) return modalReply(interaction, { content: "One or more selected roles are no longer eligible for PAB awards. Run the command again." });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
-      roleId: role.id,
-      roleName: clean(role.name, 100),
+      roleIds: roles.map(role => role.id),
+      roleNames: roles.map(role => clean(role.name, 100)),
       effectiveDate: normalizeDate(interaction.fields.getTextInputValue("effective-date")),
       authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
       reason: normalizeMultiline(interaction.fields.getTextInputValue("reason"))
@@ -1488,15 +1511,19 @@ async function handleModal(interaction) {
     return modalReply(interaction, { content: `Preview only — review the award, then approve to apply the role and post it. ${expiryText(id)}`, embeds: [embed], components: [approvalRow(id, "role-award")] });
   }
   if (kind === "role-removal-modal") {
-    const [, memberId, roleId] = modalParts;
-    const [member, role] = await Promise.all([interaction.guild.members.fetch(memberId), interaction.guild.roles.fetch(roleId)]);
-    if (!role || !isApprovedAwardRole(role)) return modalReply(interaction, { content: "That role is no longer eligible for PAB removal." });
-    if (!member.roles.cache.has(role.id)) return modalReply(interaction, { content: "That member no longer holds the selected role." });
+    const draft = pending.take(modalParts[1], interaction.user.id, action => action.type === "role-removal-draft" ? null : "This form expired. Run the command again.");
+    if (draft.error) return modalReply(interaction, { content: draft.error });
+    const member = await interaction.guild.members.fetch(draft.action.data.memberId);
+    const roles = await Promise.all(draft.action.data.roleIds.map(roleId => interaction.guild.roles.fetch(roleId)));
+    const ineligible = roles.find(role => !role || !isApprovedAwardRole(role));
+    if (ineligible) return modalReply(interaction, { content: "One or more selected roles are no longer eligible for PAB removal. Run the command again." });
+    const missing = roles.filter(role => !member.roles.cache.has(role.id));
+    if (missing.length) return modalReply(interaction, { content: `The member no longer holds: ${missing.map(role => role.name).join(", ")}. Run the command again.` });
     const data = {
       memberId: member.id,
       memberLabel: mentionWithLabel(member),
-      roleId: role.id,
-      roleName: clean(role.name, 100),
+      roleIds: roles.map(role => role.id),
+      roleNames: roles.map(role => clean(role.name, 100)),
       effectiveDate: normalizeDate(interaction.fields.getTextInputValue("effective-date")),
       authorizedBy: clean(interaction.fields.getTextInputValue("authorized-by"), 200),
       reason: normalizeMultiline(interaction.fields.getTextInputValue("reason"))
@@ -1724,13 +1751,15 @@ async function approveDemotion(interaction, action) {
 
 async function approveRoleAward(interaction, action) {
   const member = await interaction.guild.members.fetch(action.data.memberId);
-  const role = await interaction.guild.roles.fetch(action.data.roleId);
-  if (!role || !isApprovedAwardRole(role)) throw new Error("The selected role is no longer eligible for PAB awards.");
+  const roleIds = action.data.roleIds || (action.data.roleId ? [action.data.roleId] : []);
+  const roles = await Promise.all(roleIds.map(roleId => interaction.guild.roles.fetch(roleId)));
+  if (!roles.length || roles.some(role => !role || !isApprovedAwardRole(role))) throw new Error("One or more selected roles are no longer eligible for PAB awards.");
   const memberIssue = memberManagementError(interaction, member);
   if (memberIssue) throw new Error(memberIssue);
-  const roleIssue = roleManagementError(interaction, role);
+  const roleIssue = roles.map(role => roleManagementError(interaction, role)).find(Boolean);
   if (roleIssue) throw new Error(roleIssue);
-  if (!member.roles.cache.has(action.data.roleId)) await member.roles.add(action.data.roleId, `BCSO role award approved by ${interaction.user.tag}`);
+  const missingRoleIds = roleIds.filter(roleId => !member.roles.cache.has(roleId));
+  if (missingRoleIds.length) await member.roles.add(missingRoleIds, `BCSO role award approved by ${interaction.user.tag}`);
   const { message } = await sendRecord({
     guild: interaction.guild,
     baseChannelId: config.qualificationsRecordsChannelId,
@@ -1742,20 +1771,22 @@ async function approveRoleAward(interaction, action) {
   });
   saveReceipt("role-award", interaction, action, message);
   action.committed = true;
-  await audit("Qualification or unit role awarded", `${action.data.memberLabel} | ${action.data.roleName} | Awarded by <@${interaction.user.id}>`);
-  return interaction.update({ content: `Role applied and recorded: ${action.data.memberLabel} received **${action.data.roleName}**.`, embeds: [roleAwardEmbed(action.data)], components: [] });
+  await audit("Qualification or unit role(s) awarded", `${action.data.memberLabel} | ${(action.data.roleNames || [action.data.roleName]).join(", ")} | Awarded by <@${interaction.user.id}>`);
+  return interaction.update({ content: `Role${roleIds.length > 1 ? "s" : ""} applied and recorded: ${action.data.memberLabel} received **${(action.data.roleNames || [action.data.roleName]).join(", ")}**.`, embeds: [roleAwardEmbed(action.data)], components: [] });
 }
 
 async function approveRoleRemoval(interaction, action) {
   const member = await interaction.guild.members.fetch(action.data.memberId);
-  const role = await interaction.guild.roles.fetch(action.data.roleId);
-  if (!role || !isApprovedAwardRole(role)) throw new Error("The selected role is no longer eligible for PAB removal.");
+  const roleIds = action.data.roleIds || (action.data.roleId ? [action.data.roleId] : []);
+  const roles = await Promise.all(roleIds.map(roleId => interaction.guild.roles.fetch(roleId)));
+  if (!roles.length || roles.some(role => !role || !isApprovedAwardRole(role))) throw new Error("One or more selected roles are no longer eligible for PAB removal.");
   const memberIssue = memberManagementError(interaction, member);
   if (memberIssue) throw new Error(memberIssue);
-  const roleIssue = roleManagementError(interaction, role);
+  const roleIssue = roles.map(role => roleManagementError(interaction, role)).find(Boolean);
   if (roleIssue) throw new Error(roleIssue);
-  if (!member.roles.cache.has(action.data.roleId)) throw new Error("The member no longer holds the selected role.");
-  await member.roles.remove(action.data.roleId, `BCSO role removal approved by ${interaction.user.tag}`);
+  const missingRoleIds = roleIds.filter(roleId => !member.roles.cache.has(roleId));
+  if (missingRoleIds.length) throw new Error("The member no longer holds one or more selected roles. Run the command again.");
+  await member.roles.remove(roleIds, `BCSO role removal approved by ${interaction.user.tag}`);
   const { message } = await sendRecord({
     guild: interaction.guild,
     baseChannelId: config.qualificationsRecordsChannelId,
@@ -1767,8 +1798,8 @@ async function approveRoleRemoval(interaction, action) {
   });
   saveReceipt("role-removal", interaction, action, message);
   action.committed = true;
-  await audit("Qualification or unit role removed", `${action.data.memberLabel} | ${action.data.roleName} | Removed by <@${interaction.user.id}>`);
-  return interaction.update({ content: `Role removed and recorded: ${action.data.memberLabel} no longer has **${action.data.roleName}**.`, embeds: [roleRemovalEmbed(action.data)], components: [] });
+  await audit("Qualification or unit role(s) removed", `${action.data.memberLabel} | ${(action.data.roleNames || [action.data.roleName]).join(", ")} | Removed by <@${interaction.user.id}>`);
+  return interaction.update({ content: `Role${roleIds.length > 1 ? "s" : ""} removed and recorded: ${action.data.memberLabel} no longer has **${(action.data.roleNames || [action.data.roleName]).join(", ")}**.`, embeds: [roleRemovalEmbed(action.data)], components: [] });
 }
 
 async function approveDepartmentRecord(interaction, action) {

@@ -226,8 +226,8 @@ cmd_rows = [
     ["/promotion-case", "PAB + PSD + OOTS", "Tracked verification ticket for time in rank, hours, and PSD review; posts complete case to OOTS without changing roles.", "No"],
     ["/promotion", "PAB then Command", "Creates promotion request; Command approval is the role-change control point.", "Only after Command approval"],
     ["/demotion", "PAB then Command", "Guided lower-rank request; Command approval removes configured rank role(s), adds the selected lower rank, and posts/audits the demotion.", "Only after Command approval"],
-    ["/award-role", "PAB", "Adds one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
-    ["/remove-role", "PAB", "Removes one explicitly allow-listed qualification/unit role after preview approval.", "Yes, allow-list only"],
+    ["/award-role", "PAB", "Adds up to five explicitly allow-listed qualification/unit roles in one preview and approval.", "Yes, allow-list only"],
+    ["/remove-role", "PAB", "Removes up to five explicitly allow-listed qualification/unit roles in one preview and approval.", "Yes, allow-list only"],
     ["/personnel-status", "PAB", "Records leave, return, transfer, or separation; no access change.", "No"],
     ["/inactivity-review", "PAB", "Neutral activity review; computes last activity when the field is blank.", "No"],
     ["/pab-announcement", "PAB", "Reviewed announcement with optional safe notification role.", "No"],
@@ -319,9 +319,9 @@ story += bullets([
 ])
 story += [P("Award / remove role", "H2Manual")]
 story += bullets([
-    "PAB selects a member and an allow-listed qualification/unit role.",
+    "PAB selects a member and one to five allow-listed qualification/unit roles.",
     "Ricky Bot refuses rank, PAB, Command, managed, Administrator, or unallow-listed roles.",
-    "PAB reviews the private preview and approves the single role mutation.",
+    "PAB reviews the one combined preview and approves the batch role mutation; all selected roles are validated before any change is applied.",
 ])
 story += [P("Inactivity review", "H2Manual")]
 story += bullets([
@@ -457,7 +457,7 @@ story += [P("1. Run the command. 2. Select real members/roles. 3. Choose Today o
 story += [P("Promotion", "H2Manual")]
 story += [P("/promotion creates a private request. Command approval is required. No promotion is automatic, including after training completion.")]
 story += [P("Role award/removal", "H2Manual")]
-story += [P("Use only an allow-listed qualification/unit role. Preview approval is required. Rank, PAB, Command, managed, moderation, and Administrator roles are blocked.")]
+story += [P("Use only allow-listed qualification/unit roles. Select one required role plus up to four optional roles for a single preview and approval. Rank, PAB, Command, managed, moderation, and Administrator roles are blocked.")]
 story += [P("Inactivity", "H2Manual")]
 story += [P("Use /inactivity-review for neutral staff follow-up. Leave last-known activity blank to use the latest tracked activity. It never disciplines, removes, or changes access.")]
 story += [P("Correction", "H2Manual")]
