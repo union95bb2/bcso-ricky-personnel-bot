@@ -113,3 +113,14 @@ The complete command matrix was rerun in `BCSO Bot Demo | TEST ONLY` (`153938317
 | `/correct-record` | PASS | Valid message link produced a preview; approval posted a correction while preserving the original. |
 
 The temporary award-role mutation was cleaned up and a final member-profile check confirmed `Rickya128` returned to `@Deputy`. Fresh browser evidence is in [`artifacts/command-tests/`](artifacts/command-tests/), including the final health capture and remaining-command overview.
+
+## Fresh stress rerun - 2026-08-27
+
+The current sandbox deployment was rechecked after the live-style channel cleanup and routing migration. The live server was not opened or modified.
+
+- `npm test`: **82/82 passed**.
+- Command-surface audit: **24 registered commands, 24 unique names, no duplicate options, no overlapping permission groups, and no duplicate destination check within a workflow**. Shared destinations such as `#department-records` for personnel and qualification records are intentional routing, not duplicate commands.
+- Sandbox live checks: `/setup-status`, `/pab-health`, `/pab-dashboard`, `/export-audit`, `/roster-sync` staged-disabled guard, `/my-birthday`, and `/remove-birthday` all completed with specific responses and no command failures. Birthday test data was removed after verification.
+- `/pab-health`: all required destinations reachable, required bot permissions present, and every configured rank/award role manageable. Optional birthday, milestone, Google, and Forum integrations correctly reported disabled/not configured.
+- Role audit: 59 expected live-style roles checked; **0 missing, 0 color mismatches, 0 unexpected gray roles**. The two reported order mismatches are the known duplicate divider-name comparison false positives; the exact sandbox manifest validator reported the role order as matching.
+- Container logs: Ricky online, durable store ready, startup readiness gate passed. The only log line after startup was discord.js's non-failing deprecation warning for the legacy `ephemeral` response option.
