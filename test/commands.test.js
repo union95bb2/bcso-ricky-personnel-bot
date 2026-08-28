@@ -111,16 +111,24 @@ test("award and remove role workflows expose up to five selectable roles", async
     const command = commandMap.get(name);
     assert.ok(command);
     assert.match(command.description, /1–5/);
-    assert.equal(command.options.find(option => option.name === "role").required, true);
-    assert.match(command.options.find(option => option.name === "role").description, /role-2 through role-5/);
+    const firstRole = command.options.find(option => option.name === "role");
+    assert.equal(firstRole.required, true);
+    assert.equal(firstRole.type, 3);
+    assert.equal(firstRole.autocomplete, true);
+    assert.match(firstRole.description, /role-2 through role-5/);
     assert.deepEqual(
       command.options.filter(option => option.name.startsWith("role")).map(option => option.name),
       ["role", "role-2", "role-3", "role-4", "role-5"]
     );
+    for (const option of command.options.filter(option => option.name.startsWith("role"))) {
+      assert.equal(option.type, 3);
+      assert.equal(option.autocomplete, true);
+    }
     assert.ok(command.options.findIndex(option => option.name === "date") < command.options.findIndex(option => option.name === "role-2"), `${name} must place required date before optional roles`);
   }
   const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
   assert.match(source, /function selectedAwardRoles/);
+  assert.match(source, /respondAwardRoleAutocomplete/);
   assert.match(source, /member\.roles\.add\(missingRoleIds/);
   assert.match(source, /member\.roles\.remove\(roleIds/);
   assert.match(source, /Roles awarded/);

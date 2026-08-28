@@ -111,11 +111,12 @@ function isApprovedAwardRole(role) {
 
 const AWARD_ROLE_OPTION_NAMES = ["role", "role-2", "role-3", "role-4", "role-5"];
 
-function selectedAwardRoles(interaction) {
-  return AWARD_ROLE_OPTION_NAMES
-    .map(name => interaction.options.getRole(name))
+async function selectedAwardRoles(interaction) {
+  const roleIds = AWARD_ROLE_OPTION_NAMES
+    .map(name => interaction.options.getString(name))
     .filter(Boolean)
-    .filter((role, index, roles) => roles.findIndex(candidate => candidate.id === role.id) === index);
+    .filter((roleId, index, ids) => ids.indexOf(roleId) === index);
+  return Promise.all(roleIds.map(roleId => interaction.guild.roles.fetch(roleId).catch(() => null)));
 }
 
 function roleListText(data, action = "awarded") {
@@ -728,7 +729,7 @@ async function showDemotionModal(interaction) {
 
 async function showRoleAwardModal(interaction) {
   const member = interaction.options.getMember("member");
-  const roles = selectedAwardRoles(interaction);
+  const roles = await selectedAwardRoles(interaction);
   if (!member || !roles.length) return interaction.reply({ content: "The member and at least one role must be available in this server.", ephemeral: true });
   const ineligible = roles.find(role => !isApprovedAwardRole(role));
   if (ineligible) return interaction.reply({ content: awardRoleEligibilityMessage(ineligible, "award"), ephemeral: true });
@@ -748,9 +749,24 @@ async function showRoleAwardModal(interaction) {
   return interaction.showModal(modal);
 }
 
+async function respondAwardRoleAutocomplete(interaction) {
+  const focused = interaction.options.getFocused(true);
+  if (!focused?.name?.startsWith("role")) return interaction.respond([]);
+  const query = String(focused.value || "").trim().toLowerCase();
+  const selected = new Set(AWARD_ROLE_OPTION_NAMES.map(name => interaction.options.getString(name)).filter(Boolean));
+  const roles = await Promise.all([...config.awardableRoleIds].map(id => interaction.guild.roles.fetch(id).catch(() => null)));
+  const choices = roles
+    .filter(role => role && isApprovedAwardRole(role) && !selected.has(role.id))
+    .filter(role => !query || role.name.toLowerCase().includes(query))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 25)
+    .map(role => ({ name: role.name.slice(0, 100), value: role.id }));
+  return interaction.respond(choices);
+}
+
 async function showRoleRemovalModal(interaction) {
   const member = interaction.options.getMember("member");
-  const roles = selectedAwardRoles(interaction);
+  const roles = await selectedAwardRoles(interaction);
   if (!member || !roles.length) return interaction.reply({ content: "The member and at least one role must be available in this server.", ephemeral: true });
   const ineligible = roles.find(role => !isApprovedAwardRole(role));
   if (ineligible) return interaction.reply({ content: awardRoleEligibilityMessage(ineligible, "removal"), ephemeral: true });
@@ -1926,6 +1942,10 @@ client.on(Events.InteractionCreate, async interaction => {
     // outside the configured guild so an old/stale deployment cannot answer
     // commands in another sandbox or race the active instance.
     if (interaction.guildId !== config.guildId) return;
+    if (interaction.isAutocomplete()) {
+      if (interaction.commandName === "award-role" || interaction.commandName === "remove-role") return respondAwardRoleAutocomplete(interaction);
+      return interaction.respond([]);
+    }
     if (interaction.isChatInputCommand()) {
       if (SELF_SERVICE_COMMANDS.has(interaction.commandName)) {
         if (interaction.commandName === "my-birthday") {

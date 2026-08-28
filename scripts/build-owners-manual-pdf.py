@@ -319,7 +319,7 @@ story += bullets([
 ])
 story += [P("Award / remove role", "H2Manual")]
 story += bullets([
-    "PAB selects a member and one to five allow-listed qualification/unit roles.",
+    "PAB selects a member and one to five allow-listed qualification/unit roles from Ricky's filtered autocomplete fields; rank, divider, and administrator roles do not appear in the picker.",
     "Ricky Bot refuses rank, PAB, Command, managed, Administrator, or unallow-listed roles.",
     "PAB reviews the one combined preview and approves the batch role mutation; all selected roles are validated before any change is applied.",
 ])
