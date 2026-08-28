@@ -110,7 +110,9 @@ test("award and remove role workflows expose up to five selectable roles", async
   for (const name of ["award-role", "remove-role"]) {
     const command = commandMap.get(name);
     assert.ok(command);
+    assert.match(command.description, /1–5/);
     assert.equal(command.options.find(option => option.name === "role").required, true);
+    assert.match(command.options.find(option => option.name === "role").description, /role-2 through role-5/);
     assert.deepEqual(
       command.options.filter(option => option.name.startsWith("role")).map(option => option.name),
       ["role", "role-2", "role-3", "role-4", "role-5"]
