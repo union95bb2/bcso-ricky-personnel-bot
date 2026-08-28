@@ -350,6 +350,8 @@ story += bullets([
 ])
 story += [P("Host preparation", "H2Manual")]
 story += [P("Copy .env.example to .env on the protected host. Fill the IDs below. Never commit .env, data/, SQLite files, screenshots containing private personnel data, or credentials.")]
+story += [P("Discord ID quick reminder", "H2Manual")]
+story += [P("The sandbox/server may provide `/giveid` or `/id` utility commands to surface a Discord ID for configuration. If the command or argument picker is open, press Backspace to back out of it. These are server/Discord utilities, not Ricky Bot workflow commands.", "SmallManual")]
 env_rows = [
     ["Variable", "Required value"],
     ["DISCORD_TOKEN", "Protected bot token; never printed or pasted into Discord."],

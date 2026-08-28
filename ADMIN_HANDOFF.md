@@ -70,6 +70,7 @@ The normal text channels are the safe baseline and remain required fallbacks. Fo
 ## Configuration
 
 1. Enable Discord Developer Mode.
+   If the sandbox/server exposes the utility commands `/giveid` or `/id`, use them to surface a Discord ID for configuration. Press **Backspace** to back out of the active command/argument picker. These utilities are provided by Discord/server tooling, not by Ricky Bot.
 2. Copy the server, channel, and role IDs.
 3. Copy `.env.example` to `.env` and fill it out on the bot host.
 4. Protect `.env` and `data/` so only the bot host administrator can read them. Never send the bot token in Discord.
