@@ -282,14 +282,14 @@ story += [P("Use the existing full-name BCSO authorization roles rather than cre
 story += [P("Recommended records category", "H2Manual")]
 story += [table([
     ["Channel", "Ordinary members", "PAB/Command", "Ricky Bot"],
-    ["#training-records", "View", "View/send", "View/send/embed"],
-    ["#personnel-records", "View", "View/send", "View/send/embed"],
-    ["#pab-approvals", "No access", "View/send", "View/send/embed"],
-    ["#pab-audit-log", "No access", "View", "View/send/embed"],
-    ["#qualification-records", "View", "View/send", "View/send/embed"],
-    ["#promotion-announcements", "View", "View/send", "View/send/embed"],
+    ["#fto-training-records", "View", "View/send", "View/send/embed"],
+    ["#department-records", "View", "View/send", "View/send/embed"],
+    ["#pab-general (approvals)", "View", "View/send", "View/send/embed"],
+    ["#dept-changelog (audit)", "View", "View", "View/send/embed"],
+    ["#department-records (qualifications)", "View", "View/send", "View/send/embed"],
+    ["#dept-announcements (promotions)", "View", "View/send", "View/send/embed"],
     ["#pab-announcements", "View", "View/send", "View/send/embed"],
-    ["#pab-inactivity-review", "No access", "View/send", "View/send/embed"],
+    ["#deputy-inactivity", "No access", "View/send", "View/send/embed"],
 ], [1.75 * inch, 1.35 * inch, 1.65 * inch, 2.25 * inch])]
 story += [P("Phase 2 Forum routing", "H2Manual")]
 story += [P("Set TRAINING_RECORDS_FORUM_CHANNEL_ID for one Ricky-posted thread per trainee and PERSONNEL_JACKETS_FORUM_CHANNEL_ID for one Ricky-posted personnel-jacket thread per member. Keep the normal text-channel IDs configured as fallbacks until Forum permissions are tested. Give Ricky View Channel, Send Messages, Embed Links, Read Message History, and Create Public Threads; make ordinary members/PAB/Command view-only if the thread must be bot-only. Ricky creates or reopens a thread only after approval; previews never enter record threads. /personnel-history provides the indexed lookup so staff do not need to search thread lists manually.", "SmallManual")]
@@ -306,7 +306,7 @@ story += bullets([
 story += [P("Promotion", "H2Manual")]
 story += bullets([
     "PAB runs /promotion and submits the factual request. No role changes occur.",
-    "The request routes to private #pab-approvals.",
+    "The request routes to the configured live-style PAB channel.",
     "PAB clicks PAB review & forward after checking the member, selected current/target ranks, date, authorization, and reference.",
     "Ricky Bot updates the request and pings Command. Only a different Command member can click Command approve & apply; the PAB reviewer cannot self-approve. That final action can replace configured rank roles, post the personnel record, announce the promotion, and log the audit receipt. Final record and announcement posts mention the member plus the configured PAB and Command roles in their respective destinations.",
 ])
@@ -331,7 +331,7 @@ story += bullets([
 ])
 story += [P("Approval expiry, reminders, and renewal", "H2Manual")]
 story += bullets([
-    "A preview lasts PENDING_ACTION_TTL_MINUTES (7 days by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in private #pab-approvals during the PENDING_REMINDER_MINUTES window (1 day by default).",
+    "A preview lasts PENDING_ACTION_TTL_MINUTES (7 days by default; administrators may configure 1 hour to 7 days). Every preview shows an absolute expiry timestamp and Discord's live relative countdown. A role-ping reminder is sent in the configured live-style PAB channel during the PENDING_REMINDER_MINUTES window (1 day by default).",
     "Every request pings the PAB role. Promotions and demotions use two human gates: PAB clicks PAB review & forward, Ricky Bot updates the same request and pings Command, then a different Command member clicks Command approve & apply for the final role change. The PAB reviewer cannot self-approve. The creator can click Renew to create a fresh approval window; Command may also renew a rank-change request. The original action is still rechecked against current members, roles, and permissions at approval time.",
     "Expired previews fail closed; they never apply a late role change. Run the command again when facts or authorization need to be refreshed.",
 ])

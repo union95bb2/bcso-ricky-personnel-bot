@@ -50,15 +50,20 @@ Use this baseline first and never remove these IDs in case we need to return to 
   - `#fto-formats`
   - `#evaluation-responses`
   - `#fto-training-records`
-- PAB BOT WORKFLOWS | TEST ONLY (private)
-  - `#training-records`
-  - `#personnel-records`
-  - `#pab-approvals`
-  - `#pab-audit-log`
-  - `#qualification-records`
-  - `#pab-inactivity-review`
-  - `#promotion-announcements`
-  - `#pab-announcements`
+Ricky Bot does not create a synthetic workflow category in the sandbox. Its
+destinations are mapped to the existing live-style channels so the sandbox
+looks like the live server while still exercising every workflow:
+
+| Ricky destination | Existing live-style channel |
+| --- | --- |
+| Training records | `#fto-training-records` |
+| Personnel records | `#department-records` |
+| PAB approvals | `#pab-general` |
+| Audit log | `#dept-changelog` |
+| Qualification records | `#department-records` |
+| Inactivity review | `#deputy-inactivity` |
+| Promotion announcements | `#dept-announcements` |
+| PAB announcements | `#pab-announcements` |
 
 The demo includes a non-managed `Ricky Controller` role for a clean hierarchy if the server owner assigns it to Ricky Bot. The role that is actually assigned to Ricky Bot is what matters: `/pab-health` reports Ricky Bot's highest assigned role. A server owner must move that actual role above `Deputy`, `Corporal`, and `Test FTO` before testing promotion, award-role, or remove-role. In the current screenshot the highest assigned role is `BCSO Personnel Bot`, so moving an unassigned `Ricky Controller` role would not fix the error. Discord will not let Ricky Bot manage a role that is at or above its highest role; run `/pab-health` after reordering to verify the result.
 

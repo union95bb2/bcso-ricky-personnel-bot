@@ -62,18 +62,19 @@ Department records document selected roles but do not change them. Use `/award-r
 
 ## Discord layout to create
 
-Create a `PAB RECORDS` category with these channels:
+Use the existing live-style channels in a clone. Do not add a synthetic
+`PAB BOT WORKFLOWS` category just for Ricky. The sandbox routes each record to
+the corresponding live-style channel below:
 
 | Channel | Normal members | PAB | Command | Bot |
 | --- | --- | --- | --- | --- |
-| `#training-records` | View only | View/send | View/send | Send/embed |
-| `#personnel-records` | View only | View/send | View/send | Send/embed |
-| `#pab-approvals` | No access | View/send | View/send | Send/embed |
-| `#pab-audit-log` | No access | View only | View only | Send/embed |
-| `#qualification-records` | View only | View/send | View/send | Send/embed |
-| `#promotion-announcements` | View only | View/send | View/send | Send/embed |
+| `#fto-training-records` | View only | View/send | View/send | Send/embed |
+| `#department-records` (personnel + qualifications) | View only | View/send | View/send | Send/embed |
+| `#pab-general` (approvals) | PAB policy | View/send | View/send | Send/embed |
+| `#dept-changelog` (audit) | View only | View only | View only | Send/embed |
+| `#dept-announcements` (promotions) | View only | View/send | View/send | Send/embed |
 | `#pab-announcements` | View only | View/send | View/send | Send/embed |
-| `#pab-inactivity-review` | No access | View/send | View/send | Send/embed |
+| `#deputy-inactivity` | No access | View/send | View/send | Send/embed |
 
 Phase 2 supports optional Forum routing. Set `TRAINING_RECORDS_FORUM_CHANNEL_ID` to keep one Ricky-only trainee thread containing finalized training records, and `PERSONNEL_JACKETS_FORUM_CHANNEL_ID` to keep one Ricky-only personnel-jacket thread per member. Configure the Forum channel's permission overwrites so ordinary members/PAB/Command can **view** but only Ricky can **send/create threads**; Forum routing does not override Discord permissions. The existing text-channel IDs remain required fallbacks until the Forum channels are created and permission-tested. Ricky creates or reopens the member thread only after approval; previews and approval buttons never enter the record threads.
 
@@ -140,7 +141,7 @@ AWARDABLE_ROLE_IDS="567890123456789012,678901234567890123"
 - Internal Affairs matters, conduct complaints, investigations, findings, and discipline are not part of this bot.
 - Inactivity review is a neutral PAB staff-attention record only; it does not determine misconduct, trigger discipline, or automatically remove anyone.
 - Corrections preserve the original message and link the correction to it.
-- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (7 days by default; configurable from 1 hour to 7 days), show both an absolute Discord timestamp and live relative countdown, receive a private PAB/Command reminder one day before expiry, and expose a creator-authorized **Renew** control. Every new approval request pings the PAB role in private `#pab-approvals`; after PAB forwards a promotion or demotion, Ricky Bot updates the request and pings Command for the final role-changing approval. Expired actions fail closed and require fresh validation before approval.
+- Preview approvals survive a bot restart. They expire after `PENDING_ACTION_TTL_MINUTES` (7 days by default; configurable from 1 hour to 7 days), show both an absolute Discord timestamp and live relative countdown, receive a private PAB/Command reminder one day before expiry, and expose a creator-authorized **Renew** control. Every new approval request pings the PAB role in the configured live-style PAB channel; after PAB forwards a promotion or demotion, Ricky Bot updates the request and pings Command for the final role-changing approval. Expired actions fail closed and require fresh validation before approval.
 - `/my-birthday` is opt-in and stores month/day only; `/remove-birthday` deletes it. With `BIRTHDAY_CHANNEL_ID`, Ricky Bot posts one annual birthday notice and deduplicates it.
 - With `SERVICE_MILESTONES_CHANNEL_ID`, Ricky Bot can post one-month, three-month, six-month, and yearly notices from the Discord join date, plus the same milestones from Ricky Bot's own approved promotion receipts for time in rank. These are informational and never change rank or access.
 - `/roster-sync` is an administrator-only, read-only comparison against a configured Google Sheet. It is staged behind `GOOGLE_SHEETS_ENABLED=false` until a server owner explicitly activates it. It reports missing Discord IDs and rank mismatches; it never applies spreadsheet-driven role changes.
@@ -180,7 +181,7 @@ The release gate is documented in [`RELEASE_READINESS.md`](RELEASE_READINESS.md)
 - Ensure every current rank role is in `RANK_ROLE_IDS`; Ricky adds only the configured target role during promotion and does not remove prior rank roles.
 - Confirm that PAB and Command role IDs are correct.
 - Keep Ricky Bot's actual highest assigned role (shown by `/pab-health`) above every configured `RANK_ROLE_IDS` and `AWARDABLE_ROLE_IDS` role, and above PAB if PAB members may be promotion/qualification targets. Discord cannot change roles on a member whose highest role is at or above the bot. Moving an unassigned controller role does not change the bot's hierarchy; PAB, Command, Administrator, and moderation roles still remain protected by the bot's allow-lists.
-- Keep `#pab-audit-log` private.
+- Keep the configured audit destination (the sandbox maps this to `#dept-changelog`) staff-visible.
 - Back up important personnel records according to the BCSO server's own rules.
 
 ## Still needed before live deployment

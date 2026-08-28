@@ -49,21 +49,21 @@ If Discord marks the bot integration role as managed and it cannot be moved, cre
 
 ### Channels and permissions
 
-Create a private PAB records category or map these variables to approved existing channels. The bot needs View Channel, Send Messages, and Embed Links in each configured destination.
+For a visual clone, map these variables to the existing live-style channels; do not create a synthetic `PAB BOT WORKFLOWS` category. The bot needs View Channel, Send Messages, and Embed Links in each configured destination.
 
 | Environment variable | Recommended channel | Audience |
 | --- | --- | --- |
-| `TRAINING_RECORDS_CHANNEL_ID` | `#training-records` | Read-only to ordinary members |
-| `PERSONNEL_RECORDS_CHANNEL_ID` | `#personnel-records` | Read-only to ordinary members |
-| `PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID` | `#promotion-announcements` | Department-visible |
-| `AUDIT_LOG_CHANNEL_ID` | `#pab-audit-log` | PAB/Command only |
+| `TRAINING_RECORDS_CHANNEL_ID` | `#fto-training-records` | Read-only to ordinary members |
+| `PERSONNEL_RECORDS_CHANNEL_ID` | `#department-records` | Read-only to ordinary members |
+| `PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID` | `#dept-announcements` | Department-visible |
+| `AUDIT_LOG_CHANNEL_ID` | `#dept-changelog` | Staff-visible |
 | `DEPARTURE_LOG_CHANNEL_ID` | `#pab-departures` (optional) | PAB/Command only; falls back to `AUDIT_LOG_CHANNEL_ID` |
-| `PAB_APPROVALS_CHANNEL_ID` | `#pab-approvals` | PAB/Command only |
-| `QUALIFICATIONS_RECORDS_CHANNEL_ID` | `#qualification-records` | Read-only to ordinary members |
+| `PAB_APPROVALS_CHANNEL_ID` | `#pab-general` | PAB/Command workflow |
+| `QUALIFICATIONS_RECORDS_CHANNEL_ID` | `#department-records` | Read-only to ordinary members |
 | `PAB_ANNOUNCEMENTS_CHANNEL_ID` | `#pab-announcements` | Department-visible |
 
 Final promotion and demotion records are posted to `PERSONNEL_RECORDS_CHANNEL_ID`, while the department announcement is posted to `PROMOTIONS_ANNOUNCEMENTS_CHANNEL_ID`. Each final post mentions the member and the configured full-name PAB and Command roles. The approval request itself is posted to `PAB_APPROVALS_CHANNEL_ID`: the initial request pings PAB, and PAB forwarding updates or creates the request with a Command-role ping.
-| `INACTIVITY_REVIEW_CHANNEL_ID` | `#pab-inactivity-review` | PAB/Command only; neutral staff-attention review |
+| `INACTIVITY_REVIEW_CHANNEL_ID` | `#deputy-inactivity` | PAB/Command only; neutral staff-attention review |
 
 The normal text channels are the safe baseline and remain required fallbacks. For Phase 2, an administrator may create two Forum channels and set `TRAINING_RECORDS_FORUM_CHANNEL_ID` and `PERSONNEL_JACKETS_FORUM_CHANNEL_ID`. Ricky then creates one append-only thread per trainee/member only after approval; it never places previews or approval buttons in those threads. The Forum channels must grant Ricky View Channel, Send Messages, Embed Links, Read Message History, and Create Public Threads, while ordinary members/PAB/Command should have view-only access if the record thread is intended to be bot-only. Run `/pab-health` after adding the IDs.
 
@@ -141,7 +141,7 @@ Technical errors are written as structured JSON to Ricky's process error stream.
 
 ## Data retention and backup
 
-- Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals, searchable metadata/record payloads, and promotion-case check/event history. `data/runtime-config.json` is a separate private, machine-written override file for administrator-approved channel routing and activity-source IDs; it contains no token or role credentials. Back up both under the server's approved personnel-record retention process, but do not commit either file to GitHub. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (7 days by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one day by default), and offers the submitting PAB member a **Renew** button. Every request is posted to private `#pab-approvals` with a PAB role ping. Promotions and demotions use two human gates: PAB reviews and forwards the request, then Ricky pings Command for the final role-changing approval. The final Command approver must be a different person from the PAB reviewer; Ricky rejects self-approval. `/promotion-case` remains the separate verification path for time, hours, and PSD evidence. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
+- Discord channels are the published record. `data/pab.sqlite` is a private local operational ledger containing pending approvals, searchable metadata/record payloads, and promotion-case check/event history. `data/runtime-config.json` is a separate private, machine-written override file for administrator-approved channel routing and activity-source IDs; it contains no token or role credentials. Back up both under the server's approved personnel-record retention process, but do not commit either file to GitHub. The bot keeps unapproved previews for `PENDING_ACTION_TTL_MINUTES` (7 days by default; allowed range 1 hour–7 days), renders an absolute expiry timestamp plus Discord's live relative countdown, sends a role-ping reminder during the configured `PENDING_REMINDER_MINUTES` window (one day by default), and offers the submitting PAB member a **Renew** button. Every request is posted to the configured live-style PAB channel with a PAB role ping. Promotions and demotions use two human gates: PAB reviews and forwards the request, then Ricky pings Command for the final role-changing approval. The final Command approver must be a different person from the PAB reviewer; Ricky rejects self-approval. `/promotion-case` remains the separate verification path for time, hours, and PSD evidence. Expired actions fail closed; renewal creates a fresh expiration window, while final approval still re-checks current Discord permissions and roles. Expired rows are retained briefly for safe renewal and then purged.
 
 Optional self-service and comparison features are controlled separately: `/my-birthday` stores only an opt-in month/day, `/remove-birthday` deletes it, and `/roster-sync` performs a read-only comparison against a configured Google Sheet. `/promotion-check` can additionally read a separate promotion-evaluation sheet and report rank/evidence alignment in the PAB preview. Google Sheets is staged behind `GOOGLE_SHEETS_ENABLED=false` and `GOOGLE_PROMOTION_TESTS_ENABLED=false` until a server owner explicitly activates each source. Ricky Bot never applies spreadsheet-driven role changes or makes an IA/discipline decision; PAB and Command remain the approvers.
 
